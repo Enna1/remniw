@@ -1,0 +1,8 @@
+func f() int {
+    return 17;
+}
+
+func main() int {
+    *f=10;
+    return 0;
+}

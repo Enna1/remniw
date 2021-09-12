@@ -1,0 +1,23 @@
+func double(v) int {
+  return 2*v;
+}
+
+func testme(x int, y int) int {
+  var z, res int;
+  res = 0;
+  z = double(y);
+  if (z==x) {
+    if (x > y + 10) {
+      error 42;
+    }
+    error 41;
+  }
+  return res;
+}
+
+func main() int {
+  var ix, iy int;
+  ix = input;
+  iy = input;
+  return testme(ix, iy);
+}

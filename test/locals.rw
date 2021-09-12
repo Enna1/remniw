@@ -1,0 +1,27 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func g(a *int) int {
+    return *a;
+}
+
+func f() int {
+    var a int;
+    var b int;
+    a=10;
+    if( a == 10 ){
+        b=g(&a);
+    }
+
+    output a;
+    output b;
+    return 0;
+}
+
+func main() int {
+    return f();
+}
+
+// CHECK: 10
+// CHECK-NEXT: 10

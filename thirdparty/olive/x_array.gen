@@ -1,0 +1,171 @@
+/*
+   FILE: x_array.gen
+
+   Copyright (c) 1997 Princeton University
+
+   All rights reserved.
+
+   This software is to be used for non-commercial purposes only,
+   unless authorized permission to do otherwise is obtained.
+   For more information, contact spam@ee.princeton.edu
+*/
+
+ifelse(TARGET,`interface',`define(DECLARE_X_ARRAY_0,`
+
+/*
+
+Arguments are (Type_name = $1,Pointer_Type = $2)
+
+*/
+
+typedef X_arrayp $1;
+
+#define $1_create(sz)      (($1 *)X_arrayp_create(sz))
+#define $1_destroy(tl)     X_arrayp_destroy(tl)
+#define $1_fetch(tl, i)    (($2)X_arrayp_fetch(tl, i))
+#define $1_set(tl, i, t)   X_arrayp_set(tl, i, t)
+#define $1_grow(tl, i)     X_arrayp_grow(tl, i)
+#define $1_expand(tl, i)   X_arrayp_expand(tl, i)
+#define $1_extend(tl, t)   X_arrayp_extend(tl, t)
+#define $1_ub(tl)          X_arrayp_ub(tl)
+#define $1_grab_from(d, s) X_arrayp_grab_from(d, s)
+#define $1_freeze(tl)      X_arrayp_freeze(tl)
+')')
+
+/*
+  generalized for arbitray sized element.
+  Implemented as a macro.
+  Beware: User is responsible for instantiating implementation
+  */
+ifelse(TARGET,`interface',`define(DECLARE_X_ARRAY,`
+typedef struct _$1
+{
+  int frozen;
+  int size;
+  int hi;
+  $2 *data;
+} $1;
+
+$1 *$1_create(int sz);
+void $1_init($1 *,int sz);
+void $1_destroy($1 *);
+$2 $1_fetch($1 *,int);
+$2 *$1_index($1 *,int);
+void $1_set($1 *,int,$2);
+void $1_grow($1 *,int);
+void $1_expand($1 *,int);
+void $1_extend0($1 *,$2);
+$2 *$1_extend1($1 *);
+int $1_ub($1 *);
+void $1_grab_from($1 *,$1 *);
+void $1_freeze($1 *);
+')')
+
+ifelse(TARGET,`implementation',`define(DECLARE_X_ARRAY,`
+
+#include "x_array.h"
+#include <assert.h>
+
+$1 *$1_create(int sz)
+{
+  $1 *xa=($1 *)malloc(sizeof($1));
+  $1_init(xa,sz);
+  return xa;
+}
+
+void $1_init($1 *xa,int sz)
+{
+  xa->frozen=0;
+  xa->size=sz;
+  xa->hi=0;
+  xa->data= ($2 *)malloc(sz*sizeof($2));
+}
+
+void $1_destroy($1 *xa)
+{
+  free(xa->data);
+  free(xa);
+}
+
+$2 $1_fetch($1 *xa,int i)
+{
+  assert(0<=i && i<xa->hi);
+  return xa->data[i];
+}
+
+$2 *$1_index($1 *xa,int i)
+{
+  assert(0<=i && i<xa->hi);
+  return &xa->data[i];
+}
+
+void $1_set($1 *xa,int i,$2 v)
+{
+  assert(0<=i && i<xa->hi);
+  xa->data[i] = v;
+}
+
+void $1_grow($1 *xa,int nhi)
+{
+    $1_expand(xa,nhi);
+    xa->hi=nhi;
+}
+
+void $1_expand($1 *xa,int nsz)
+{
+  int i;
+  $2 *temp;
+  $2 *dst;
+  $2 *src;
+  if(nsz>xa->size){
+    i=xa->hi;
+    src=xa->data;
+    temp=dst=($2 *) malloc(nsz*sizeof($2));
+    xa->size=nsz;
+    assert(!xa->frozen);
+    while(i>0){
+      *dst++=*src++;
+      i--;
+    }
+    free(xa->data);
+    xa->data=temp;
+  }
+}
+
+$2 * $1_extend1($1 *xa)
+{
+    if(xa->hi==xa->size)
+      $1_expand(xa,xa->size ? 2*xa->size : 1);
+    return &xa->data[xa->hi++];
+}
+
+void $1_extend0($1 *xa,$2 e)
+{
+    if(xa->hi==xa->size)
+      $1_expand(xa,xa->size ? 2*xa->size : 1);
+    xa->data[xa->hi]=e;
+    xa->hi++;
+}
+
+int $1_ub($1 *xa)
+{
+    return xa->hi;
+}
+
+void $1_grab_from($1 *xa,$1 *r)
+{
+    free(xa->data);
+    xa->size=r->size;
+    xa->hi=r->hi;
+    xa->data=r->data;
+    r->size=0;
+    r->hi=0;
+    r->data=0;
+}
+
+void $1_freeze($1 *xa)
+{
+  xa->frozen=1;
+}
+
+')')

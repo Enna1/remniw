@@ -1,0 +1,22 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func f() int {
+    return 0;
+}
+
+func g() int {
+    var x int;
+    x = f();
+    return x;
+}
+
+func main() int {
+    var u int;
+    u = g();
+    output u;
+    return 0;
+}
+
+// CHECK: 0

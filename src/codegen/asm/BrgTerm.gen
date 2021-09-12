@@ -1,0 +1,16 @@
+// This file will be passed to Preprocessor, the HANDLE_INST macro will
+// be expanded and the output text will be inserted to AsmBuilderHelper.brg
+// during cmake
+
+// To make changes to %term, make sure to synced up with
+// enum BrgTerm defined in BrgTreeBuilder.h
+
+%term BRG_UNDEF
+%term BRG_CONST
+%term BRG_LABEL
+%term BRG_ARGS
+%term BRG_REG
+
+#define HANDLE_INST(N, OPC, CLASS) \
+  %term BRG_##OPC
+#include "llvm/IR/Instruction.def"

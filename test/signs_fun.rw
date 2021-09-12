@@ -1,0 +1,46 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func idf(a int) int {
+    return a;
+}
+
+func posf(b int) int {
+    return b;
+}
+
+func negf(c int) int {
+    return c;
+}
+
+func main() int {
+    var pos, neg, top, zero int;
+    zero = 0;
+
+    top = idf(5);
+    output top;
+
+    top = idf(-4);
+    output top;
+
+    pos = posf(5);
+    output pos;
+
+    pos = posf(7);
+    output pos;
+
+    neg = negf(-4);
+    output neg;
+
+    neg = negf(-8);
+    output neg;
+
+    return 0;
+}
+
+// CHECK: 5
+// CHECK-NEXT: -4
+// CHECK-NEXT: 5
+// CHECK-NEXT: 7
+// CHECK-NEXT: -4
+// CHECK-NEXT: -8

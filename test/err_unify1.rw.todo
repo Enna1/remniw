@@ -1,0 +1,13 @@
+func bar(g int, x int) int {
+    var r int;
+    if (x==0){
+        r=g;
+    } else {
+        r=bar(2,0);
+    }
+    return r+1;
+}
+
+func main() int {
+    return bar(null,1);
+}

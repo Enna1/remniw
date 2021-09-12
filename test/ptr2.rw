@@ -1,0 +1,20 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func doubleDeref(r **int) int{
+    return **r;
+}
+
+func main() int{
+    var n int;
+    var p *int;
+    var q **int;
+    n=17;
+    p=&n;
+    q=&p;
+    output doubleDeref(q);
+    return 0;
+}
+
+// CHECK: 17

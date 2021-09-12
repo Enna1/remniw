@@ -1,0 +1,26 @@
+func map(l,f,z) {
+  var r;
+  if (l==null){
+      r=z;
+  } else {
+      r=(f)(map(*l,f,z));
+  }
+  return r;
+}
+
+func foo(i int) int {
+  return i+1;
+}
+
+func main() int{
+  var h,t,n;
+  t = null;
+  n = 42;
+  while (n>0) {
+    n = n-1;
+    h = alloc null;
+    *h = t;
+    t = h;
+  }
+  return map(h,foo,0);
+}

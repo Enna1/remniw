@@ -1,0 +1,8 @@
+func f() int {
+    var a,b,c int;
+    return 10;
+}
+
+func f() int {
+    return 4;
+}

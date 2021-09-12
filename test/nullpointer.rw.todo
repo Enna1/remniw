@@ -1,0 +1,9 @@
+main() {
+    var p,q,r,n;
+    p = alloc null;
+    q = &p;
+    n = null;
+    *q = n;
+    *p = r;
+    return 0;
+}

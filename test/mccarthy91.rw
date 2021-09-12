@@ -1,0 +1,25 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func f(x int) int {
+  var r int;
+  if (x > 100) {
+    r = x + -10;
+  } else {
+    r = f(f(x + 11));
+  }
+  return r;
+}
+
+func main() int {
+  output f(17);
+  output f(95);
+  output f(150);
+  output f(200);
+  return 0;
+}
+
+// CHECK: 91
+// CHECK-NEXT: 91
+// CHECK-NEXT: 140
+// CHECK-NEXT: 190

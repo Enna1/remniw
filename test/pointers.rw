@@ -1,0 +1,15 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func main() int {
+  var x int;
+  var pa, pb *int;
+  x = 5;
+  pa = &x;
+  pb = pa;
+  *pb = 2;
+  output x == 2;
+  return 0;
+}
+
+// CHECK: 1

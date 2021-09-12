@@ -1,0 +1,34 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func main() int {
+    var a1,a2 ***int;
+    var b1,b2 **int;
+    var c1,c2 *int;
+    var d1,d2 int;
+
+    a1 = &b1;
+    output (a1 == &b1);
+    b1 = &c1;
+    output (b1 == &c1);
+    c1 = &d1;
+    output (c1 == &d1);
+    a2 = &b2;
+    output (a2 == &b2);
+    b2 = &c2;
+    output (b2 == &c2);
+    c2 = &d2;
+    output (c2 == &d2);
+    b1 = &c2;
+    output (b1 == &c2);
+
+    return 0;
+}
+
+// CHECK: 1
+// CHECK-NEXT: 1
+// CHECK-NEXT: 1
+// CHECK-NEXT: 1
+// CHECK-NEXT: 1
+// CHECK-NEXT: 1
+// CHECK-NEXT: 1

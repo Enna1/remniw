@@ -1,0 +1,9 @@
+func f() int {
+    var n int;
+    return 17;
+}
+
+func main() int {
+    n=10;
+    return 0;
+}

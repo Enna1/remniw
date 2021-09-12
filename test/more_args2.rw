@@ -1,0 +1,15 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func f(arg1 int, arg2 int, arg3 int, arg4 int, arg5 int,
+       arg6 int) int {
+    return arg1 + arg2 + arg3 + arg4 + arg5 + arg6;
+}
+
+func main() int {
+    output f(1,2,3,4,5,6);
+    return 0;
+}
+
+// CHECK: 21

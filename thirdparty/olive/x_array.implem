@@ -1,0 +1,99 @@
+/*
+   FILE: x_array.implem
+
+   Copyright (c) 1997 Princeton University
+
+   All rights reserved.
+
+   This software is to be used for non-commercial purposes only,
+   unless authorized permission to do otherwise is obtained.
+   For more information, contact spam@ee.princeton.edu
+*/
+
+/* Extendible Arrays (implementation) */
+
+#include <assert.h>
+#include "x_array.h"
+
+PREFIX *PREFIX##_create(int sz) {
+    PREFIX *xa = (PREFIX *)malloc(sizeof(PREFIX));
+    xa->frozen = 0;
+    xa->size = sz;
+    xa->hi = 0;
+    xa->data = (TYPE *)malloc(sz * sizeof(TYPE));
+    return xa;
+}
+
+void PREFIX##_destroy(PREFIX *xa) {
+    free(xa->data);
+    free(xa);
+}
+
+TYPE PREFIX##_fetch(PREFIX *xa, int i) {
+    assert(0 <= i && i < xa->hi);
+    return xa->data[i];
+}
+
+TYPE *PREFIX##_index(PREFIX *xa, int i) {
+    assert(0 <= i && i < xa->hi);
+    return &xa->data[i];
+}
+
+void PREFIX##_set(PREFIX *xa, int i, TYPE v) {
+    assert(0 <= i && i < xa->hi);
+    xa->data[i] = v;
+}
+
+void PREFIX##_grow(PREFIX *xa, int nhi) {
+    PREFIX##_expand(xa, nhi);
+    xa->hi = nhi;
+}
+
+void PREFIX##_expand(PREFIX *xa, int nsz) {
+    int i;
+    void **temp, **dst, **src;
+    if (nsz > xa->size) {
+        i = xa->hi;
+        src = xa->data;
+        temp = dst = (TYPE *)malloc(nsz * sizeof(TYPE));
+        xa->size = nsz;
+        assert(!xa->frozen);
+        while (i > 0) {
+            *dst++ = *src++;
+            i--;
+        }
+        free(xa->data);
+        xa->data = temp;
+    }
+}
+
+TYPE *PREFIX##_extend0(PREFIX *xa) {
+    if (xa->hi == xa->size)
+        PREFIX##_expand(xa, xa->size ? 2 * xa->size : 1);
+    return &xa->data[xa->hi++];
+}
+
+void PREFIX##_extend0(PREFIX *xa, TYPE e) {
+    if (xa->hi == xa->size)
+        PREFIX##_expand(xa, xa->size ? 2 * xa->size : 1);
+    xa->data[xa->hi] = e;
+    xa->hi++;
+}
+
+int PREFIX##_ub(PREFIX *xa) {
+    return xa->hi;
+}
+
+void PREFIX##_grab_from(PREFIX *xa, PREFIX *r) {
+    free(xa->data);
+    xa->size = r->size;
+    xa->hi = r->hi;
+    xa->data = r->data;
+    r->size = 0;
+    r->hi = 0;
+    r->data = 0;
+}
+
+void PREFIX##_freeze(PREFIX *xa) {
+    xa->frozen = 1;
+}

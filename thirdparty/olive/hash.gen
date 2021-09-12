@@ -1,0 +1,204 @@
+/*
+   FILE: hash.gen
+
+   Copyright (c) 1997 Princeton University
+
+   All rights reserved.
+
+   This software is to be used for non-commercial purposes only,
+   unless authorized permission to do otherwise is obtained.
+   For more information, contact spam@ee.princeton.edu
+*/
+
+ifelse(TARGET,interface,`define(DECLARE_HASH_TABLE_0,`
+
+/*
+
+The arguments are: (table = $1,element_type = $2,key = $3,equal = $4,hash = $5)
+
+This hash table stores pointers to objects of type "element_type".
+The table requires three auxilliary functions:
+
+1. key:  extract a key from an object (given a pointer to it)
+
+2. equal: tests for equality of two keys
+
+3. hash:  computes the hash signature for key.
+
+*/
+typedef _Hash_table $1;
+
+#define $1_create(sz)   (($1 *)_Hash_table_create($3, $4, $5, sz))
+#define $1_lookup(h, k) (($2 *)_Hash_table_lookup(h, k))
+#define $1_enter(h, e)  _Hash_table_enter(h, e)
+
+')')
+
+ifelse(TARGET,implementation,`define(DECLARE_HASH_TABLE_0,`
+
+/*
+
+This generic type does not need an explicitly implementation as
+it can implemented as macros consisting of calls to _Hash_table
+routines.
+
+*/
+
+')')
+
+ifelse(TARGET,interface,`define(DECLARE_HASH_TABLE,`
+
+/*
+
+The arguments are: (table = $1,element_type = $2,key = $3,equal = $4,hash = $5)
+
+This hash table stores objects of type "element_type" directly.
+The table requires the same auxilliary functions described above,
+except that it possible to define those auxilliary functions as
+macros because an implementation is generated for this table.
+
+*/
+
+typedef struct _$1_elem
+{
+    int signature;
+    $2 elem;
+} $1_elem;
+
+DECLARE_X_ARRAY($1_bucket,$1_elem)
+
+typedef struct _$1
+{
+    int size;
+    $1_bucket *buckets;
+} $1;
+ 
+extern $1 *$1_create(int);
+extern $2 *$1_lookup($1 *,$3);
+extern $2 *$1_enter($1 *,$3);
+
+')')
+
+ifelse(TARGET,implementation,`define(DECLARE_HASH_TABLE,`
+
+#include "hash.h"
+#include <malloc.h>
+
+DECLARE_X_ARRAY($1_bucket,$1_elem)
+
+$1 *$1_create(int size)
+{
+    int i;
+    $1 *h = ($1 *)malloc(sizeof($1));
+    h->size = size;
+    h->buckets = ($1_bucket *)malloc(size * sizeof($1_bucket));
+    for (i = 0; i < size; i++)
+        $1_bucket_init(&h->buckets[i], 2);
+    return h;
+}
+
+static $1_elem *found_element;
+static int last_signature;
+static $1_bucket *found_bucket;
+
+$2 *$1_lookup($1 *h,$3 k)
+{
+    int sig = $6(k);
+    $1_bucket *b = &h->buckets[sig % h->size];
+    int i;
+    found_bucket = b;
+    last_signature = sig;
+    for (i = 0; i < b->hi; i++)
+        if (b->data[i].signature == sig && $5($4(&b->data[i].elem), k)) {
+            found_element = &b->data[i];
+            return &b->data[i].elem;
+        }
+    return 0;
+}
+
+/*
+
+Returns 0 if the element is already there.
+
+Returns a new place to which the new element should be copied,
+otherwise.
+
+*/
+
+$2 *$1_enter($1 *h,$3 k)
+{
+    $1_elem *he;
+    if ($1_lookup(h, k))
+        return 0;
+    he = $1_bucket_extend1(found_bucket);
+    he->signature = last_signature;
+    return &he->elem;
+}
+
+')')
+
+ifelse(TARGET,interface,`define(DECLARE_ASSOC_TABLE,`
+
+/*
+
+The arguments are: (table_name = $1,cdr_type = $2)
+
+This defines a generic association table that uses hash table
+to store the associations.  This table currently does not support
+deletion of association.
+
+*/
+
+typedef struct _$1_elem {
+    void *car;
+    $2 cdr;
+} $1_elem;
+
+#define $1_key(x)      ((x)->car)
+#define $1_equal(x, y) ((x) == (y))
+#define $1_sig(x)      (((int)x) + (((int)x) >> 13))
+
+DECLARE_HASH_TABLE($1_hash,$1_elem,void *,$1_key,$1_equal,$1_sig)
+
+typedef $1_hash $1;
+
+#define $1_create(sz) $1_hash_create(sz);
+
+extern $2 *$1_lookup($1 *,void *);
+extern $2 *$1_enter($1 *,void *);
+
+')')
+
+ifelse(TARGET,implementation,`define(DECLARE_ASSOC_TABLE,`
+
+/*
+
+The arguments are: (table_name,cdr_type)
+
+This defines a generic association table that uses hash table
+to store the associations.  This table currently does not support
+deletion of association.
+
+*/
+
+DECLARE_HASH_TABLE($1_hash,$1_elem,void *,$1_key,$1_equal,$1_sig)
+
+$2 *$1_lookup($1 *a,void *k)
+{
+    $1_elem *e = $1_hash_lookup(a, k);
+    if (e)
+        return &e->cdr;
+    else
+        return 0;
+}
+
+$2 *$1_enter($1 *a,void *k)
+{
+    $1_elem *e = $1_hash_enter(a, k);
+    if (e == 0)
+        return 0;
+    e->car = k;
+    return &e->cdr;
+}
+
+')')

@@ -1,0 +1,10 @@
+func foo(p *int) int {
+    return *p;
+}
+
+func main() int {
+    var x int;
+    x = 5;
+    x = foo;
+    return 0;
+}

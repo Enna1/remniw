@@ -1,0 +1,15 @@
+func f() int {
+    return 17;
+}
+
+func g(i int) int {
+    return i+1;
+}
+
+func main() int {
+    var n int;
+    if(f == g) {
+        n = 10;
+    }
+    return 0;
+}

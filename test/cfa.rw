@@ -1,0 +1,32 @@
+// RUN: %remniw %s -o %t ; echo 10 | lli %t | FileCheck %s --check-prefix=CHECK_P
+// RUN: %remniw %s -o %t -debug ; echo 10 | lli %t | FileCheck %s --check-prefix=CHECK_P
+// RUN: %remniw %s -o %t ; echo -10 | lli %t | FileCheck %s --check-prefix=CHECK_N
+// RUN: %remniw %s -o %t -debug ; echo -10 | lli %t | FileCheck %s --check-prefix=CHECK_N
+// RUN: %remniw %s -o %t ; echo 0 | lli %t | FileCheck %s --check-prefix=CHECK_Z
+// RUN: %remniw %s -o %t -debug ; echo 0 | lli %t | FileCheck %s --check-prefix=CHECK_Z
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 10 | %t3 | FileCheck %s --check-prefix=CHECK_P
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo -10 | %t3 | FileCheck %s --check-prefix=CHECK_N
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 0 | %t3 | FileCheck %s --check-prefix=CHECK_Z
+
+func inc(i int) int { return i+1; }
+func dec(j int) int { return j-1; }
+func ide(k int) int { return k; }
+
+func foo(n int) int {
+    var r int;
+    if (n==0) { r=dec(n); }
+    r = inc(n);
+    return r;
+}
+
+func main() int {
+    var x,y int;
+    x = input;
+    if (x>0) { y = foo(x); } else { y = foo(x); }
+    output y;
+    return 0;
+}
+
+// CHECK_P: 11
+// CHECK_N: -9
+// CHECK_Z: 1

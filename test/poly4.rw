@@ -1,0 +1,28 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func foo(a int) int {
+    return a;
+}
+
+func bar() int {
+    var x int;
+    x = foo(17);
+    return x;
+}
+
+func baz() int {
+    var y int;
+    y = foo(18);
+    return y;
+}
+
+func main() int {
+    var a,b int;
+    a = bar();
+    b = baz();
+    output a+b;
+    return 0;
+}
+
+// CHECK: 35

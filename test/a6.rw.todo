@@ -1,0 +1,14 @@
+func main() int {
+  var x *int;
+  var y **int;
+  var z **int;
+  var w ***int;
+  var a **int;
+  x = nil;
+  y = &x;
+  z = &x;
+  w = &z;
+  a = *w;
+  *a = nil;
+  return 0;
+}

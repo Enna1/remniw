@@ -1,0 +1,12 @@
+func f() int{
+    return g(a);
+}
+
+func g(a int) int{
+    return a+1;
+}
+
+func h() int {
+    a=3;
+    return 3;
+}

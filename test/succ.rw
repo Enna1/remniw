@@ -1,0 +1,14 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func succ(i int) int {
+    return i+1;
+}
+
+func main() int {
+    output succ(10);
+    return 0;
+}
+
+// CHECK: 11

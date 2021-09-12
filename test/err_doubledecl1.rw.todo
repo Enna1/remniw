@@ -1,0 +1,5 @@
+func f(z int) int {
+    var v,x,q int;
+    var q int;
+    return 0;
+}

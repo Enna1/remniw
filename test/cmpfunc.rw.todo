@@ -1,0 +1,16 @@
+
+func f() int {
+    return 17;
+}
+
+func g() int {
+    return 17;
+}
+
+func main() int {
+    var n int;
+    if( f==g ){
+        n=10;
+    }
+    return 0;
+}

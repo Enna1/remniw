@@ -1,0 +1,25 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func apply(f func(int) int, a int) int {
+    return f(a);
+}
+
+func fib(n int) int {
+    var result int;
+
+    if( n>1 ){
+        result = fib(n-1)+fib(n-2);
+    } else {
+        result=1;
+    }
+
+    return result;
+}
+
+func main() int {
+    output apply(fib,5);
+    return 0;
+}
+
+// CHECK: 8

@@ -1,0 +1,23 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+
+func main() int {
+    var a **int;
+    var x *int;
+    var t int;
+    var z *int;
+    var y **int;
+
+    a = &x;
+    output (a == &x);
+
+    z = &t;
+    y = &z;
+    x = *y;
+    output (x == z);
+
+    return 0;
+}
+
+// CHECK: 1
+// CHECK-NEXT: 1

@@ -1,0 +1,4 @@
+func test() int {
+    a = 5;
+    return a;
+}

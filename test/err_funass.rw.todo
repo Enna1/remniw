@@ -1,0 +1,7 @@
+
+// This program is rejected by declaration analysis
+
+func main() int {
+    main = 5;
+    return 0;
+}

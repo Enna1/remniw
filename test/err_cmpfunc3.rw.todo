@@ -1,0 +1,15 @@
+func f(z func(int)int) int {
+    return (z)(4);
+}
+
+func g(j int) int {
+    return j+1;
+}
+
+func main() int {
+    var n;
+    if( f==g ){
+        n=10;
+    }
+    return 0;
+}
