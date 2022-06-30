@@ -49,6 +49,7 @@ public:
         WhileStmt,
         BasicAssignmentStmt,
         DerefAssignmentStmt,
+        AssignmentStmt,
         // Function
         Function,
         // Program
@@ -89,7 +90,7 @@ public:
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() >= ASTNode::LocalVarDeclStmt &&
-               Node->getKind() <= ASTNode::DerefAssignmentStmt;
+               Node->getKind() <= ASTNode::AssignmentStmt;
     }
 };
 
@@ -434,6 +435,25 @@ public:
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::DerefAssignmentStmt;
+    }
+
+private:
+    std::unique_ptr<ExprAST> LHS, RHS;
+};
+
+class AssignmentStmtAST: public StmtAST {
+public:
+    AssignmentStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> LHS,
+                      std::unique_ptr<ExprAST> RHS):
+        StmtAST(ASTNode::AssignmentStmt, Loc),
+        LHS(std::move(LHS)), RHS(std::move(RHS)) {}
+
+    ExprAST *getLHS() const { return LHS.get(); }
+
+    ExprAST *getRHS() const { return RHS.get(); }
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::AssignmentStmt;
     }
 
 private:

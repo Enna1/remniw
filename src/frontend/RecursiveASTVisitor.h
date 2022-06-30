@@ -89,6 +89,10 @@ public:
     void actAfterVisitDerefAssignmentStmt(DerefAssignmentStmtAST *) {}
     void visitDerefAssignmentStmt(DerefAssignmentStmtAST *);
 
+    bool actBeforeVisitAssignmentStmt(AssignmentStmtAST *) { return false; }
+    void actAfterVisitAssignmentStmt(AssignmentStmtAST *) {}
+    void visitAssignmentStmt(AssignmentStmtAST *);
+
     bool actBeforeVisitFunction(FunctionAST *) { return false; }
     void actAfterVisitFunction(FunctionAST *) {}
     void visitFunction(FunctionAST *);
@@ -162,6 +166,10 @@ void RecursiveASTVisitor<Derived>::visitStmt(StmtAST *Stmt) {
     case ASTNode::DerefAssignmentStmt:
         getDerived().visitDerefAssignmentStmt(
             static_cast<DerefAssignmentStmtAST *>(Stmt));
+        break;
+    case ASTNode::AssignmentStmt:
+        getDerived().visitAssignmentStmt(
+            static_cast<AssignmentStmtAST *>(Stmt));
         break;
     default: llvm_unreachable("Invalid stmt");
     }
@@ -357,6 +365,18 @@ void RecursiveASTVisitor<Derived>::visitDerefAssignmentStmt(
     visitExpr(DerefAssignmentStmt->getRHS());
 
     getDerived().actAfterVisitDerefAssignmentStmt(DerefAssignmentStmt);
+}
+
+template<typename Derived>
+void RecursiveASTVisitor<Derived>::visitAssignmentStmt(
+    AssignmentStmtAST *AssignmentStmt) {
+    if (getDerived().actBeforeVisitAssignmentStmt(AssignmentStmt))
+        return;
+
+    visitExpr(AssignmentStmt->getLHS());
+    visitExpr(AssignmentStmt->getRHS());
+
+    getDerived().actAfterVisitAssignmentStmt(AssignmentStmt);
 }
 
 template<typename Derived>

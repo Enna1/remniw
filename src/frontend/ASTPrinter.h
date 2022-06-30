@@ -194,6 +194,15 @@ public:
 
     void actAfterVisitDerefAssignmentStmt(DerefAssignmentStmtAST *) { Ind -= 1; }
 
+    bool actBeforeVisitAssignmentStmt(AssignmentStmtAST *Node) {
+        Out.indent(Ind) << "AssignmentStmt " << Node << " <" << Node->getLine() << ':'
+                        << Node->getCol() << ">\n";
+        Ind += 1;
+        return false;
+    }
+
+    void actAfterVisitAssignmentStmt(AssignmentStmtAST *) { Ind -= 1; }
+
     void visitFunction(FunctionAST *Node) {
         Out.indent(Ind) << "Function " << Node << " '" << Node->getFuncName() << "' "
                         << *Node->getType() << " <" << Node->getLine() << ':'

@@ -30,18 +30,6 @@ arguments
    : '(' ((expr ',')* expr)? ')'
    ;
 
-stmt
-   : id '=' expr ';' # BasicAssignmentStmt
-   | 'output' expr ';' # OutputStmt
-   | ';' # EmptyStmt
-   | '{' stmt* '}' # BlockStmt
-   | 'if' '(' expr ')' stmt ('else' stmt)? # IfStmt
-   | 'while' '(' expr ')' stmt # WhileStmt
-   | '*' expr '=' expr ';' # DerefAssignmentStmt
-   | id '.' id '=' expr ';' # RecordFieldBasicAssignmentStmt
-   | '(' '*' expr ')' '.' id '=' expr ';' # RecordFieldDerefAssignmentStmt
-   ;
-
 expr
    : expr arguments # FuncCallExpr
    | 'alloc' expr # AllocExpr
@@ -61,6 +49,58 @@ expr
    | 'input' # InputExpr
    | '{' ((id ':' expr ',')* id ':' expr)? '}' # RecordCreateExpr
    | expr '.' id # RecordAccessExpr
+   ;
+
+stmt
+   : assignmentStmt
+   | outputStmt
+   | emptyStmt
+   | blockStmt
+   | ifStmt
+   | whileStmt
+   | derefAssignmentStmt
+   | recordFieldBasicAssignmentStmt
+   | recordFieldDerefAssignmentStmt
+   ;
+
+assignmentStmt
+   : expr '=' expr ';'
+   ;
+
+basicAssignmentStmt
+   : id '=' expr ';'
+   ;
+
+derefAssignmentStmt
+   : '*' expr '=' expr ';'
+   ;
+
+outputStmt
+   : 'output' expr ';'
+   ;
+
+emptyStmt
+   : ';'
+   ;
+
+blockStmt
+   : '{' stmt* '}'
+   ;
+
+ifStmt
+   : 'if' '(' expr ')' stmt ('else' stmt)?
+   ;
+
+whileStmt
+   : 'while' '(' expr ')' stmt
+   ;
+
+recordFieldBasicAssignmentStmt
+   : id '.' id '=' expr ';'
+   ;
+
+recordFieldDerefAssignmentStmt
+   : '(' '*' expr ')' '.' id '=' expr ';'
    ;
 
 type

@@ -87,6 +87,9 @@ public:
     virtual antlrcpp::Any
     visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *Ctx);
 
+    virtual antlrcpp::Any
+    visitAssignmentStmt(RemniwParser::AssignmentStmtContext *Ctx);
+
     // // TODO
     // virtual antlrcpp::Any visitRecordFieldBasicAssignmentStmt(
     //     RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx);

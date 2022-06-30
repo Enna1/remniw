@@ -430,6 +430,20 @@ ASTBuilder::visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *C
     return nullptr;
 }
 
+antlrcpp::Any ASTBuilder::visitAssignmentStmt(RemniwParser::AssignmentStmtContext *Ctx) {
+    exprIsLValue = true;
+    visit(Ctx->expr(0));
+    std::unique_ptr<ExprAST> LHS = std::move(visitedExpr);
+    exprIsLValue = false;
+    visit(Ctx->expr(1));
+    std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
+    visitedStmt = std::make_unique<AssignmentStmtAST>(
+        SourceLocation {Ctx->getStart()->getLine(),
+                        Ctx->getStart()->getCharPositionInLine()},
+        std::move(LHS), std::move(RHS));
+    return nullptr;
+}
+
 // // TODO
 // antlrcpp::Any ASTBuilder::visitRecordFieldBasicAssignmentStmt(
 //     RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx) {
