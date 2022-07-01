@@ -378,11 +378,6 @@ Value *IRCodeGeneratorImpl::codegenAssignmentStmt(AssignmentStmtAST *AssignmentS
     Value *Val = codegenExpr(AssignmentStmt->getRHS());
     Value *Ptr = codegenExpr(AssignmentStmt->getLHS());
     assert((Ptr && Val) && "Invalid operand of AssignmentStmt");
-    if (isa<VariableExprAST>(AssignmentStmt->getLHS())) {
-    }
-    if (isa<DerefExprAST>(AssignmentStmt->getLHS())) {
-        Ptr = IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
-    }
     return IRB->CreateStore(Val, Ptr);
 }
 
