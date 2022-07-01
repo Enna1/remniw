@@ -47,8 +47,7 @@ public:
         ReturnStmt,
         IfStmt,
         WhileStmt,
-        BasicAssignmentStmt,
-        DerefAssignmentStmt,
+        AssignmentStmt,
         // Function
         Function,
         // Program
@@ -89,7 +88,7 @@ public:
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() >= ASTNode::LocalVarDeclStmt &&
-               Node->getKind() <= ASTNode::DerefAssignmentStmt;
+               Node->getKind() <= ASTNode::AssignmentStmt;
     }
 };
 
@@ -401,11 +400,11 @@ private:
     std::unique_ptr<StmtAST> Body;
 };
 
-class BasicAssignmentStmtAST: public StmtAST {
+class AssignmentStmtAST: public StmtAST {
 public:
-    BasicAssignmentStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> LHS,
-                           std::unique_ptr<ExprAST> RHS):
-        StmtAST(ASTNode::BasicAssignmentStmt, Loc),
+    AssignmentStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> LHS,
+                      std::unique_ptr<ExprAST> RHS):
+        StmtAST(ASTNode::AssignmentStmt, Loc),
         LHS(std::move(LHS)), RHS(std::move(RHS)) {}
 
     ExprAST *getLHS() const { return LHS.get(); }
@@ -413,48 +412,12 @@ public:
     ExprAST *getRHS() const { return RHS.get(); }
 
     static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::BasicAssignmentStmt;
-    }
-
-private:
-    std::unique_ptr<ExprAST> LHS;
-    std::unique_ptr<ExprAST> RHS;
-};
-
-class DerefAssignmentStmtAST: public StmtAST {
-public:
-    DerefAssignmentStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> LHS,
-                           std::unique_ptr<ExprAST> RHS):
-        StmtAST(ASTNode::DerefAssignmentStmt, Loc),
-        LHS(std::move(LHS)), RHS(std::move(RHS)) {}
-
-    ExprAST *getLHS() const { return LHS.get(); }
-
-    ExprAST *getRHS() const { return RHS.get(); }
-
-    static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::DerefAssignmentStmt;
+        return Node->getKind() == ASTNode::AssignmentStmt;
     }
 
 private:
     std::unique_ptr<ExprAST> LHS, RHS;
 };
-
-// // TODO
-// class RecordFieldBasicAssignmentStmtAST : public StmtAST
-// {
-// public:
-//     RecordFieldBasicAssignmentStmtAST(SourceLocation Loc)
-//         : StmtAST(ASTNode::Re,Loc) {}
-// };
-
-// // TODO
-// class RecordFieldDerefAssignmentStmtAST : public StmtAST
-// {
-// public:
-//     RecordFieldDerefAssignmentStmtAST(SourceLocation Loc)
-//         : StmtAST(Loc) {}
-// };
 
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST: public ASTNode {

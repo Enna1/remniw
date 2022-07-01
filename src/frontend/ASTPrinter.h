@@ -176,23 +176,14 @@ public:
         Ind -= 2;
     }
 
-    bool actBeforeVisitBasicAssignmentStmt(BasicAssignmentStmtAST *Node) {
-        Out.indent(Ind) << "BasicAssignmentStmt " << Node << " <" << Node->getLine()
-                        << ':' << Node->getCol() << ">\n";
+    bool actBeforeVisitAssignmentStmt(AssignmentStmtAST *Node) {
+        Out.indent(Ind) << "AssignmentStmt " << Node << " <" << Node->getLine() << ':'
+                        << Node->getCol() << ">\n";
         Ind += 1;
         return false;
     }
 
-    void actAfterVisitBasicAssignmentStmt(BasicAssignmentStmtAST *) { Ind -= 1; }
-
-    bool actBeforeVisitDerefAssignmentStmt(DerefAssignmentStmtAST *Node) {
-        Out.indent(Ind) << "DerefAssignmentStmt " << Node << " <" << Node->getLine()
-                        << ':' << Node->getCol() << ">\n";
-        Ind += 1;
-        return false;
-    }
-
-    void actAfterVisitDerefAssignmentStmt(DerefAssignmentStmtAST *) { Ind -= 1; }
+    void actAfterVisitAssignmentStmt(AssignmentStmtAST *) { Ind -= 1; }
 
     void visitFunction(FunctionAST *Node) {
         Out.indent(Ind) << "Function " << Node << " '" << Node->getFuncName() << "' "

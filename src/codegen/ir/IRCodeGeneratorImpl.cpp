@@ -114,9 +114,7 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::AllocExpr:
         Ret = codegenAllocExpr(static_cast<AllocExprAST *>(Expr));
         break;
-    case ASTNode::RefExpr:
-        Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr));
-        break;
+    case ASTNode::RefExpr: Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr)); break;
     case ASTNode::DerefExpr:
         Ret = codegenDerefExpr(static_cast<DerefExprAST *>(Expr));
         break;
@@ -126,8 +124,7 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::BinaryExpr:
         Ret = codegenBinaryExpr(static_cast<BinaryExprAST *>(Expr));
         break;
-    default:
-        llvm_unreachable("Invalid expr");
+    default: llvm_unreachable("Invalid expr");
     }
     return Ret;
 }
@@ -150,20 +147,14 @@ Value *IRCodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
     case ASTNode::ReturnStmt:
         Ret = codegenReturnStmt(static_cast<ReturnStmtAST *>(Stmt));
         break;
-    case ASTNode::IfStmt:
-        Ret = codegenIfStmt(static_cast<IfStmtAST *>(Stmt));
-        break;
+    case ASTNode::IfStmt: Ret = codegenIfStmt(static_cast<IfStmtAST *>(Stmt)); break;
     case ASTNode::WhileStmt:
         Ret = codegenWhileStmt(static_cast<WhileStmtAST *>(Stmt));
         break;
-    case ASTNode::BasicAssignmentStmt:
-        Ret = codegenBasicAssignmentStmt(static_cast<BasicAssignmentStmtAST *>(Stmt));
+    case ASTNode::AssignmentStmt:
+        Ret = codegenAssignmentStmt(static_cast<AssignmentStmtAST *>(Stmt));
         break;
-    case ASTNode::DerefAssignmentStmt:
-        Ret = codegenDerefAssignmentStmt(static_cast<DerefAssignmentStmtAST *>(Stmt));
-        break;
-    default:
-        llvm_unreachable("Invalid stmt");
+    default: llvm_unreachable("Invalid stmt");
     }
     return Ret;
 }
@@ -194,7 +185,8 @@ Value *IRCodeGeneratorImpl::codegenVarDeclNode(VarDeclNodeAST *VarDeclNode) {
     return nullptr;
 }
 
-Value *IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallExpr) {
+Value *
+IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallExpr) {
     Value *CalledValue = codegenExpr(FunctionCallExpr->getCallee());
     SmallVector<Value *, 4> CallArgs;
     for (auto *Arg : FunctionCallExpr->getArgs()) {
@@ -259,7 +251,8 @@ Value *IRCodeGeneratorImpl::codegenBinaryExpr(BinaryExprAST *BinaryExpr) {
     return V;
 }
 
-Value *IRCodeGeneratorImpl::codegenLocalVarDeclStmt(LocalVarDeclStmtAST *LocalVarDeclStmt) {
+Value *
+IRCodeGeneratorImpl::codegenLocalVarDeclStmt(LocalVarDeclStmtAST *LocalVarDeclStmt) {
     // We handle LocalVarDeclStmt in Function()
     return nullptr;
 }
@@ -358,20 +351,10 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
     return nullptr;
 }
 
-Value *IRCodeGeneratorImpl::codegenBasicAssignmentStmt(
-    BasicAssignmentStmtAST *BasicAssignmentStmt) {
-    Value *Val = codegenExpr(BasicAssignmentStmt->getRHS());
-    Value *Ptr = codegenExpr(BasicAssignmentStmt->getLHS());
-    assert((Ptr && Val) && "Invalid operand of BasicAssignmentStmt");
-    return IRB->CreateStore(Val, Ptr);
-}
-
-Value *IRCodeGeneratorImpl::codegenDerefAssignmentStmt(
-    DerefAssignmentStmtAST *DerefAssignmentStmt) {
-    Value *Val = codegenExpr(DerefAssignmentStmt->getRHS());
-    Value *Ptr = codegenExpr(DerefAssignmentStmt->getLHS());
-    assert((Ptr && Val) && "Invalid operand of DerefAssignmentStmt");
-    Ptr = IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
+Value *IRCodeGeneratorImpl::codegenAssignmentStmt(AssignmentStmtAST *AssignmentStmt) {
+    Value *Val = codegenExpr(AssignmentStmt->getRHS());
+    Value *Ptr = codegenExpr(AssignmentStmt->getLHS());
+    assert((Ptr && Val) && "Invalid operand of AssignmentStmt");
     return IRB->CreateStore(Val, Ptr);
 }
 

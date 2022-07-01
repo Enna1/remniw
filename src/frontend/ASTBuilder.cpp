@@ -400,46 +400,18 @@ antlrcpp::Any ASTBuilder::visitWhileStmt(RemniwParser::WhileStmtContext *Ctx) {
     return nullptr;
 }
 
-antlrcpp::Any
-ASTBuilder::visitBasicAssignmentStmt(RemniwParser::BasicAssignmentStmtContext *Ctx) {
-    exprIsLValue = true;
-    visit(Ctx->id());
-    std::unique_ptr<ExprAST> LHS = std::move(visitedExpr);
-    exprIsLValue = false;
-    visit(Ctx->expr());
-    std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
-    visitedStmt = std::make_unique<BasicAssignmentStmtAST>(
-        SourceLocation {Ctx->getStart()->getLine(),
-                        Ctx->getStart()->getCharPositionInLine()},
-        std::move(LHS), std::move(RHS));
-    return nullptr;
-}
-
-antlrcpp::Any
-ASTBuilder::visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *Ctx) {
+antlrcpp::Any ASTBuilder::visitAssignmentStmt(RemniwParser::AssignmentStmtContext *Ctx) {
     exprIsLValue = true;
     visit(Ctx->expr(0));
     std::unique_ptr<ExprAST> LHS = std::move(visitedExpr);
     exprIsLValue = false;
     visit(Ctx->expr(1));
     std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
-    visitedStmt = std::make_unique<DerefAssignmentStmtAST>(
+    visitedStmt = std::make_unique<AssignmentStmtAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
         std::move(LHS), std::move(RHS));
     return nullptr;
 }
-
-// // TODO
-// antlrcpp::Any ASTBuilder::visitRecordFieldBasicAssignmentStmt(
-//     RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx) {
-//     return nullptr;
-// }
-
-// // TODO
-// antlrcpp::Any ASTBuilder::visitRecordFieldDerefAssignmentStmt(
-//     RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx) {
-//     return nullptr;
-// }
 
 }  // namespace remniw

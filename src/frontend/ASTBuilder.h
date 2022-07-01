@@ -81,19 +81,7 @@ public:
 
     virtual antlrcpp::Any visitWhileStmt(RemniwParser::WhileStmtContext *Ctx);
 
-    virtual antlrcpp::Any
-    visitBasicAssignmentStmt(RemniwParser::BasicAssignmentStmtContext *Ctx);
-
-    virtual antlrcpp::Any
-    visitDerefAssignmentStmt(RemniwParser::DerefAssignmentStmtContext *Ctx);
-
-    // // TODO
-    // virtual antlrcpp::Any visitRecordFieldBasicAssignmentStmt(
-    //     RemniwParser::RecordFieldBasicAssignmentStmtContext *Ctx);
-
-    // // TODO
-    // virtual antlrcpp::Any visitRecordFieldDerefAssignmentStmt(
-    //     RemniwParser::RecordFieldDerefAssignmentStmtContext *Ctx);
+    virtual antlrcpp::Any visitAssignmentStmt(RemniwParser::AssignmentStmtContext *Ctx);
 };
 
 }  // namespace remniw

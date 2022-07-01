@@ -39,8 +39,7 @@ public:
     llvm::Value *codegenReturnStmt(ReturnStmtAST *);
     llvm::Value *codegenIfStmt(IfStmtAST *);
     llvm::Value *codegenWhileStmt(WhileStmtAST *);
-    llvm::Value *codegenBasicAssignmentStmt(BasicAssignmentStmtAST *);
-    llvm::Value *codegenDerefAssignmentStmt(DerefAssignmentStmtAST *);
+    llvm::Value *codegenAssignmentStmt(AssignmentStmtAST *);
 
 private:
     llvm::Value *codegenExpr(ExprAST *);
