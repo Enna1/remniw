@@ -58,9 +58,6 @@ stmt
    | blockStmt
    | ifStmt
    | whileStmt
-   | derefAssignmentStmt
-   | recordFieldBasicAssignmentStmt
-   | recordFieldDerefAssignmentStmt
    ;
 
 assignmentStmt
