@@ -151,12 +151,6 @@ Value *IRCodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
     case ASTNode::WhileStmt:
         Ret = codegenWhileStmt(static_cast<WhileStmtAST *>(Stmt));
         break;
-    case ASTNode::BasicAssignmentStmt:
-        Ret = codegenBasicAssignmentStmt(static_cast<BasicAssignmentStmtAST *>(Stmt));
-        break;
-    case ASTNode::DerefAssignmentStmt:
-        Ret = codegenDerefAssignmentStmt(static_cast<DerefAssignmentStmtAST *>(Stmt));
-        break;
     case ASTNode::AssignmentStmt:
         Ret = codegenAssignmentStmt(static_cast<AssignmentStmtAST *>(Stmt));
         break;
@@ -355,23 +349,6 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
     F->getBasicBlockList().push_back(LoopEndBB);
     IRB->SetInsertPoint(LoopEndBB);
     return nullptr;
-}
-
-Value *IRCodeGeneratorImpl::codegenBasicAssignmentStmt(
-    BasicAssignmentStmtAST *BasicAssignmentStmt) {
-    Value *Val = codegenExpr(BasicAssignmentStmt->getRHS());
-    Value *Ptr = codegenExpr(BasicAssignmentStmt->getLHS());
-    assert((Ptr && Val) && "Invalid operand of BasicAssignmentStmt");
-    return IRB->CreateStore(Val, Ptr);
-}
-
-Value *IRCodeGeneratorImpl::codegenDerefAssignmentStmt(
-    DerefAssignmentStmtAST *DerefAssignmentStmt) {
-    Value *Val = codegenExpr(DerefAssignmentStmt->getRHS());
-    Value *Ptr = codegenExpr(DerefAssignmentStmt->getLHS());
-    assert((Ptr && Val) && "Invalid operand of DerefAssignmentStmt");
-    Ptr = IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
-    return IRB->CreateStore(Val, Ptr);
 }
 
 Value *IRCodeGeneratorImpl::codegenAssignmentStmt(AssignmentStmtAST *AssignmentStmt) {

@@ -92,16 +92,9 @@ public:
     }
 
     // X = E: [[X]] = [[E]]
-    void actAfterVisitBasicAssignmentStmt(BasicAssignmentStmtAST *BasicAssignmentStmt) {
-        Constraints.emplace_back(ASTNodeToType(BasicAssignmentStmt->getLHS()),
-                                 ASTNodeToType(BasicAssignmentStmt->getRHS()));
-    }
-
-    // *E1 = E2: [[E1]] = &[[E2]]
-    void actAfterVisitDerefAssignmentStmt(DerefAssignmentStmtAST *DerefAssignmentStmt) {
-        Constraints.emplace_back(
-            ASTNodeToType(DerefAssignmentStmt->getLHS()),
-            ASTNodeToType(DerefAssignmentStmt->getRHS())->getPointerTo());
+    void actAfterVisitAssignmentStmt(AssignmentStmtAST *AssignmentStmt) {
+        Constraints.emplace_back(ASTNodeToType(AssignmentStmt->getLHS()),
+                                 ASTNodeToType(AssignmentStmt->getRHS()));
     }
 
     // output E: [[E]] = int

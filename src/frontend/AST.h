@@ -47,8 +47,6 @@ public:
         ReturnStmt,
         IfStmt,
         WhileStmt,
-        BasicAssignmentStmt,
-        DerefAssignmentStmt,
         AssignmentStmt,
         // Function
         Function,
@@ -402,45 +400,6 @@ private:
     std::unique_ptr<StmtAST> Body;
 };
 
-class BasicAssignmentStmtAST: public StmtAST {
-public:
-    BasicAssignmentStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> LHS,
-                           std::unique_ptr<ExprAST> RHS):
-        StmtAST(ASTNode::BasicAssignmentStmt, Loc),
-        LHS(std::move(LHS)), RHS(std::move(RHS)) {}
-
-    ExprAST *getLHS() const { return LHS.get(); }
-
-    ExprAST *getRHS() const { return RHS.get(); }
-
-    static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::BasicAssignmentStmt;
-    }
-
-private:
-    std::unique_ptr<ExprAST> LHS;
-    std::unique_ptr<ExprAST> RHS;
-};
-
-class DerefAssignmentStmtAST: public StmtAST {
-public:
-    DerefAssignmentStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> LHS,
-                           std::unique_ptr<ExprAST> RHS):
-        StmtAST(ASTNode::DerefAssignmentStmt, Loc),
-        LHS(std::move(LHS)), RHS(std::move(RHS)) {}
-
-    ExprAST *getLHS() const { return LHS.get(); }
-
-    ExprAST *getRHS() const { return RHS.get(); }
-
-    static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::DerefAssignmentStmt;
-    }
-
-private:
-    std::unique_ptr<ExprAST> LHS, RHS;
-};
-
 class AssignmentStmtAST: public StmtAST {
 public:
     AssignmentStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> LHS,
@@ -459,22 +418,6 @@ public:
 private:
     std::unique_ptr<ExprAST> LHS, RHS;
 };
-
-// // TODO
-// class RecordFieldBasicAssignmentStmtAST : public StmtAST
-// {
-// public:
-//     RecordFieldBasicAssignmentStmtAST(SourceLocation Loc)
-//         : StmtAST(ASTNode::Re,Loc) {}
-// };
-
-// // TODO
-// class RecordFieldDerefAssignmentStmtAST : public StmtAST
-// {
-// public:
-//     RecordFieldDerefAssignmentStmtAST(SourceLocation Loc)
-//         : StmtAST(Loc) {}
-// };
 
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST: public ASTNode {

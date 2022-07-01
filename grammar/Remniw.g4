@@ -51,6 +51,7 @@ expr
    | expr '.' id # RecordAccessExpr
    ;
 
+
 stmt
    : assignmentStmt
    | outputStmt
@@ -62,14 +63,6 @@ stmt
 
 assignmentStmt
    : expr '=' expr ';'
-   ;
-
-basicAssignmentStmt
-   : id '=' expr ';'
-   ;
-
-derefAssignmentStmt
-   : '*' expr '=' expr ';'
    ;
 
 outputStmt
@@ -90,14 +83,6 @@ ifStmt
 
 whileStmt
    : 'while' '(' expr ')' stmt
-   ;
-
-recordFieldBasicAssignmentStmt
-   : id '.' id '=' expr ';'
-   ;
-
-recordFieldDerefAssignmentStmt
-   : '(' '*' expr ')' '.' id '=' expr ';'
    ;
 
 type

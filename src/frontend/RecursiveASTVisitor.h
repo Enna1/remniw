@@ -81,14 +81,6 @@ public:
     void actAfterVisitWhileStmt(WhileStmtAST *) {}
     void visitWhileStmt(WhileStmtAST *);
 
-    bool actBeforeVisitBasicAssignmentStmt(BasicAssignmentStmtAST *) { return false; }
-    void actAfterVisitBasicAssignmentStmt(BasicAssignmentStmtAST *) {}
-    void visitBasicAssignmentStmt(BasicAssignmentStmtAST *);
-
-    bool actBeforeVisitDerefAssignmentStmt(DerefAssignmentStmtAST *) { return false; }
-    void actAfterVisitDerefAssignmentStmt(DerefAssignmentStmtAST *) {}
-    void visitDerefAssignmentStmt(DerefAssignmentStmtAST *);
-
     bool actBeforeVisitAssignmentStmt(AssignmentStmtAST *) { return false; }
     void actAfterVisitAssignmentStmt(AssignmentStmtAST *) {}
     void visitAssignmentStmt(AssignmentStmtAST *);
@@ -158,14 +150,6 @@ void RecursiveASTVisitor<Derived>::visitStmt(StmtAST *Stmt) {
         break;
     case ASTNode::WhileStmt:
         getDerived().visitWhileStmt(static_cast<WhileStmtAST *>(Stmt));
-        break;
-    case ASTNode::BasicAssignmentStmt:
-        getDerived().visitBasicAssignmentStmt(
-            static_cast<BasicAssignmentStmtAST *>(Stmt));
-        break;
-    case ASTNode::DerefAssignmentStmt:
-        getDerived().visitDerefAssignmentStmt(
-            static_cast<DerefAssignmentStmtAST *>(Stmt));
         break;
     case ASTNode::AssignmentStmt:
         getDerived().visitAssignmentStmt(
@@ -341,30 +325,6 @@ void RecursiveASTVisitor<Derived>::visitWhileStmt(WhileStmtAST *WhileStmt) {
     visitStmt(WhileStmt->getBody());
 
     getDerived().actAfterVisitWhileStmt(WhileStmt);
-}
-
-template<typename Derived>
-void RecursiveASTVisitor<Derived>::visitBasicAssignmentStmt(
-    BasicAssignmentStmtAST *BasicAssignmentStmt) {
-    if (getDerived().actBeforeVisitBasicAssignmentStmt(BasicAssignmentStmt))
-        return;
-
-    visitExpr(BasicAssignmentStmt->getLHS());
-    visitExpr(BasicAssignmentStmt->getRHS());
-
-    getDerived().actAfterVisitBasicAssignmentStmt(BasicAssignmentStmt);
-}
-
-template<typename Derived>
-void RecursiveASTVisitor<Derived>::visitDerefAssignmentStmt(
-    DerefAssignmentStmtAST *DerefAssignmentStmt) {
-    if (getDerived().actBeforeVisitDerefAssignmentStmt(DerefAssignmentStmt))
-        return;
-
-    visitExpr(DerefAssignmentStmt->getLHS());
-    visitExpr(DerefAssignmentStmt->getRHS());
-
-    getDerived().actAfterVisitDerefAssignmentStmt(DerefAssignmentStmt);
 }
 
 template<typename Derived>
