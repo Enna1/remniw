@@ -34,9 +34,9 @@ reg: BRG_REG { $cost[0].cost = 0; }
     LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_REG\n";);
 };
 
-mem: BRG_ALLOCA(imm) { $cost[0].cost = 0; }
+mem: BRG_ALLOCA { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_ALLOCA(imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_ALLOCA\n";);
 };
 
 reg: BRG_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }

@@ -453,8 +453,9 @@ public:
         // That is we only care the last index
         // See IRCodeGeneratorImpl::codegenArraySubscriptExpr() for more info.
         assert(I.getNumIndices() >= 1);
-        // Only care the last index, i.e. the last operand
+        // Only care the pointer operand and last index, i.e. the first and last operand
         std::vector<BrgTreeNode *> Kids {
+            getBrgNodeForValue(I.getOperand(0)),
             getBrgNodeForValue(I.getOperand(I.getNumOperands() - 1))};
         auto *InstNode = BrgTreeNode::createInstNode(&I, Kids);
         CurrentFunction->InstToNodeMap[&I] = InstNode;
