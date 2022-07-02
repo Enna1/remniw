@@ -14,6 +14,7 @@ class TypeVisitor;
 class TypeContext;
 class IntType;
 class PointerType;
+class ArrayType;
 class FunctionType;
 class VarType;
 
@@ -23,6 +24,7 @@ public:
         TK_VARTYPE,
         TK_INTTYPE,
         TK_POINTERTYPE,
+        TK_ARRAYTYPE,
         TK_FUNCTIONTYPE,
     };
 
@@ -36,6 +38,7 @@ public:
 
     static IntType *getIntType(TypeContext &C);
     static PointerType *getIntPtrType(TypeContext &C);
+    static ArrayType *getArrayType(Type *ElementType, uint64_t NumElements);
     static FunctionType *getFunctionType(llvm::ArrayRef<Type *> Params, Type *ReturnType);
     static VarType *getVarType(const ASTNode *DeclNode, TypeContext &C);
     PointerType *getPointerTo();
@@ -126,6 +129,28 @@ private:
     Type *PointeeTy;
 };
 
+// Class to represent arrays (proper type).
+class ArrayType: public Type {
+public:
+    ArrayType(Type *ElementTy, uint64_t NumElements):
+        Type(TK_ARRAYTYPE, ElementTy->getContext()), ElementTy(ElementTy),
+        NumElements(NumElements) {}
+
+    ArrayType(const ArrayType &) = delete;
+    ArrayType &operator=(const ArrayType &) = delete;
+
+    static bool classof(const Type *Ty) { return Ty->getTypeKind() == TK_ARRAYTYPE; }
+
+    static ArrayType *get(Type *ElementType, uint64_t NumElements);
+
+    Type *getElementType() const { return ElementTy; }
+    uint64_t getNumElements() const { return NumElements; }
+
+private:
+    Type *ElementTy;
+    uint64_t NumElements;
+};
+
 // Class to represent function types (proper type).
 class FunctionType: public Type {
 public:
@@ -211,6 +236,7 @@ public:
 
     IntType IntTy;
     llvm::DenseMap<Type *, PointerType *> PointerTypes;
+    llvm::DenseMap<std::pair<Type *, uint64_t>, ArrayType *> ArrayTypes;
     using FunctionTypeSet = llvm::DenseSet<FunctionType *, FunctionTypeKeyInfo>;
     FunctionTypeSet FunctionTypes;
     using VarTypeSet = llvm::DenseSet<VarType *, VarTypeKeyInfo>;

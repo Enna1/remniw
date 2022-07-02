@@ -35,6 +35,7 @@ expr
    | 'alloc' expr # AllocExpr
    | '&' id # RefExpr
    | '*' expr # DerefExpr
+   | expr '[' expr ']' # ArraySubscriptExpr
    | '-' integer # NegIntExpr
    | 'nil' # NullExpr
    | integer # IntExpr
@@ -86,9 +87,14 @@ whileStmt
    ;
 
 type
-   : intType
+   : arrayType
+   | intType
    | pointerType
    | functionType
+   ;
+
+arrayType
+   : '[' integer ']' type
    ;
 
 intType

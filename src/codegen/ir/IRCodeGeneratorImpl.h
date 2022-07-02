@@ -30,6 +30,7 @@ public:
     llvm::Value *codegenAllocExpr(AllocExprAST *);
     llvm::Value *codegenRefExpr(RefExprAST *);
     llvm::Value *codegenDerefExpr(DerefExprAST *);
+    llvm::Value *codegenArraySubscriptExpr(ArraySubscriptExprAST *);
     llvm::Value *codegenInputExpr(InputExprAST *);
     llvm::Value *codegenBinaryExpr(BinaryExprAST *);
     llvm::Value *codegenLocalVarDeclStmt(LocalVarDeclStmtAST *);

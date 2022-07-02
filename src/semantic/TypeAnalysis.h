@@ -173,6 +173,12 @@ public:
                                  ASTNodeToType(DerefExpr)->getPointerTo());
     }
 
+    // array[E]: [[E]] = int
+    void actAfterVisitArraySubscriptExpr(ArraySubscriptExprAST *ArraySubscriptExpr) {
+        Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getSelector()),
+                                 Type::getIntType(TypeCtx));
+    }
+
 private:
     Type *ASTNodeToType(const ASTNode *Node) const;
 

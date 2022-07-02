@@ -21,6 +21,8 @@ public:
 
     virtual antlrcpp::Any visitPointerType(RemniwParser::PointerTypeContext *Ctx);
 
+    virtual antlrcpp::Any visitArrayType(RemniwParser::ArrayTypeContext *Ctx);
+
     virtual antlrcpp::Any visitFunctionType(RemniwParser::FunctionTypeContext *Ctx);
 
     virtual antlrcpp::Any visitProgram(RemniwParser::ProgramContext *Ctx);
@@ -48,6 +50,9 @@ public:
     virtual antlrcpp::Any visitRefExpr(RemniwParser::RefExprContext *Ctx);
 
     virtual antlrcpp::Any visitDerefExpr(RemniwParser::DerefExprContext *Ctx);
+
+    virtual antlrcpp::Any
+    visitArraySubscriptExpr(RemniwParser::ArraySubscriptExprContext *Ctx);
 
     virtual antlrcpp::Any visitNullExpr(RemniwParser::NullExprContext *Ctx);
 

@@ -26,6 +26,9 @@ llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
         assert(PointeeTy != nullptr &&
                "The pointee type of pointer type must not be nullptr");
         return PointeeTy->getPointerTo();
+    } else if (auto *ArrayTy = llvm::dyn_cast<remniw::ArrayType>(Ty)) {
+        llvm::Type *ArrayElementTy = REMNIWTypeToLLVMType(ArrayTy->getElementType());
+        return llvm::ArrayType::get(ArrayElementTy, ArrayTy->getNumElements());
     } else if (auto *FuncTy = llvm::dyn_cast<remniw::FunctionType>(Ty)) {
         SmallVector<llvm::Type *, 4> ParamTypes;
         for (auto *ParamType : FuncTy->getParamTypes())
@@ -117,6 +120,9 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::RefExpr: Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr)); break;
     case ASTNode::DerefExpr:
         Ret = codegenDerefExpr(static_cast<DerefExprAST *>(Expr));
+        break;
+    case ASTNode::ArraySubscriptExpr:
+        Ret = codegenArraySubscriptExpr(static_cast<ArraySubscriptExprAST *>(Expr));
         break;
     case ASTNode::InputExpr:
         Ret = codegenInputExpr(static_cast<InputExprAST *>(Expr));
@@ -225,6 +231,26 @@ Value *IRCodeGeneratorImpl::codegenDerefExpr(DerefExprAST *DerefExpr) {
     Value *V = codegenExpr(DerefExpr->getPtr());
     assert(V && "Invalid operand of DerefExpr");
     return IRB->CreateLoad(V->getType()->getPointerElementType(), V);
+}
+
+Value *IRCodeGeneratorImpl::codegenArraySubscriptExpr(
+    ArraySubscriptExprAST *ArraySubscriptExpr) {
+    Value *Base = codegenExpr(ArraySubscriptExpr->getBase());
+    Value *Selector = codegenExpr(ArraySubscriptExpr->getSelector());
+    assert((Base && Selector) && "Invalid operand of ArraySubscriptExpr");
+    assert(Base->getType()->isPointerTy());
+    auto BasePointeeTy = Base->getType()->getPointerElementType();
+    assert(BasePointeeTy->isArrayTy() || BasePointeeTy->isPointerTy());
+    Value *Ret;
+    if (BasePointeeTy->isArrayTy()) {
+        Ret = IRB->CreateInBoundsGEP(BasePointeeTy, Base, {IRB->getInt64(0), Selector});
+    } else if (BasePointeeTy->isPointerTy()) {
+        Ret = IRB->CreateInBoundsGEP(BasePointeeTy, Base, {Selector});
+    }
+    if (!ArraySubscriptExpr->IsLValue()) {
+        Ret = IRB->CreateLoad(Ret->getType()->getPointerElementType(), Ret);
+    }
+    return Ret;
 }
 
 Value *IRCodeGeneratorImpl::codegenInputExpr(InputExprAST *InputExpr) {

@@ -30,6 +30,21 @@ antlrcpp::Any ASTBuilder::visitPointerType(RemniwParser::PointerTypeContext *Ctx
     return nullptr;
 }
 
+antlrcpp::Any ASTBuilder::visitArrayType(RemniwParser::ArrayTypeContext *Ctx) {
+    visit(Ctx->type());
+    uint64_t NumElements = 0;
+    // strtoll returns long long >= 64 bits, so check it's in range.
+    errno = 0;
+    std::string S = Ctx->integer()->NUMBER()->getText();
+    auto Val = std::strtoull(S.c_str(), nullptr, 10);
+    if (errno == 0 && Val >= std::numeric_limits<uint64_t>::min() &&
+        Val <= std::numeric_limits<uint64_t>::max()) {
+        NumElements = Val;
+    }
+    visitedType = Type::getArrayType(visitedType, NumElements);
+    return nullptr;
+}
+
 antlrcpp::Any ASTBuilder::visitFunctionType(RemniwParser::FunctionTypeContext *Ctx) {
     std::vector<Type *> ParamTys;
     for (auto *ParamTyCtx : Ctx->parametersType()->type()) {
@@ -235,6 +250,21 @@ antlrcpp::Any ASTBuilder::visitDerefExpr(RemniwParser::DerefExprContext *Ctx) {
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
         std::move(visitedExpr), LValue);
+    return nullptr;
+}
+
+antlrcpp::Any ASTBuilder::visitArraySubscriptExpr(RemniwParser::ArraySubscriptExprContext *Ctx) {
+    bool LValue = exprIsLValue; // FIXME
+    exprIsLValue = true;
+    visit(Ctx->expr(0));
+    std::unique_ptr<ExprAST> Base = std::move(visitedExpr);
+    exprIsLValue = false;
+    visit(Ctx->expr(1));
+    std::unique_ptr<ExprAST> Selector = std::move(visitedExpr);
+    visitedExpr = std::make_unique<ArraySubscriptExprAST>(
+        SourceLocation {Ctx->getStart()->getLine(),
+                        Ctx->getStart()->getCharPositionInLine()},
+        std::move(Base), std::move(Selector), LValue);
     return nullptr;
 }
 

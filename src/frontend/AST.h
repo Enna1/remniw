@@ -37,6 +37,7 @@ public:
         AllocExpr,
         RefExpr,
         DerefExpr,
+        ArraySubscriptExpr,
         InputExpr,
         BinaryExpr,
         // Statement
@@ -214,6 +215,26 @@ public:
 
 private:
     std::unique_ptr<ExprAST> Ptr;
+};
+
+class ArraySubscriptExprAST: public ExprAST {
+public:
+    ArraySubscriptExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Base,
+                          std::unique_ptr<ExprAST> Selector, bool LValue):
+        ExprAST(ASTNode::ArraySubscriptExpr, Loc, LValue),
+        Base(std::move(Base)), Selector(std::move(Selector)) {}
+
+    ExprAST *getBase() const { return Base.get(); }
+
+    ExprAST *getSelector() const { return Selector.get(); }
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::ArraySubscriptExpr;
+    }
+
+private:
+    std::unique_ptr<ExprAST> Base;
+    std::unique_ptr<ExprAST> Selector;
 };
 
 class InputExprAST: public ExprAST {

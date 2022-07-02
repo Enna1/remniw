@@ -19,8 +19,7 @@ struct burm_state;
 
 // To make changes to BrgTerm, make sure to synced up with
 // %term defined in BrgTerm.gen
-enum BrgTerm
-{
+enum BrgTerm {
     Undef = 0,
     Const,
     Label,
@@ -32,8 +31,7 @@ enum BrgTerm
 
 class BrgTreeNode {
 public:
-    enum KindTy
-    {
+    enum KindTy {
         UndefNode,
         ArgsNode,
         InstNode,
@@ -129,15 +127,15 @@ public:
 
     static BrgTreeNode *createInstNode(llvm::Instruction *I,
                                        std::vector<BrgTreeNode *> Kids) {
-
         switch (I->getOpcode()) {
-        // Build the switch statement using the Instruction.def file...
-    #define HANDLE_INST(NUM, OPCODE, CLASS) \
-        case llvm::Instruction::OPCODE: {\
-        auto *Ret = new BrgTreeNode(KindTy::InstNode, BrgTerm::OPCODE, Kids); \
-        Ret->Inst = I; \
-        return Ret; }
-    #include "llvm/IR/Instruction.def"
+            // Build the switch statement using the Instruction.def file...
+#define HANDLE_INST(NUM, OPCODE, CLASS)                                                  \
+    case llvm::Instruction::OPCODE: {                                                    \
+        auto *Ret = new BrgTreeNode(KindTy::InstNode, BrgTerm::OPCODE, Kids);            \
+        Ret->Inst = I;                                                                   \
+        return Ret;                                                                      \
+    }
+#include "llvm/IR/Instruction.def"
         }
         llvm_unreachable("Unknown instruction type encountered");
         return nullptr;
@@ -149,12 +147,15 @@ public:
         return Ret;
     }
 
-    static BrgTreeNode *createMemNode(int64_t Offset, std::vector<BrgTreeNode *> Kids) {
-        auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca, Kids);
+    static BrgTreeNode *createMemNode(int64_t Offset,
+                                      uint32_t BaseReg = remniw::Register::RBP,
+                                      uint32_t IndexReg = remniw::Register::NoRegister,
+                                      uint32_t Scale = 1) {
+        auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca);
         Ret->Mem.Disp = Offset;
-        Ret->Mem.BaseReg = remniw::Register::RBP;
-        Ret->Mem.IndexReg = remniw::Register::NoRegister;
-        Ret->Mem.Scale = 1;
+        Ret->Mem.BaseReg = BaseReg;
+        Ret->Mem.IndexReg = IndexReg;
+        Ret->Mem.Scale = Scale;
         return Ret;
     }
 
@@ -203,6 +204,16 @@ public:
     uint32_t getMemScale() {
         assert(Kind == KindTy::MemNode && "Not a MemNode");
         return Mem.Scale;
+    }
+
+    void setMemNode(int64_t Offset, uint32_t BaseReg = remniw::Register::RBP,
+                    uint32_t IndexReg = remniw::Register::NoRegister,
+                    uint32_t Scale = 1) {
+        Kind = KindTy::MemNode;
+        Mem.Disp = Offset;
+        Mem.BaseReg = BaseReg;
+        Mem.IndexReg = IndexReg;
+        Mem.Scale = Scale;
     }
 
     int64_t getImmVal() {
@@ -343,8 +354,7 @@ public:
                 llvm::Type *Ty = F.getArg(i)->getType();
                 uint64_t SizeInBytes =
                     F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                ArgNode = BrgTreeNode::createMemNode(8 * (i - 6 + 2),
-                                                     {getBrgNodeForImm(SizeInBytes)});
+                ArgNode = BrgTreeNode::createMemNode(8 * (i - 6 + 2));
             }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
@@ -364,8 +374,7 @@ public:
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         Offset -= AllocaSizeInBytes;
-        auto *InstNode =
-            BrgTreeNode::createMemNode(Offset, {getBrgNodeForImm(AllocaSizeInBytes)});
+        auto *InstNode = BrgTreeNode::createMemNode(Offset);
         CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
     }
@@ -433,6 +442,22 @@ public:
                 &CI, {getBrgNodeForValue(CI.getCalledOperand()), Args});
         }
         CurrentFunction->InstToNodeMap[&CI] = InstNode;
+        return InstNode;
+    }
+
+    BrgTreeNode *visitGetElementPtrInst(llvm::GetElementPtrInst &I) {
+        // If this is a GetElementPtrInst for ArrayType,
+        // the indices size is 2, and the first index is always constant 0.
+        // If this is a GetElementPtrInst for PointerType,
+        // the indices size is 1.
+        // That is we only care the last index
+        // See IRCodeGeneratorImpl::codegenArraySubscriptExpr() for more info.
+        assert(I.getNumIndices() >= 1);
+        // Only care the last index, i.e. the last operand
+        std::vector<BrgTreeNode *> Kids {
+            getBrgNodeForValue(I.getOperand(I.getNumOperands() - 1))};
+        auto *InstNode = BrgTreeNode::createInstNode(&I, Kids);
+        CurrentFunction->InstToNodeMap[&I] = InstNode;
         return InstNode;
     }
 
