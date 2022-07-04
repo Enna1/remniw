@@ -173,10 +173,17 @@ Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
     std::string Name = VariableExpr->getName().str();
     if (NamedValues.count(Name)) {
         Value *V = NamedValues[Name];
-        if (VariableExpr->IsLValue())
+        if (VariableExpr->IsLValue()) {
             return V;
-        else
-            return IRB->CreateLoad(V->getType()->getPointerElementType(), V, Name);
+        } else {
+            assert(V->getType()->isPointerTy());
+            auto PointeeTy = V->getType()->getPointerElementType();
+            if (PointeeTy->isArrayTy())
+                return IRB->CreateInBoundsGEP(PointeeTy, V,
+                                              {IRB->getInt64(0), IRB->getInt64(0)});
+            else
+                return IRB->CreateLoad(V->getType()->getPointerElementType(), V, Name);
+        }
     }
 
     if (llvm::Function *F = TheModule->getFunction(Name)) {
@@ -245,7 +252,8 @@ Value *IRCodeGeneratorImpl::codegenArraySubscriptExpr(
     if (BasePointeeTy->isArrayTy()) {
         Ret = IRB->CreateInBoundsGEP(BasePointeeTy, Base, {IRB->getInt64(0), Selector});
     } else if (BasePointeeTy->isPointerTy()) {
-        Ret = IRB->CreateInBoundsGEP(BasePointeeTy, Base, {Selector});
+        Value *Tmp = IRB->CreateLoad(BasePointeeTy, Base);
+        Ret = IRB->CreateInBoundsGEP(BasePointeeTy->getPointerElementType(), Tmp, {Selector});
     }
     if (!ArraySubscriptExpr->IsLValue()) {
         Ret = IRB->CreateLoad(Ret->getType()->getPointerElementType(), Ret);
