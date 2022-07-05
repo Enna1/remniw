@@ -195,7 +195,7 @@ private:
     }
 
     void insertPrologue(remniw::AsmFunction *AsmFunc,
-                        llvm::SmallVectorImpl<uint32_t>  &UsedCalleeSavedRegisters) {
+                        llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegisters) {
         AsmInstruction *InsertBefore = &AsmFunc->front();
         if (AsmFunc->FuncName != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegisters) {
@@ -205,12 +205,16 @@ private:
         AsmPushInst::create(AsmOperand::createReg(Register::RBP), InsertBefore);
         AsmMovInst::create(AsmOperand::createReg(Register::RSP),
                            AsmOperand::createReg(Register::RBP), InsertBefore);
-        int64_t AlignedStackSizeInBytes =
-            llvm::alignTo(AsmFunc->StackSizeInBytes + 8 * NumSpilledReg +
-                              8 * MaxNumReversedStackSlotForReg +
-                              (UsedCalleeSavedRegisters.size() * 8) % 16,
-                          16);
-        AsmSubInst::create(AsmOperand::createImm(AlignedStackSizeInBytes),
+        int64_t NeededStackSizeInBytes = AsmFunc->StackSizeInBytes + 8 * NumSpilledReg +
+                                         8 * MaxNumReversedStackSlotForReg;
+        int64_t TotalStackFrameSizeInBytes =
+            NeededStackSizeInBytes + 8 /*push $rbp*/ + 8 /*return address*/;
+        if (AsmFunc->FuncName != "main")
+            TotalStackFrameSizeInBytes += UsedCalleeSavedRegisters.size() * 8;
+        // x86-64 / AMD64 System V ABI requires 16-byte stack alignment
+        if (TotalStackFrameSizeInBytes % 16)
+            NeededStackSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
+        AsmSubInst::create(AsmOperand::createImm(NeededStackSizeInBytes),
                            AsmOperand::createReg(Register::RSP), InsertBefore);
     }
 
