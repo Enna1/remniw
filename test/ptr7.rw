@@ -1,5 +1,6 @@
 // RUN: %remniw %s -o %t ; lli %t | FileCheck %s
 // RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
 
 func main() int {
     var a1,a2 ***int;
@@ -8,19 +9,26 @@ func main() int {
     var d1,d2 int;
 
     a1 = &b1;
-    output (a1 == &b1);
+    if (a1 == &b1)
+        output 1;
     b1 = &c1;
-    output (b1 == &c1);
+    if (b1 == &c1)
+        output 1;
     c1 = &d1;
-    output (c1 == &d1);
+    if (c1 == &d1)
+        output 1;
     a2 = &b2;
-    output (a2 == &b2);
+    if (a2 == &b2)
+        output 1;
     b2 = &c2;
-    output (b2 == &c2);
+    if (b2 == &c2)
+        output 1;
     c2 = &d2;
-    output (c2 == &d2);
+    if (c2 == &d2)
+        output 1;
     b1 = &c2;
-    output (b1 == &c2);
+    if (b1 == &c2)
+        output 1;
 
     return 0;
 }
