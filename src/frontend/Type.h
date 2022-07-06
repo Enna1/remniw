@@ -226,6 +226,9 @@ public:
         for (auto p : PointerTypes) {
             delete p.second;
         }
+        for (auto p : ArrayTypes) {
+            delete p.second;
+        }
         for (auto *FT : FunctionTypes) {
             delete FT;
         }
