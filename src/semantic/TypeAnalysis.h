@@ -173,10 +173,15 @@ public:
                                  ASTNodeToType(DerefExpr)->getPointerTo());
     }
 
-    // array[E]: [[E]] = int
+    // E[E1]: [[E1]] = int, [[E[E1]]] = [[E]]->getElementType()
     void actAfterVisitArraySubscriptExpr(ArraySubscriptExprAST *ArraySubscriptExpr) {
         Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getSelector()),
                                  Type::getIntType(TypeCtx));
+        // Note: we do not care the nums of elements for ArrayType in type analysis, so we
+        // set the nums of elements to ~0
+        Constraints.emplace_back(
+            ASTNodeToType(ArraySubscriptExpr->getBase()),
+            Type::getArrayType(ASTNodeToType(ArraySubscriptExpr), ~0));
     }
 
 private:
