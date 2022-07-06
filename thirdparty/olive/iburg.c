@@ -20,6 +20,10 @@
 #include "tree.h"
 #include "iburg.h"
 
+const char *__lsan_default_suppressions() {
+  return "leak:*iburg.c*";
+}
+
 static char rcsid[] = "$Id: iburg.c,v 1.20 1993/07/21 11:39:27 tjiang Exp $";
 static char *prefix = "burm";
 int Lflag = 1;
