@@ -17,6 +17,7 @@ private:
     std::unordered_map<std::string, llvm::Value *> NamedValues;
     llvm::GlobalVariable *InputFmtStr;
     llvm::GlobalVariable *OutputFmtStr;
+    bool Error; // True if an error occurred
 
 public:
     IRCodeGeneratorImpl(llvm::LLVMContext *);

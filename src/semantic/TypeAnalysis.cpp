@@ -76,7 +76,8 @@ bool TypeAnalysis::solve(ProgramAST *AST) {
             return false;
         }
     }
-    return true;
+
+    return !Error; // Return false if error occured
 }
 
 }  // namespace remniw

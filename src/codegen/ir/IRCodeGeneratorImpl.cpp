@@ -84,7 +84,7 @@ static AllocaInst *createEntryBlockAlloca(Function *TheFunction, Twine VarName,
     return Tmp.CreateAlloca(Ty, nullptr, VarName);
 }
 
-IRCodeGeneratorImpl::IRCodeGeneratorImpl(llvm::LLVMContext *LLVMContext) {
+IRCodeGeneratorImpl::IRCodeGeneratorImpl(llvm::LLVMContext *LLVMContext): Error(false) {
     TheLLVMContext = LLVMContext;
     TheModule = std::make_unique<Module>("", *TheLLVMContext);
     InitializeNativeTarget();
@@ -420,8 +420,13 @@ std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
     for (auto *FuncAST : AST->getFunctions())
         codegenFunction(FuncAST);
 
-    // Verify the generated code.
-    verifyModule(*TheModule);
+    // If error encountered during IR codegen */
+    if (Error)
+        return nullptr;
+
+    // Verify the generated code, return true if the module is broken
+    if (verifyModule(*TheModule))
+        return nullptr;
 
     return std::move(TheModule);
 }

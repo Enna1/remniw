@@ -43,10 +43,14 @@ int main(int argc, char* argv[]) {
     Stream.open(InputFilename);
     if (!Stream.good()) {
         llvm::errs() << "error: no such file: '" << InputFilename << "'\n";
-        return 1;
+        exit(1);
     }
     FrontEnd FE(TheTypeContext);
     std::unique_ptr<ProgramAST> AST = FE.parse(Stream);
+    if (AST == nullptr) {
+        llvm::errs() << "error: compiling remniw code failed in frontend\n";
+        exit(1);
+    }
 
     LLVM_DEBUG({
         llvm::outs() << "===== AST Printer ===== \n";
@@ -61,11 +65,15 @@ int main(int argc, char* argv[]) {
 
     LLVM_DEBUG(llvm::outs() << "===== Type Analysis ===== \n");
     TypeAnalysis TA(SymTabBuilder.getSymbolTale(), TheTypeContext);
-    TA.solve(AST.get());
+    bool noerror = TA.solve(AST.get());
     LLVM_DEBUG({
         for (auto Constraint : TA.getConstraints())
             Constraint.print(llvm::outs());
     });
+    if (!noerror) {
+        llvm::errs() << "error: compiling remniw code failed in type analysis\n";
+        exit(1);
+    }
 
     LLVM_DEBUG(llvm::outs() << "===== Code Generator ===== \n");
     IRCodeGenerator CG(&TheLLVMContext);
@@ -75,7 +83,7 @@ int main(int argc, char* argv[]) {
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
     if (EC) {
         llvm::errs() << EC.message() << '\n';
-        return 1;
+        exit(1);
     }
     LLVM_DEBUG(M->print(llvm::outs(), nullptr));
     // WriteBitcodeToFile(*M.get(), Out.os());

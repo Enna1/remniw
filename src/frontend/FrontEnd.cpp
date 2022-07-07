@@ -31,6 +31,8 @@ std::unique_ptr<ProgramAST> FrontEnd::parse(std::istream& Stream) {
         if (Parser.getNumberOfSyntaxErrors())
             llvm::errs() << "===== Parser Failed ===== \n";
     });
+    if (Parser.getNumberOfSyntaxErrors())
+        return nullptr;
 
     ASTBuilder Builder(TheTypeContext);
     return Builder.build(Program);

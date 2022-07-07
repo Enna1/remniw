@@ -53,7 +53,7 @@ class TypeAnalysis: public RecursiveASTVisitor<TypeAnalysis> {
 public:
     TypeAnalysis(SymbolTable &SymTab, TypeContext &TypeCtx):
         SymTab(SymTab), TypeCtx(TypeCtx),
-        TheUnionFind(std::move(std::make_unique<UnionFind>())) {}
+        TheUnionFind(std::move(std::make_unique<UnionFind>())), Error(false) {}
 
     bool unify(Type *Ty1, Type *Ty2);
 
@@ -70,6 +70,15 @@ public:
     // I: [[I]] = int
     void actAfterVisitNumberExpr(NumberExprAST *NumberExpr) {
         Constraints.emplace_back(ASTNodeToType(NumberExpr), Type::getIntType(TypeCtx));
+    }
+
+    bool actBeforeVisitBinaryExpr(BinaryExprAST *BinaryExpr) {
+        if (llvm::isa<FunctionType>(ASTNodeToType(BinaryExpr->getLHS())) ||
+            llvm::isa<FunctionType>(ASTNodeToType(BinaryExpr->getRHS()))) {
+            Error = true;
+            return true;
+        }
+        return false;
     }
 
     // E1 op E2: [[E1]] = [[E2]] = [[E1 op E2]] = int
@@ -89,6 +98,14 @@ public:
     // input: [[input]] = int
     void actAfterVisitInputExpr(InputExprAST *InputExpr) {
         Constraints.emplace_back(ASTNodeToType(InputExpr), Type::getIntType(TypeCtx));
+    }
+
+    bool actBeforeVisitAssignmentStmt(AssignmentStmtAST *AssignmentStmt) {
+        if (llvm::isa<FunctionType>(ASTNodeToType(AssignmentStmt->getLHS()))) {
+            Error = true;
+            return true;
+        }
+        return false;
     }
 
     // X = E: [[X]] = [[E]]
@@ -182,6 +199,7 @@ private:
     std::unique_ptr<UnionFind> TheUnionFind;
     FunctionAST *CurrentFunction;
     std::vector<TypeConstraint> Constraints;
+    bool Error;  // True if an error occurred.
 };
 
 }  // namespace remniw
