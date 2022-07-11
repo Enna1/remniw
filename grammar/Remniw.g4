@@ -11,15 +11,15 @@ program
    ;
 
 fun
-   : 'func' id parameters type '{' (varDeclarations)*  stmt* returnStmt '}'
+   : 'func' id parameters scalarType '{' (varDeclarations)*  stmt* returnStmt '}'
    ;
 
 parameters
-   : '(' ((id type',')* id type)? ')'
+   : '(' ((id paramType',')* id paramType)? ')'
    ;
 
 varDeclarations
-   : 'var' (id ',')* id type ';'
+   : 'var' (id ',')* id varType ';'
    ;
 
 returnStmt
@@ -86,15 +86,28 @@ whileStmt
    : 'while' '(' expr ')' stmt
    ;
 
-type
-   : arrayType
-   | intType
+varType
+   : varArrayType
+   | scalarType
+   ;
+
+paramType
+   : paramArrayType
+   | scalarType
+   ;
+
+scalarType
+   : intType
    | pointerType
    | functionType
    ;
 
-arrayType
-   : '[' integer ']' type
+varArrayType
+   : '[' integer ']' varType
+   ;
+
+paramArrayType
+   : '[' ']' paramType
    ;
 
 intType
@@ -102,15 +115,15 @@ intType
    ;
 
 pointerType
-   : '*' type
+   : '*' (varType | paramType)
    ;
 
 functionType
-   : 'func' parametersType type
+   : 'func' parametersType scalarType
    ;
 
 parametersType
-   : '(' ((type',')* type)? ')'
+   : '(' ((paramType',')* paramType)? ')'
    ;
 
 

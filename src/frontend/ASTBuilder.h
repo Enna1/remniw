@@ -21,9 +21,17 @@ public:
 
     virtual antlrcpp::Any visitPointerType(RemniwParser::PointerTypeContext *Ctx);
 
-    virtual antlrcpp::Any visitArrayType(RemniwParser::ArrayTypeContext *Ctx);
-
     virtual antlrcpp::Any visitFunctionType(RemniwParser::FunctionTypeContext *Ctx);
+
+    // virtual antlrcpp::Any visitScalarType(RemniwParser::ScalarTypeContext *Ctx);
+
+    virtual antlrcpp::Any visitVarArrayType(RemniwParser::VarArrayTypeContext *Ctx);
+
+    virtual antlrcpp::Any visitParamArrayType(RemniwParser::ParamArrayTypeContext *Ctx);
+
+    // virtual antlrcpp::Any visitVarType(RemniwParser::VarTypeContext *Ctx);
+
+    // virtual antlrcpp::Any visitParamType(RemniwParser::ParamTypeContext *Ctx);
 
     virtual antlrcpp::Any visitProgram(RemniwParser::ProgramContext *Ctx);
 
