@@ -9,10 +9,11 @@ func foo(arr *int) int {
 func main() int {
     var tmp int;
     var arr[100] int;
-    tmp = 0;
+    tmp = input;
     arr[0] = tmp;
     tmp = foo(arr);
-    return tmp;
+    output tmp;
+    return 0;
 }
 
 // CHECK: 66

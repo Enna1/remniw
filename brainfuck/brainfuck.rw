@@ -5,7 +5,7 @@
 // RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | awk '{printf("%c", $1)}' | FileCheck %s
 // CHECK: Hello World!
 
-func brainfuck(command_array *int, input_array *int) int {
+func brainfuck(command_array []int, input_array []int) int {
   var bracket_flag int;
   var command int;
   var command_pc int;
