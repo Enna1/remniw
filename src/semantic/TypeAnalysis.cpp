@@ -43,11 +43,22 @@ bool TypeAnalysis::unify(Type *Ty1, Type *Ty2) {
                 auto *PointerTy2 = llvm::dyn_cast<PointerType>(Ty2r);
                 unify(PointerTy1->getPointeeType(), PointerTy2->getPointeeType());
             } else if (llvm::isa<ArrayType>(Ty1r) && llvm::isa<ArrayType>(Ty2r)) {
+                TheUnionFind->unionTypes(Ty1r, Ty2r);
                 auto *ArrayTy1 = llvm::dyn_cast<ArrayType>(Ty1r);
                 auto *ArrayTy2 = llvm::dyn_cast<ArrayType>(Ty2r);
-                /* We do not care the nums of elements for ArrayType in type analysis,
-                   so we do not check if NumElements equal here. */
+                if (ArrayTy1->getNumElements() != ArrayTy2->getNumElements())
+                    return false;
                 unify(ArrayTy1->getElementType(), ArrayTy2->getElementType());
+            } else if (llvm::isa<PointerType>(Ty1r) && llvm::isa<ArrayType>(Ty2r)) {
+                TheUnionFind->unionTypes(Ty1r, Ty2r);
+                auto *PointerTy = llvm::dyn_cast<PointerType>(Ty1r);
+                auto *ArrayTy = llvm::dyn_cast<ArrayType>(Ty2r);
+                unify(PointerTy->getPointeeType(), ArrayTy->getElementType());
+            } else if (llvm::isa<ArrayType>(Ty1r) && llvm::isa<PointerType>(Ty2r)) {
+                TheUnionFind->unionTypes(Ty1r, Ty2r);
+                auto *ArrayTy = llvm::dyn_cast<ArrayType>(Ty1r);
+                auto *PointerTy = llvm::dyn_cast<PointerType>(Ty2r);
+                unify(ArrayTy->getElementType(), PointerTy->getPointeeType());
             } else if (llvm::isa<FunctionType>(Ty1r) && llvm::isa<FunctionType>(Ty2r)) {
                 auto *FunctionTy1 = llvm::dyn_cast<FunctionType>(Ty1r);
                 auto *FunctionTy2 = llvm::dyn_cast<FunctionType>(Ty2r);
