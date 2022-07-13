@@ -34,9 +34,9 @@ reg: BRG_REG { $cost[0].cost = 0; }
     LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_REG\n";);
 };
 
-mem: BRG_ALLOCA(imm) { $cost[0].cost = 0; }
+mem: BRG_ALLOCA { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_ALLOCA(imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_ALLOCA\n";);
 };
 
 reg: BRG_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
@@ -186,6 +186,70 @@ stmt: BRG_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1;
                                                      $3->getMemBaseReg(),
                                                      $3->getMemIndexReg(),
                                                      $3->getMemScale()));
+};
+
+
+mem: BRG_GETELEMENTPTR(mem, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    // For GetElementPtrInst, if all indices are constant
+    // we can calculate the MemOp offset directly
+    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(mem, imm)\n";);
+    $action[2](Builder);
+    $action[3](Builder);
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
+    uint32_t SizeInBytes =
+        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
+            GEP->getResultElementType());
+    $0->setMemNode($2->getMemDisp() + SizeInBytes * $3->getImmVal(),
+                   $2->getMemBaseReg(),
+                   $2->getMemIndexReg(),
+                   $2->getMemScale());
+};
+
+mem: BRG_GETELEMENTPTR(mem, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(mem, reg)\n";);
+    $action[2](Builder);
+    $action[3](Builder);
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
+    uint32_t SizeInBytes =
+        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
+            GEP->getResultElementType());
+    if ($2->getMemBaseReg() == remniw::Register::NoRegister) {
+        $0->setMemNode($2->getMemDisp(), $2->getMemBaseReg(), $3->getReg(), SizeInBytes);
+    } else {
+        uint32_t VirtReg = remniw::Register::createVirtReg();
+        Builder->createLea(remniw::AsmOperand::createMem($2->getMemDisp(),
+                                                         $2->getMemBaseReg(),
+                                                         $2->getMemIndexReg(),
+                                                         $2->getMemScale()),
+                           remniw::AsmOperand::createReg(VirtReg));
+        $0->setMemNode(0, VirtReg, $3->getReg(), SizeInBytes);
+    }
+};
+
+mem: BRG_GETELEMENTPTR(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(reg, imm)\n";);
+    $action[2](Builder);
+    $action[3](Builder);
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
+    uint32_t SizeInBytes =
+        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
+            GEP->getResultElementType());
+    $0->setMemNode(SizeInBytes * $3->getImmVal(), $2->getReg());
+};
+
+mem: BRG_GETELEMENTPTR(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(reg, reg)\n";);
+    $action[2](Builder);
+    $action[3](Builder);
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
+    uint32_t SizeInBytes =
+        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
+            GEP->getResultElementType());
+    $0->setMemNode(0, $2->getReg(), $3->getReg(), SizeInBytes);
 };
 
 cond: BRG_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }

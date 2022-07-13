@@ -18,7 +18,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char *argv[]) {
     // parse arguments from command line
-    llvm::cl::ParseCommandLineOptions(argc, argv, "llc-olive\n");
+    llvm::cl::ParseCommandLineOptions(argc, argv, "remniw-llc\n");
 
     // prepare llvm context to read bitcode file
     llvm::LLVMContext Context;

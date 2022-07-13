@@ -85,6 +85,16 @@ public:
 
     void actAfterVisitDerefExpr(DerefExprAST *) { Ind -= 1; }
 
+    bool actBeforeVisitArraySubscriptExpr(ArraySubscriptExprAST *Node) {
+        Out.indent(Ind) << "ArraySubscriptExpr " << Node << ", "
+                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+        Ind += 1;
+        return false;
+    }
+
+    void actAfterVisitArraySubscriptExpr(ArraySubscriptExprAST *) { Ind -= 1; }
+
     bool actBeforeVisitInputExpr(InputExprAST *Node) {
         Out.indent(Ind) << "InputExpr " << Node << ", "
                         << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"

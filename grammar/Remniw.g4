@@ -11,15 +11,15 @@ program
    ;
 
 fun
-   : 'func' id parameters type '{' (varDeclarations)*  stmt* returnStmt '}'
+   : 'func' id parameters scalarType '{' (varDeclarations)*  stmt* returnStmt '}'
    ;
 
 parameters
-   : '(' ((id type',')* id type)? ')'
+   : '(' ((id paramType',')* id paramType)? ')'
    ;
 
 varDeclarations
-   : 'var' (id ',')* id type ';'
+   : 'var' (id ',')* id varType ';'
    ;
 
 returnStmt
@@ -35,6 +35,7 @@ expr
    | 'alloc' expr # AllocExpr
    | '&' id # RefExpr
    | '*' expr # DerefExpr
+   | expr '[' expr ']' # ArraySubscriptExpr
    | '-' integer # NegIntExpr
    | 'nil' # NullExpr
    | integer # IntExpr
@@ -85,10 +86,28 @@ whileStmt
    : 'while' '(' expr ')' stmt
    ;
 
-type
+varType
+   : varArrayType
+   | scalarType
+   ;
+
+paramType
+   : paramArrayType
+   | scalarType
+   ;
+
+scalarType
    : intType
    | pointerType
    | functionType
+   ;
+
+varArrayType
+   : '[' integer ']' varType
+   ;
+
+paramArrayType
+   : '[' ']' paramType
    ;
 
 intType
@@ -96,15 +115,15 @@ intType
    ;
 
 pointerType
-   : '*' type
+   : '*' (varType | paramType)
    ;
 
 functionType
-   : 'func' parametersType type
+   : 'func' parametersType scalarType
    ;
 
 parametersType
-   : '(' ((type',')* type)? ')'
+   : '(' ((paramType',')* paramType)? ')'
    ;
 
 

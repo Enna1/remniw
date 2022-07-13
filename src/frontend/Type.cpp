@@ -17,6 +17,12 @@ void Type::print(llvm::raw_ostream &OS) const {
         llvm::cast<PointerType>(this)->getPointeeType()->print(OS << "*");
         return;
     }
+    case Type::TK_ARRAYTYPE: {
+        auto *ArrayTy = llvm::cast<ArrayType>(this);
+        OS << "[" << ArrayTy->getNumElements() << "]";
+        ArrayTy->getElementType()->print(OS);
+        return;
+    }
     case Type::TK_FUNCTIONTYPE: {
         auto *FTy = llvm::cast<FunctionType>(this);
         OS << "(";
@@ -38,6 +44,10 @@ IntType *Type::getIntType(TypeContext &C) {
 
 PointerType *Type::getIntPtrType(TypeContext &C) {
     return getIntType(C)->getPointerTo();
+}
+
+ArrayType *Type::getArrayType(Type *ElementType, uint64_t NumElements) {
+    return ArrayType::get(ElementType, NumElements);
 }
 
 FunctionType *Type::getFunctionType(llvm::ArrayRef<Type *> Params, Type *ReturnType) {
@@ -77,6 +87,16 @@ PointerType *PointerType::get(Type *EltTy) {
 
     PointerType *Entry = new PointerType(EltTy);
     C.PointerTypes[EltTy] = Entry;
+    return Entry;
+}
+
+ArrayType *ArrayType::get(Type *EltTy, uint64_t NumEl) {
+    TypeContext &C = EltTy->getContext();
+
+    ArrayType *&Entry = C.ArrayTypes[std::make_pair(EltTy, NumEl)];
+
+    if (!Entry)
+        Entry = new ArrayType(EltTy, NumEl);
     return Entry;
 }
 

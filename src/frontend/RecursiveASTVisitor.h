@@ -45,6 +45,10 @@ public:
     void actAfterVisitDerefExpr(DerefExprAST *) {}
     void visitDerefExpr(DerefExprAST *);
 
+    bool actBeforeVisitArraySubscriptExpr(ArraySubscriptExprAST *) { return false; }
+    void actAfterVisitArraySubscriptExpr(ArraySubscriptExprAST *) {}
+    void visitArraySubscriptExpr(ArraySubscriptExprAST *);
+
     bool actBeforeVisitInputExpr(InputExprAST *) { return false; }
     void actAfterVisitInputExpr(InputExprAST *) {}
     void visitInputExpr(InputExprAST *);
@@ -118,6 +122,9 @@ void RecursiveASTVisitor<Derived>::visitExpr(ExprAST *Expr) {
     case ASTNode::DerefExpr:
         getDerived().visitDerefExpr(static_cast<DerefExprAST *>(Expr));
         break;
+    case ASTNode::ArraySubscriptExpr:
+        getDerived().visitArraySubscriptExpr(static_cast<ArraySubscriptExprAST *>(Expr));
+        break;
     case ASTNode::InputExpr:
         getDerived().visitInputExpr(static_cast<InputExprAST *>(Expr));
         break;
@@ -146,14 +153,12 @@ void RecursiveASTVisitor<Derived>::visitStmt(StmtAST *Stmt) {
     case ASTNode::ReturnStmt:
         getDerived().visitReturnStmt(static_cast<ReturnStmtAST *>(Stmt));
         break;
-    case ASTNode::IfStmt: getDerived().visitIfStmt(static_cast<IfStmtAST *>(Stmt));
-        break;
+    case ASTNode::IfStmt: getDerived().visitIfStmt(static_cast<IfStmtAST *>(Stmt)); break;
     case ASTNode::WhileStmt:
         getDerived().visitWhileStmt(static_cast<WhileStmtAST *>(Stmt));
         break;
     case ASTNode::AssignmentStmt:
-        getDerived().visitAssignmentStmt(
-            static_cast<AssignmentStmtAST *>(Stmt));
+        getDerived().visitAssignmentStmt(static_cast<AssignmentStmtAST *>(Stmt));
         break;
     default: llvm_unreachable("Invalid stmt");
     }
@@ -231,6 +236,18 @@ void RecursiveASTVisitor<Derived>::visitDerefExpr(DerefExprAST *DerefExpr) {
     visitExpr(DerefExpr->getPtr());
 
     getDerived().actAfterVisitDerefExpr(DerefExpr);
+}
+
+template<typename Derived>
+void RecursiveASTVisitor<Derived>::visitArraySubscriptExpr(
+    ArraySubscriptExprAST *ArraySubscriptExpr) {
+    if (getDerived().actBeforeVisitArraySubscriptExpr(ArraySubscriptExpr))
+        return;
+
+    visitExpr(ArraySubscriptExpr->getBase());
+    visitExpr(ArraySubscriptExpr->getSelector());
+
+    getDerived().actAfterVisitArraySubscriptExpr(ArraySubscriptExpr);
 }
 
 template<typename Derived>

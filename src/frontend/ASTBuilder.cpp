@@ -25,20 +25,45 @@ antlrcpp::Any ASTBuilder::visitIntType(RemniwParser::IntTypeContext *Ctx) {
 }
 
 antlrcpp::Any ASTBuilder::visitPointerType(RemniwParser::PointerTypeContext *Ctx) {
-    visit(Ctx->type());
+    if (Ctx->varType())
+        visit(Ctx->varType());
+    if (Ctx->paramType())
+        visit(Ctx->varType());
     visitedType = visitedType->getPointerTo();
     return nullptr;
 }
 
 antlrcpp::Any ASTBuilder::visitFunctionType(RemniwParser::FunctionTypeContext *Ctx) {
     std::vector<Type *> ParamTys;
-    for (auto *ParamTyCtx : Ctx->parametersType()->type()) {
+    for (auto *ParamTyCtx : Ctx->parametersType()->paramType()) {
         visit(ParamTyCtx);
         ParamTys.push_back(visitedType);
     }
-    visit(Ctx->type());
+    visit(Ctx->scalarType());
     Type *RetType = visitedType;
     visitedType = Type::getFunctionType(ParamTys, RetType);
+    return nullptr;
+}
+
+antlrcpp::Any ASTBuilder::visitVarArrayType(RemniwParser::VarArrayTypeContext *Ctx) {
+    visit(Ctx->varType());
+    uint64_t NumElements = 0;
+    // strtoll returns long long >= 64 bits, so check it's in range.
+    errno = 0;
+    std::string S = Ctx->integer()->NUMBER()->getText();
+    auto Val = std::strtoull(S.c_str(), nullptr, 10);
+    if (errno == 0 && Val >= std::numeric_limits<uint64_t>::min() &&
+        Val <= std::numeric_limits<uint64_t>::max()) {
+        NumElements = Val;
+    }
+    visitedType = Type::getArrayType(visitedType, NumElements);
+    return nullptr;
+}
+
+// Note: we implement paramArrayType as pointerType
+antlrcpp::Any ASTBuilder::visitParamArrayType(RemniwParser::ParamArrayTypeContext *Ctx) {
+    visit(Ctx->paramType());
+    visitedType = visitedType->getPointerTo();
     return nullptr;
 }
 
@@ -57,10 +82,10 @@ antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
     // paramters
     std::vector<std::unique_ptr<VarDeclNodeAST>> ParamDecls;
     std::vector<Type *> ParamTypes;
-    assert(Ctx->parameters()->id().size() == Ctx->parameters()->type().size());
+    assert(Ctx->parameters()->id().size() == Ctx->parameters()->paramType().size());
     for (std::size_t i = 0; i < Ctx->parameters()->id().size(); ++i) {
         auto *IdCtx = Ctx->parameters()->id(i);
-        auto *TypeCtx = Ctx->parameters()->type(i);
+        auto *TypeCtx = Ctx->parameters()->paramType(i);
         visit(TypeCtx);
         auto ParamDecl = std::make_unique<VarDeclNodeAST>(
             SourceLocation {IdCtx->getStart()->getLine(),
@@ -72,7 +97,7 @@ antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
     // var declarations
     std::vector<std::unique_ptr<VarDeclNodeAST>> Vars;
     for (auto *VarDeclCtx : Ctx->varDeclarations()) {
-        visit(VarDeclCtx->type());
+        visit(VarDeclCtx->varType());
         for (auto *VarCtx : VarDeclCtx->id()) {
             auto Var = std::make_unique<VarDeclNodeAST>(
                 SourceLocation {VarCtx->getStart()->getLine(),
@@ -93,7 +118,7 @@ antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
     visit(Ctx->returnStmt());
     std::unique_ptr<ReturnStmtAST> Return = std::move(visitedReturnStmt);
     // return type
-    visit(Ctx->type());
+    visit(Ctx->scalarType());
     Type *ReturnType = visitedType;
     // create ast node
     visitedFunction = std::make_unique<FunctionAST>(
@@ -235,6 +260,21 @@ antlrcpp::Any ASTBuilder::visitDerefExpr(RemniwParser::DerefExprContext *Ctx) {
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
         std::move(visitedExpr), LValue);
+    return nullptr;
+}
+
+antlrcpp::Any ASTBuilder::visitArraySubscriptExpr(RemniwParser::ArraySubscriptExprContext *Ctx) {
+    bool LValue = exprIsLValue; // FIXME
+    exprIsLValue = true;
+    visit(Ctx->expr(0));
+    std::unique_ptr<ExprAST> Base = std::move(visitedExpr);
+    exprIsLValue = false;
+    visit(Ctx->expr(1));
+    std::unique_ptr<ExprAST> Selector = std::move(visitedExpr);
+    visitedExpr = std::make_unique<ArraySubscriptExprAST>(
+        SourceLocation {Ctx->getStart()->getLine(),
+                        Ctx->getStart()->getCharPositionInLine()},
+        std::move(Base), std::move(Selector), LValue);
     return nullptr;
 }
 

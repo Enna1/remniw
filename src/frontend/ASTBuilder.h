@@ -23,6 +23,16 @@ public:
 
     virtual antlrcpp::Any visitFunctionType(RemniwParser::FunctionTypeContext *Ctx);
 
+    // virtual antlrcpp::Any visitScalarType(RemniwParser::ScalarTypeContext *Ctx);
+
+    virtual antlrcpp::Any visitVarArrayType(RemniwParser::VarArrayTypeContext *Ctx);
+
+    virtual antlrcpp::Any visitParamArrayType(RemniwParser::ParamArrayTypeContext *Ctx);
+
+    // virtual antlrcpp::Any visitVarType(RemniwParser::VarTypeContext *Ctx);
+
+    // virtual antlrcpp::Any visitParamType(RemniwParser::ParamTypeContext *Ctx);
+
     virtual antlrcpp::Any visitProgram(RemniwParser::ProgramContext *Ctx);
 
     virtual antlrcpp::Any visitFun(RemniwParser::FunContext *Ctx);
@@ -48,6 +58,9 @@ public:
     virtual antlrcpp::Any visitRefExpr(RemniwParser::RefExprContext *Ctx);
 
     virtual antlrcpp::Any visitDerefExpr(RemniwParser::DerefExprContext *Ctx);
+
+    virtual antlrcpp::Any
+    visitArraySubscriptExpr(RemniwParser::ArraySubscriptExprContext *Ctx);
 
     virtual antlrcpp::Any visitNullExpr(RemniwParser::NullExprContext *Ctx);
 
