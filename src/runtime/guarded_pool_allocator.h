@@ -47,14 +47,18 @@ public:
     void *allocate(size_t Size, size_t Alignment);
 
 private:
+    static constexpr size_t kInvalidSlotID = ~0;
+    
     AllocatorState State;
-
+    // Record the number allocations that we've made.
+    size_t NumAllocations = 0;
     // Pointer to the free slots list which stores the indexes of freed slot in
     // GuardedPagePool.
     size_t *FreeSlots = nullptr;
     // The current length of the free slots list.
     size_t FreeSlotsLength = 0;
-
+    // 
+    uint32_t RandomState = 0xacd979ce;
     // Get the page size using sysconf(_SC_PAGESIZE).
     // We should only call this function once, and cahe the result in
     // AllocatorState::PageSize.
@@ -63,6 +67,13 @@ private:
     void *reserveGuardedPool(size_t Size);
 
     void *map(size_t Size) const;
+
+    // Reserve a slot in GuardedPagePool for a new allocation. 
+    // Returns kInvalidSlotID if no slot is available to be reserved.
+    size_t reserveSlot();
+
+    // Use xorshift32, a class of pseudorandom number generators, see https://en.wikipedia.org/wiki/Xorshift
+    uint32_t getRandomUnsigned32();
 };
 
 }  // namespace aphotic_shield

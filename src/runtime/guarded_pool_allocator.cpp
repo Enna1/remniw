@@ -77,13 +77,14 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
         Alignment = alignof(max_align_t);
 
     if (!isPowerOfTwo(Alignment) || Alignment > State.PageSize ||
-        Size > State.maximumAllocationSize)
+        Size > State.PageSize)
         return nullptr;
 
-    // Protect against recursivity.
-    if (getThreadLocals()->RecursiveGuard)
-        return nullptr;
-    ScopedRecursiveGuard SRG;
+    // TODO
+    // // Protect against recursivity.
+    // if (getThreadLocals()->RecursiveGuard)
+    //     return nullptr;
+    // ScopedRecursiveGuard SRG;
 
     size_t Index;
     {
@@ -96,7 +97,7 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
 
     uintptr_t SlotStart = State.slotToAddr(Index);
     AllocationMetadata *Meta = addrToMetadata(SlotStart);
-    uintptr_t SlotEnd = State.slotToAddr(Index) + State.maximumAllocationSize();
+    uintptr_t SlotEnd = State.slotToAddr(Index) + State.PageSize;
     uintptr_t UserPtr;
     // Randomly choose whether to left-align or right-align the allocation, and
     // then apply the necessary adjustments to get an aligned pointer.
@@ -143,6 +144,27 @@ void *GuardedPoolAllocator::map(size_t Size) const {
     Check(Ptr != MAP_FAILED,
           "APHOTIC_SHIELD Error: Failed to map guarded pool allocator memory");
     return Ptr;
+}
+
+size_t GuardedPoolAllocator::reserveSlot() {
+    // We won't reuse a slot until we have made at least a single allocation in each slot. 
+    if (NumAllocations < State.MaxSimultaneousAllocations)
+        return NumAllocations++;
+        
+    if (FreeSlotsLength == 0)
+        return kInvalidSlotID;
+
+    size_t ReservedIndex = getRandomUnsigned32() % FreeSlotsLength;
+    size_t SlotIndex = FreeSlots[ReservedIndex];
+    FreeSlots[ReservedIndex] = FreeSlots[--FreeSlotsLength];
+    return SlotIndex;
+}
+
+uint32_t GuardedPoolAllocator::getRandomUnsigned32() {
+  RandomState ^= RandomState << 13;
+  RandomState ^= RandomState >> 17;
+  RandomState ^= RandomState << 5;
+  return RandomState;
 }
 
 }  // namespace aphotic_shield
