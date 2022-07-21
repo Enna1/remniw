@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "guarded_pool_allocator.h"
+#include "mutex.h"
 #include "utils.h"
 #include <assert.h>
 #include <sys/mman.h>
@@ -27,6 +28,27 @@ uintptr_t getPageAddr(uintptr_t Ptr, uintptr_t PageSize) {
 bool isPowerOfTwo(uintptr_t X) {
     return (X & (X - 1)) == 0;
 }
+
+uintptr_t alignUp(uintptr_t Ptr, size_t Alignment) {
+    assert(isPowerOfTwo(Alignment) && "Alignment must be a power of two!");
+    assert(Alignment != 0 && "Alignment should be non-zero");
+    if ((Ptr & (Alignment - 1)) == 0)
+        return Ptr;
+
+    Ptr += Alignment - (Ptr & (Alignment - 1));
+    return Ptr;
+}
+
+uintptr_t alignDown(uintptr_t Ptr, size_t Alignment) {
+    assert(isPowerOfTwo(Alignment) && "Alignment must be a power of two!");
+    assert(Alignment != 0 && "Alignment should be non-zero");
+    if ((Ptr & (Alignment - 1)) == 0)
+        return Ptr;
+
+    Ptr -= Ptr & (Alignment - 1);
+    return Ptr;
+}
+
 }  // namespace
 
 GuardedPoolAllocator *GuardedPoolAllocator::getSingleton() {
@@ -49,7 +71,7 @@ void GuardedPoolAllocator::init(const options::Options &Opts) {
 
     size_t PoolBytesRequired =
         PageSize * (1 + State.MaxSimultaneousAllocations) /* GuardPage */ +
-        PageSize * State.MaxSimultaneousAllocations /* Slot */;
+        State.maximumAllocationSize() * State.MaxSimultaneousAllocations /* Slot */;
     void *GuardedPoolMemory = reserveGuardedPool(PoolBytesRequired);
     State.GuardedPagePool = reinterpret_cast<uintptr_t>(GuardedPoolMemory);
     State.GuardedPagePoolEnd =
@@ -77,7 +99,7 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
         Alignment = alignof(max_align_t);
 
     if (!isPowerOfTwo(Alignment) || Alignment > State.PageSize ||
-        Size > State.PageSize)
+        Size > State.maximumAllocationSize())
         return nullptr;
 
     // TODO
@@ -96,7 +118,8 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
         return nullptr;
 
     uintptr_t SlotStart = State.slotToAddr(Index);
-    AllocationMetadata *Meta = addrToMetadata(SlotStart);
+    // TODO:
+    // AllocationMetadata *Meta = addrToMetadata(SlotStart);
     uintptr_t SlotEnd = State.slotToAddr(Index) + State.PageSize;
     uintptr_t UserPtr;
     // Randomly choose whether to left-align or right-align the allocation, and
@@ -115,14 +138,57 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
     const size_t PageSize = State.PageSize;
     allocateInGuardedPool(reinterpret_cast<void *>(getPageAddr(UserPtr, PageSize)),
                           roundUpTo(Size, PageSize));
-
-    Meta->RecordAllocation(UserPtr, Size);
-    {
-        ScopedLock UL(BacktraceMutex);
-        Meta->AllocationTrace.RecordBacktrace(Backtrace);
-    }
+    // TODO
+    // Meta->RecordAllocation(UserPtr, Size);
+    // {
+    //     ScopedLock UL(BacktraceMutex);
+    //     Meta->AllocationTrace.RecordBacktrace(Backtrace);
+    // }
 
     return reinterpret_cast<void *>(UserPtr);
+}
+
+void GuardedPoolAllocator::deallocate(void *Ptr) {
+    assert(pointerIsMine(Ptr) && "Pointer is not mine!");
+    uintptr_t UPtr = reinterpret_cast<uintptr_t>(Ptr);
+    size_t Slot = State.getNearestSlot(UPtr);
+    uintptr_t SlotStart = State.slotToAddr(Slot);
+    // TODO
+    // AllocationMetadata *Meta = addrToMetadata(UPtr);
+    if (Meta->Addr != UPtr) {
+        // If multiple errors occur at the same time, use the first one.
+        ScopedLock L(PoolMutex);
+        trapOnAddress(UPtr, Error::INVALID_FREE);
+    }
+
+    // Intentionally scope the mutex here, so that other threads can access the
+    // pool during the expensive markInaccessible() call.
+    {
+        ScopedLock L(PoolMutex);
+        if (Meta->IsDeallocated) {
+            trapOnAddress(UPtr, Error::DOUBLE_FREE);
+        }
+
+        // Ensure that the deallocation is recorded before marking the page as
+        // inaccessible. Otherwise, a racy use-after-free will have inconsistent
+        // metadata.
+        Meta->RecordDeallocation();
+
+        // Ensure that the unwinder is not called if the recursive flag is set,
+        // otherwise non-reentrant unwinders may deadlock.
+        if (!getThreadLocals()->RecursiveGuard) {
+            ScopedRecursiveGuard SRG;
+            ScopedLock UL(BacktraceMutex);
+            Meta->DeallocationTrace.RecordBacktrace(Backtrace);
+        }
+    }
+
+    deallocateInGuardedPool(reinterpret_cast<void *>(SlotStart),
+                            State.maximumAllocationSize());
+
+    // And finally, lock again to release the slot back into the pool.
+    ScopedLock L(PoolMutex);
+    freeSlot(Slot);
 }
 
 size_t GuardedPoolAllocator::getPageSize() {
@@ -147,10 +213,10 @@ void *GuardedPoolAllocator::map(size_t Size) const {
 }
 
 size_t GuardedPoolAllocator::reserveSlot() {
-    // We won't reuse a slot until we have made at least a single allocation in each slot. 
+    // We won't reuse a slot until we have made at least a single allocation in each slot.
     if (NumAllocations < State.MaxSimultaneousAllocations)
         return NumAllocations++;
-        
+
     if (FreeSlotsLength == 0)
         return kInvalidSlotID;
 
@@ -160,11 +226,29 @@ size_t GuardedPoolAllocator::reserveSlot() {
     return SlotIndex;
 }
 
+void GuardedPoolAllocator::allocateInGuardedPool(void *Ptr, size_t Size) const {
+    assert((reinterpret_cast<uintptr_t>(Ptr) % State.PageSize) == 0);
+    assert((Size % State.PageSize) == 0);
+    Check(mprotect(Ptr, Size, PROT_READ | PROT_WRITE) == 0,
+          "Failed to allocate in guarded pool allocator memory");
+}
+
+void GuardedPoolAllocator::deallocateInGuardedPool(void *Ptr, size_t Size) const {
+    assert((reinterpret_cast<uintptr_t>(Ptr) % State.PageSize) == 0);
+    assert((Size % State.PageSize) == 0);
+    // mmap() a PROT_NONE page over the address to release it to the system, if
+    // we used mprotect() here the system would count pages in the quarantine
+    // against the RSS.
+    Check(mmap(Ptr, Size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0) !=
+              MAP_FAILED,
+          "Failed to deallocate in guarded pool allocator memory");
+}
+
 uint32_t GuardedPoolAllocator::getRandomUnsigned32() {
-  RandomState ^= RandomState << 13;
-  RandomState ^= RandomState >> 17;
-  RandomState ^= RandomState << 5;
-  return RandomState;
+    RandomState ^= RandomState << 13;
+    RandomState ^= RandomState >> 17;
+    RandomState ^= RandomState << 5;
+    return RandomState;
 }
 
 }  // namespace aphotic_shield

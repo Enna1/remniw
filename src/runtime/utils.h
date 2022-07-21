@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdio.h>
+#include <cstdio>
 
 #define APHOTIC_SHIELD_ALWAYS_INLINE inline __attribute__((always_inline))
 
