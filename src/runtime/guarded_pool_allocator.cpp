@@ -49,7 +49,48 @@ uintptr_t alignDown(uintptr_t Ptr, size_t Alignment) {
     return Ptr;
 }
 
+size_t addrToSlot(const AllocatorState *State, uintptr_t Ptr) {
+    size_t ByteOffsetFromPoolStart = Ptr - State->GuardedPagePool;
+    return ByteOffsetFromPoolStart / (State->maximumAllocationSize() + State->PageSize);
+}
 }  // namespace
+
+
+uintptr_t AllocatorState::slotToAddr(size_t N) const {
+    return GuardedPagePool + (PageSize * (1 + N)) + (maximumAllocationSize() * N);
+}
+
+size_t AllocatorState::getNearestSlot(uintptr_t Ptr) const {
+    if (Ptr <= GuardedPagePool + PageSize)
+        return 0;
+    if (Ptr > GuardedPagePoolEnd - PageSize)
+        return MaxSimultaneousAllocations - 1;
+
+    if (!isGuardPage(Ptr))
+        return addrToSlot(this, Ptr);
+
+    if (Ptr % PageSize <= PageSize / 2)
+        return addrToSlot(this, Ptr - PageSize);  // Round down.
+    return addrToSlot(this, Ptr + PageSize);      // Round up.
+}
+
+bool AllocatorState::isGuardPage(uintptr_t Ptr) const {
+    assert(pointerIsMine(reinterpret_cast<void *>(Ptr)));
+    size_t PageOffsetFromPoolStart = (Ptr - GuardedPagePool) / PageSize;
+    size_t PagesPerSlot = maximumAllocationSize() / PageSize;
+    return (PageOffsetFromPoolStart % (PagesPerSlot + 1)) == 0;
+}
+
+void AllocationMetadata::RecordAllocation(uintptr_t AllocAddr,
+                                          size_t AllocSize) {
+    Addr = AllocAddr;
+    Size = AllocSize;
+    IsDeallocated = false;
+}
+
+void AllocationMetadata::RecordDeallocation() {
+    IsDeallocated = true;
+}
 
 GuardedPoolAllocator *GuardedPoolAllocator::getSingleton() {
     return SingletonPtr;
@@ -77,10 +118,10 @@ void GuardedPoolAllocator::init(const options::Options &Opts) {
     State.GuardedPagePoolEnd =
         reinterpret_cast<uintptr_t>(GuardedPoolMemory) + PoolBytesRequired;
 
-    // size_t MetadataBytesRequired =
-    //     roundUpTo(State.MaxSimultaneousAllocations * sizeof(*Metadata), PageSize);
-    // Metadata =
-    //     reinterpret_cast<AllocationMetadata *>(map(MetadataBytesRequired));
+    size_t MetadataBytesRequired =
+        roundUpTo(State.MaxSimultaneousAllocations * sizeof(*Metadata), PageSize);
+    Metadata =
+        reinterpret_cast<AllocationMetadata *>(map(MetadataBytesRequired));
 
     size_t FreeSlotsBytesRequired =
         roundUpTo(State.MaxSimultaneousAllocations * sizeof(*FreeSlots), PageSize);
@@ -102,12 +143,6 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
         Size > State.maximumAllocationSize())
         return nullptr;
 
-    // TODO
-    // // Protect against recursivity.
-    // if (getThreadLocals()->RecursiveGuard)
-    //     return nullptr;
-    // ScopedRecursiveGuard SRG;
-
     size_t Index;
     {
         ScopedLock L(PoolMutex);
@@ -118,9 +153,8 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
         return nullptr;
 
     uintptr_t SlotStart = State.slotToAddr(Index);
-    // TODO:
-    // AllocationMetadata *Meta = addrToMetadata(SlotStart);
     uintptr_t SlotEnd = State.slotToAddr(Index) + State.PageSize;
+    AllocationMetadata *Meta = addrToMetadata(SlotStart);
     uintptr_t UserPtr;
     // Randomly choose whether to left-align or right-align the allocation, and
     // then apply the necessary adjustments to get an aligned pointer.
@@ -128,7 +162,6 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
         UserPtr = alignUp(SlotStart, Alignment);
     else
         UserPtr = alignDown(SlotEnd - Size, Alignment);
-
     assert(UserPtr >= SlotStart);
     assert(UserPtr + Size <= SlotEnd);
 
@@ -138,12 +171,7 @@ void *GuardedPoolAllocator::allocate(size_t Size, size_t Alignment) {
     const size_t PageSize = State.PageSize;
     allocateInGuardedPool(reinterpret_cast<void *>(getPageAddr(UserPtr, PageSize)),
                           roundUpTo(Size, PageSize));
-    // TODO
-    // Meta->RecordAllocation(UserPtr, Size);
-    // {
-    //     ScopedLock UL(BacktraceMutex);
-    //     Meta->AllocationTrace.RecordBacktrace(Backtrace);
-    // }
+    Meta->RecordAllocation(UserPtr, Size);
 
     return reinterpret_cast<void *>(UserPtr);
 }
@@ -153,8 +181,7 @@ void GuardedPoolAllocator::deallocate(void *Ptr) {
     uintptr_t UPtr = reinterpret_cast<uintptr_t>(Ptr);
     size_t Slot = State.getNearestSlot(UPtr);
     uintptr_t SlotStart = State.slotToAddr(Slot);
-    // TODO
-    // AllocationMetadata *Meta = addrToMetadata(UPtr);
+    AllocationMetadata *Meta = addrToMetadata(UPtr);
     if (Meta->Addr != UPtr) {
         // If multiple errors occur at the same time, use the first one.
         ScopedLock L(PoolMutex);
@@ -173,14 +200,6 @@ void GuardedPoolAllocator::deallocate(void *Ptr) {
         // inaccessible. Otherwise, a racy use-after-free will have inconsistent
         // metadata.
         Meta->RecordDeallocation();
-
-        // Ensure that the unwinder is not called if the recursive flag is set,
-        // otherwise non-reentrant unwinders may deadlock.
-        if (!getThreadLocals()->RecursiveGuard) {
-            ScopedRecursiveGuard SRG;
-            ScopedLock UL(BacktraceMutex);
-            Meta->DeallocationTrace.RecordBacktrace(Backtrace);
-        }
     }
 
     deallocateInGuardedPool(reinterpret_cast<void *>(SlotStart),

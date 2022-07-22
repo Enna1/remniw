@@ -7,12 +7,50 @@
 
 #pragma once
 
-#include "guarded_pool_allocator_state.h"
 #include "mutex.h"
 #include "options.h"
 #include "utils.h"
 
 namespace aphotic_shield {
+
+struct AllocatorState {
+    constexpr AllocatorState() {}
+
+    APHOTIC_SHIELD_ALWAYS_INLINE bool pointerIsMine(const void *Ptr) const {
+        uintptr_t P = reinterpret_cast<uintptr_t>(Ptr);
+        return P < GuardedPagePoolEnd && GuardedPagePool <= P;
+    }
+
+    uintptr_t slotToAddr(size_t N) const;
+
+    size_t getNearestSlot(uintptr_t Ptr) const;
+
+    bool isGuardPage(uintptr_t Ptr) const;
+
+    size_t maximumAllocationSize() const { return PageSize; }
+
+    size_t MaxSimultaneousAllocations = 0;
+
+    uintptr_t GuardedPagePool = 0;
+    uintptr_t GuardedPagePoolEnd = 0;
+
+    size_t PageSize = 0;
+};
+
+struct AllocationMetadata {
+  // Records the given allocation metadata into this struct.
+  void RecordAllocation(uintptr_t Addr, size_t Size);
+  // Record that this allocation is now deallocated.
+  void RecordDeallocation();
+
+  // The address of this allocation. If zero, the rest of this struct isn't
+  // valid, as the allocation has never occurred.
+  uintptr_t Addr = 0;
+  // Represents the actual size of the allocation.
+  size_t Size = 0;
+  // Whether this allocation has been deallocated yet.
+  bool IsDeallocated = false;
+};
 
 class GuardedPoolAllocator {
 public:
@@ -37,6 +75,8 @@ private:
     AllocatorState State;
     // Record the number allocations that we've made.
     size_t NumAllocations = 0;
+    //  Pointer to the allocation metadata.
+    AllocationMetadata *Metadata = nullptr;
     // Pointer to the free slots list which stores the indexes of freed slot in
     // GuardedPagePool.
     size_t *FreeSlots = nullptr;
