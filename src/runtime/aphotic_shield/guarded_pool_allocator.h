@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
 //
-// The idea and implementation of remniw's guarded_pool_allocator is heavily
+// The idea and implementation of remniw's aphotic_shield_allocator is heavily
 // borromed from llvm-project/compiler-rt/lib/gwp_asan/
 //
 //===----------------------------------------------------------------------===//

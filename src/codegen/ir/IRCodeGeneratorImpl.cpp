@@ -15,6 +15,14 @@
 
 using namespace llvm;
 
+extern cl::OptionCategory RemniwCat;
+
+cl::opt<bool> EnableAphoticShield(
+    "enable-aphotic-shield",
+    cl::desc("Enable APHOTIC_SHIELD allocator"),
+    cl::init(false),
+    cl::Hidden, cl::cat(RemniwCat));
+
 namespace remniw {
 
 // Convert remniw::Type to corresponding llvm::Type
