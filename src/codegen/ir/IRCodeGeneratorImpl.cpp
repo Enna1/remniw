@@ -10,6 +10,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetSelect.h"
 #include <cassert>
 
@@ -17,11 +18,9 @@ using namespace llvm;
 
 extern cl::OptionCategory RemniwCat;
 
-cl::opt<bool> EnableAphoticShield(
-    "enable-aphotic-shield",
-    cl::desc("Enable APHOTIC_SHIELD allocator"),
-    cl::init(false),
-    cl::Hidden, cl::cat(RemniwCat));
+cl::opt<bool> EnableAphoticShield("enable-aphotic-shield",
+                                  cl::desc("Enable APHOTIC_SHIELD allocator"),
+                                  cl::init(false), cl::Hidden, cl::cat(RemniwCat));
 
 namespace remniw {
 

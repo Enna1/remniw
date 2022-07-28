@@ -18,3 +18,6 @@ target_include_directories(remniw PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend
                                           ${CMAKE_CURRENT_SOURCE_DIR}/codegen
                                           ${CMAKE_CURRENT_SOURCE_DIR}/optimizer
 )
+
+# runtime
+add_subdirectory(runtime)

@@ -19,7 +19,7 @@ using namespace remniw;
 
 #define DEBUG_TYPE "remniw"
 
-static llvm::cl::OptionCategory RemniwCat("remniw compiler options");
+llvm::cl::OptionCategory RemniwCat("remniw compiler options");
 
 static llvm::cl::opt<std::string>
     InputFilename(llvm::cl::Positional, llvm::cl::desc("<input remniw source code>"),
