@@ -32,7 +32,6 @@ jobs:
           cmake -DCMAKE_CXX_FLAGS="-fsanitize=address -g" -DCMAKE_C_FLAGS="-fsanitize=address -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address" ..
           make -j `nproc`
           make check-remniw
-          make check-aphotic_shield
           popd
       - name: Cache build
         if: runner.os == 'Linux'
