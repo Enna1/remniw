@@ -13,6 +13,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetSelect.h"
 #include <cassert>
+#include <cstdint>
 
 using namespace llvm;
 
@@ -44,21 +45,17 @@ llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
                                        ParamTypes, false)
             ->getPointerTo();
     }
+    llvm_unreachable("Unhandled remniw::Type");
     return nullptr;
 }
 
 // Get size in bytes required of remniw::Type.
 // First convert remniw::Type to corresponding llvm::Type,
 // Then get Size(bytes) of llvm::Type
-// llvm::Type *IRCodeGeneratorImpl::getSizeOfREMNIWType(remniw::Type *Ty) {
-//     if (llvm::isa<remniw::IntType>(Ty) || llvm::isa<remniw::PointerType>(Ty) || 
-//         llvm::isa<remniw::FunctionType>(Ty)) {
-//         return 8;
-//     } else if (auto *ArrayTy = llvm::dyn_cast<remniw::ArrayType>(Ty)) {
-//         return ArrayTy->getNumElements() * getSizeOfREMNIWType(ArrayTy->getElementType());
-//     }
-//     llvm_unreachable("Unhandled remniw::Type");
-// }
+uint64_t IRCodeGeneratorImpl::getSizeOfREMNIWType(remniw::Type *Ty) {
+    llvm::Type * LLVMTy = REMNIWTypeToLLVMType(Ty);
+    return TheModule->getDataLayout().getTypeAllocSize(LLVMTy);
+}
 
 // utility function for emit scanf, printf
 Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnType,
@@ -98,6 +95,22 @@ Value *IRCodeGeneratorImpl::emitScanf(Value *Fmt, Value *VAList) {
     return emitLibCall("scanf", IRB->getInt32Ty(), {IRB->getInt8PtrTy()},
                        {IRB->CreateBitCast(Fmt, IRB->getInt8PtrTy(AS), "cstr"), VAList},
                        /*IsVaArgs=*/true);
+}
+
+Value *IRCodeGeneratorImpl::emitAlloc(Value *Size) {
+    if (EnableAphoticShield)
+        return emitLibCall("as_alloca", IRB->getInt8PtrTy(), {Size->getType()},
+                           {Size}, /*IsVaArgs=*/false);
+    return emitLibCall("malloc", IRB->getInt8PtrTy(), {Size->getType()},
+                        {Size}, /*IsVaArgs=*/false);
+}
+
+Value *IRCodeGeneratorImpl::emitDealloc(Value *Ptr) {
+    if (EnableAphoticShield)
+        return emitLibCall("as_dealloca", IRB->getVoidTy(), {Ptr->getType()},
+                           {Ptr}, /*IsVaArgs=*/false);
+    return emitLibCall("free", IRB->getInt8PtrTy(), {Ptr->getType()},
+                        {Ptr}, /*IsVaArgs=*/false);
 }
 
 //  Create an alloca instruction in the entry block of the function.
@@ -249,14 +262,14 @@ Value *IRCodeGeneratorImpl::codegenNullExpr(NullExprAST *NullExpr) {
     return nullptr;
 }
 
-// TODO
 Value *IRCodeGeneratorImpl::codegenAllocExpr(AllocExprAST *AllocExpr) {
-    return nullptr;
+    Value *Size = codegenExpr(AllocExpr->getInit());
+    return emitAlloc(Size);
 }
 
-// TODO
 Value *IRCodeGeneratorImpl::codegenSizeofExpr(SizeofExprAST *SizeofExpr) {
-    return nullptr;
+    uint64_t SizeInBytes = getSizeOfREMNIWType(SizeofExpr->getType());
+    return ConstantInt::get(IRB->getInt64Ty(), SizeInBytes, /*IsSigned=*/true);
 }
 
 Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
@@ -328,9 +341,9 @@ Value *IRCodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
     return emitPrintf(OutputFmtStr, V);
 }
 
-// TODO
 Value *IRCodeGeneratorImpl::codegenDeallocStmt(DeallocStmtAST *DeallocStmt) {
-    return nullptr;
+    Value *Ptr = codegenExpr(DeallocStmt->getExpr());
+    return emitDealloc(Ptr);
 }
 
 Value *IRCodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {

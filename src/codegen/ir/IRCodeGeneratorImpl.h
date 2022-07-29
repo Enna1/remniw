@@ -54,6 +54,8 @@ private:
                              bool IsVaArgs = false);
     llvm::Value *emitPrintf(llvm::Value *Fmt, llvm::Value *VAList);
     llvm::Value *emitScanf(llvm::Value *Fmt, llvm::Value *VAList);
+
+    uint64_t getSizeOfREMNIWType(remniw::Type *);
 };
 
 }  // namespace remniw
