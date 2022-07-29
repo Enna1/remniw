@@ -33,11 +33,11 @@ arguments
 expr
    : expr arguments # FuncCallExpr
    | 'alloc' expr # AllocExpr
+   | 'sizeof' varType # SizeofExpr
    | '&' id # RefExpr
    | '*' expr # DerefExpr
    | expr '[' expr ']' # ArraySubscriptExpr
    | '-' integer # NegIntExpr
-   | 'nil' # NullExpr
    | integer # IntExpr
    | id # IdExpr
    | expr '*' expr # MulExpr
@@ -48,6 +48,7 @@ expr
    | expr '==' expr # EqualExpr
    | '(' expr ')' # ParenExpr
    | 'input' # InputExpr
+   | 'nil' # NullExpr
    | '{' ((id ':' expr ',')* id ':' expr)? '}' # RecordCreateExpr
    | expr '.' id # RecordAccessExpr
    ;
@@ -56,6 +57,7 @@ expr
 stmt
    : assignmentStmt
    | outputStmt
+   | deallocStmt
    | emptyStmt
    | blockStmt
    | ifStmt
@@ -68,6 +70,10 @@ assignmentStmt
 
 outputStmt
    : 'output' expr ';'
+   ;
+
+deallocStmt
+   : 'dealloc' expr ';'
    ;
 
 emptyStmt
