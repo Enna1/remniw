@@ -11,7 +11,7 @@ func foo(p func(int) int) int {
 }
 
 func main() int {
-    output foo(succ);
+    %output foo(succ);
     return 0;
 }
 

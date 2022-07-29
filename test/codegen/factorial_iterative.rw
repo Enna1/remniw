@@ -14,8 +14,8 @@ func ite(n int) int {
 
 func main() int {
     var n int;
-    n = input;
-    output ite(n);
+    n = %input;
+    %output ite(n);
     return 0;
 }
 

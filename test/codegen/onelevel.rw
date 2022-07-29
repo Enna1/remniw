@@ -10,7 +10,7 @@ func main() int {
     q = &s3;
     q = p;
     if (q == &s2)
-        output 1;
+        %output 1;
     return 0;
 }
 

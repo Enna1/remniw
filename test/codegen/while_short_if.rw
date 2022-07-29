@@ -4,16 +4,16 @@
 
 func main() int {
     var x,y,z int;
-    x = input;
-    y = input;
-    z = input;
+    x = %input;
+    y = %input;
+    z = %input;
     if (x == 1) {
         while (x > 0) {
             if (y == 0) {
-                output z;
+                %output z;
             }
             else {
-                x = input;
+                x = %input;
             }
             x = x - 1;
         }

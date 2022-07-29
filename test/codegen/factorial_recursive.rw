@@ -11,8 +11,8 @@ func rec(n int) int {
 
 func main() int {
     var n int;
-    n = input;
-    output rec(n);
+    n = %input;
+    %output rec(n);
     return 0;
 }
 

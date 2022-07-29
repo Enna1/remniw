@@ -53,11 +53,11 @@ llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
 // First convert remniw::Type to corresponding llvm::Type,
 // Then get Size(bytes) of llvm::Type
 uint64_t IRCodeGeneratorImpl::getSizeOfREMNIWType(remniw::Type *Ty) {
-    llvm::Type * LLVMTy = REMNIWTypeToLLVMType(Ty);
+    llvm::Type *LLVMTy = REMNIWTypeToLLVMType(Ty);
     return TheModule->getDataLayout().getTypeAllocSize(LLVMTy);
 }
 
-// utility function for emit scanf, printf
+// utility function for emit scanf, printf, etc
 Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnType,
                                         ArrayRef<llvm::Type *> ParamTypes,
                                         ArrayRef<Value *> Operands, bool IsVaArgs) {
@@ -65,19 +65,7 @@ Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *Retur
     llvm::FunctionType *FuncType =
         llvm::FunctionType::get(ReturnType, ParamTypes, IsVaArgs);
     FunctionCallee Callee = M->getOrInsertFunction(LibFuncName, FuncType);
-    if (LibFuncName.equals("printf")) {
-        // setRetAndArgsNoUndef(F);
-        // setDoesNotThrow(F);
-        // setDoesNotCapture(F, 0);
-        // setOnlyReadsMemory(F, 0);
-    }
-    if (LibFuncName.equals("scanf")) {
-        // setRetAndArgsNoUndef(F);
-        // setDoesNotThrow(F);
-        // setDoesNotCapture(F, 0);
-        // setOnlyReadsMemory(F, 0);
-    }
-    CallInst *CI = IRB->CreateCall(Callee, Operands, LibFuncName);
+    CallInst *CI = IRB->CreateCall(Callee, Operands);
     if (const Function *F = dyn_cast<Function>(Callee.getCallee()->stripPointerCasts()))
         CI->setCallingConv(F->getCallingConv());
     return CI;
@@ -97,20 +85,20 @@ Value *IRCodeGeneratorImpl::emitScanf(Value *Fmt, Value *VAList) {
                        /*IsVaArgs=*/true);
 }
 
-Value *IRCodeGeneratorImpl::emitAlloc(Value *Size) {
+Value *IRCodeGeneratorImpl::emitMalloc(llvm::Type *ReturnType, Value *Size) {
     if (EnableAphoticShield)
-        return emitLibCall("as_alloca", IRB->getInt8PtrTy(), {Size->getType()},
-                           {Size}, /*IsVaArgs=*/false);
-    return emitLibCall("malloc", IRB->getInt8PtrTy(), {Size->getType()},
-                        {Size}, /*IsVaArgs=*/false);
+        return emitLibCall("as_alloca", ReturnType, {Size->getType()}, {Size},
+                           /*IsVaArgs=*/false);
+    return emitLibCall("malloc", ReturnType, {Size->getType()}, {Size},
+                       /*IsVaArgs=*/false);
 }
 
-Value *IRCodeGeneratorImpl::emitDealloc(Value *Ptr) {
+Value *IRCodeGeneratorImpl::emitFree(Value *Ptr) {
     if (EnableAphoticShield)
-        return emitLibCall("as_dealloca", IRB->getVoidTy(), {Ptr->getType()},
-                           {Ptr}, /*IsVaArgs=*/false);
-    return emitLibCall("free", IRB->getInt8PtrTy(), {Ptr->getType()},
-                        {Ptr}, /*IsVaArgs=*/false);
+        return emitLibCall("as_dealloca", IRB->getVoidTy(), {Ptr->getType()}, {Ptr},
+                           /*IsVaArgs=*/false);
+    return emitLibCall("free", IRB->getVoidTy(), {Ptr->getType()}, {Ptr},
+                       /*IsVaArgs=*/false);
 }
 
 //  Create an alloca instruction in the entry block of the function.
@@ -147,9 +135,6 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::NullExpr:
         Ret = codegenNullExpr(static_cast<NullExprAST *>(Expr));
         break;
-    case ASTNode::AllocExpr:
-        Ret = codegenAllocExpr(static_cast<AllocExprAST *>(Expr));
-        break;
     case ASTNode::SizeofExpr:
         Ret = codegenSizeofExpr(static_cast<SizeofExprAST *>(Expr));
         break;
@@ -182,6 +167,9 @@ Value *IRCodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
         break;
     case ASTNode::OutputStmt:
         Ret = codegenOutputStmt(static_cast<OutputStmtAST *>(Stmt));
+        break;
+    case ASTNode::AllocStmt:
+        Ret = codegenAllocStmt(static_cast<AllocStmtAST *>(Stmt));
         break;
     case ASTNode::DeallocStmt:
         Ret = codegenDeallocStmt(static_cast<DeallocStmtAST *>(Stmt));
@@ -262,11 +250,6 @@ Value *IRCodeGeneratorImpl::codegenNullExpr(NullExprAST *NullExpr) {
     return nullptr;
 }
 
-Value *IRCodeGeneratorImpl::codegenAllocExpr(AllocExprAST *AllocExpr) {
-    Value *Size = codegenExpr(AllocExpr->getInit());
-    return emitAlloc(Size);
-}
-
 Value *IRCodeGeneratorImpl::codegenSizeofExpr(SizeofExprAST *SizeofExpr) {
     uint64_t SizeInBytes = getSizeOfREMNIWType(SizeofExpr->getType());
     return ConstantInt::get(IRB->getInt64Ty(), SizeInBytes, /*IsSigned=*/true);
@@ -341,9 +324,21 @@ Value *IRCodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
     return emitPrintf(OutputFmtStr, V);
 }
 
+Value *IRCodeGeneratorImpl::codegenAllocStmt(AllocStmtAST *AllocStmt) {
+    assert(AllocStmt->getPtr()->IsLValue() && "AllocStmt first operand must be lvalue");
+    Value *Ptr = codegenExpr(AllocStmt->getPtr());
+    Value *Size = codegenExpr(AllocStmt->getSize());
+    assert(Ptr->getType()->isPointerTy() && llvm::isa<ConstantInt>(Size) &&
+           "AllocStmt first operand must be pointer type and "
+           "second operand must be contant int");
+    Value *Addr = emitMalloc(Ptr->getType()->getPointerElementType(), Size);
+    return IRB->CreateStore(Addr, Ptr);
+}
+
 Value *IRCodeGeneratorImpl::codegenDeallocStmt(DeallocStmtAST *DeallocStmt) {
     Value *Ptr = codegenExpr(DeallocStmt->getExpr());
-    return emitDealloc(Ptr);
+    assert(Ptr && Ptr->getType()->isPointerTy() && "Invalid operand of OutputStmt");
+    return emitFree(Ptr);
 }
 
 Value *IRCodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {
@@ -353,7 +348,7 @@ Value *IRCodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {
 }
 
 Value *IRCodeGeneratorImpl::codegenReturnStmt(ReturnStmtAST *ReturnStmt) {
-    // We handle ReturnStmt in Function()
+    // We handle ReturnStmt in codegenFunction()
     return nullptr;
 }
 

@@ -22,7 +22,7 @@ func main() int {
     var a,b int;
     a = bar();
     b = baz();
-    output a+b;
+    %output a+b;
     return 0;
 }
 

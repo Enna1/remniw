@@ -16,10 +16,10 @@ func main() int {
     u = 0;
 
     pos = posf(-4);
-    output pos;
+    %output pos;
 
     neg = negf(3);
-    output neg;
+    %output neg;
 
     if(u > 0) {
         f = posf;
@@ -28,7 +28,7 @@ func main() int {
         f = negf;
     }
     top = (f)(4);
-    output top;
+    %output top;
 
     return 0;
 }

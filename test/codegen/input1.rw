@@ -4,8 +4,8 @@
 
 func test() int{
     var a int;
-    a = input;
-    output a;
+    a = %input;
+    %output a;
     return 0;
 }
 

@@ -29,9 +29,9 @@ func main() int {
     var f5 func(**int) int;
     u = 0;
 
-    pos = posf(-4); output pos; // CHECK: 5
+    pos = posf(-4); %output pos; // CHECK: 5
 
-    neg = negf(3); output neg; // CHECK-NEXT: -5
+    neg = negf(3); %output neg; // CHECK-NEXT: -5
 
     if(u > 0) {
         f = posf;
@@ -40,7 +40,7 @@ func main() int {
         f = negf;
     }
 
-    top = (f)(4); output top; // CHECK-NEXT: -5
+    top = (f)(4); %output top; // CHECK-NEXT: -5
 
     return 0;
 }

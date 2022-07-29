@@ -10,8 +10,8 @@ func main() int {
         x = x+1;
         y = y+1;
     }
-    output x;
-    output y;
+    %output x;
+    %output y;
     return 0;
 }
 

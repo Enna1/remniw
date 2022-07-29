@@ -7,7 +7,7 @@ func f() int {
 }
 
 func main() int {
-    output f();
+    %output f();
     return 0;
 }
 

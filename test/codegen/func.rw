@@ -13,10 +13,10 @@ func g(a int,b int) int {
 func main() int {
     var a,b int;
 
-    a = input;
-    b = input;
+    a = %input;
+    b = %input;
 
-    output f(a,b);
+    %output f(a,b);
     return 0;
 }
 

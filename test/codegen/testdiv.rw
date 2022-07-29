@@ -4,9 +4,9 @@
 
 func main() int {
     var x,y int;
-    x = input;
-    y = input;
-    output x/y;
+    x = %input;
+    y = %input;
+    %output x/y;
     return 0;
 }
 

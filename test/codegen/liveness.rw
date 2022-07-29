@@ -4,7 +4,7 @@
 
 func main() int {
     var x,y,z int;
-    x = input;
+    x = %input;
     while (x>1) {
         y = x/2;
         if (y>3) { x = x-y; }
@@ -12,7 +12,7 @@ func main() int {
         if (z>0) { x = x/2; }
         z = z-1;
     }
-    output x;
+    %output x;
     return 0;
 }
 

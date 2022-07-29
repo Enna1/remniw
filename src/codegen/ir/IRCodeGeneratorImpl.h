@@ -27,7 +27,6 @@ public:
     llvm::Value *codegenVarDeclNode(VarDeclNodeAST *);
     llvm::Value *codegenFunctionCallExpr(FunctionCallExprAST *);
     llvm::Value *codegenNullExpr(NullExprAST *);
-    llvm::Value *codegenAllocExpr(AllocExprAST *);
     llvm::Value *codegenSizeofExpr(SizeofExprAST *);
     llvm::Value *codegenRefExpr(RefExprAST *);
     llvm::Value *codegenDerefExpr(DerefExprAST *);
@@ -37,6 +36,7 @@ public:
     llvm::Value *codegenLocalVarDeclStmt(LocalVarDeclStmtAST *);
     llvm::Value *codegenEmptyStmt(EmptyStmtAST *);
     llvm::Value *codegenOutputStmt(OutputStmtAST *);
+    llvm::Value *codegenAllocStmt(AllocStmtAST *);
     llvm::Value *codegenDeallocStmt(DeallocStmtAST *);
     llvm::Value *codegenBlockStmt(BlockStmtAST *);
     llvm::Value *codegenReturnStmt(ReturnStmtAST *);
@@ -54,7 +54,8 @@ private:
                              bool IsVaArgs = false);
     llvm::Value *emitPrintf(llvm::Value *Fmt, llvm::Value *VAList);
     llvm::Value *emitScanf(llvm::Value *Fmt, llvm::Value *VAList);
-
+    llvm::Value *emitMalloc(llvm::Type *ReturnType, llvm::Value *Size);
+    llvm::Value *emitFree(llvm::Value *Ptr);
     uint64_t getSizeOfREMNIWType(remniw::Type *);
 };
 

@@ -13,7 +13,7 @@ func main() int {
         x = w; //x=0
     }
     y = x + 1;
-    output x;
+    %output x;
     return 0;
 }
 

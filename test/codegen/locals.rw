@@ -14,8 +14,8 @@ func f() int {
         b=g(&a);
     }
 
-    output a;
-    output b;
+    %output a;
+    %output b;
     return 0;
 }
 

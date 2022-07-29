@@ -1,9 +1,9 @@
 func main() int {
   var x, y int;
-  x = input;
+  x = %input;
   x = x + 5;
   if (x > 0) {
-    y = input;
+    y = %input;
   } else {
     y = 10;
   }

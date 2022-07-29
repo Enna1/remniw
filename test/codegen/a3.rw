@@ -29,7 +29,7 @@ func main() int {
 
     **x = w(&x,&z);
 
-    output **x;
+    %output **x;
     return 0;
 }
 

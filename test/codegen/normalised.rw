@@ -15,7 +15,7 @@ func g() int {
 func main() int {
     var u int;
     u = g();
-    output u;
+    %output u;
     return 0;
 }
 

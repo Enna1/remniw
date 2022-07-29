@@ -11,13 +11,13 @@ func main() int {
 
     a = &x;
     if (a == &x)
-        output 1;
+        %output 1;
 
     z = &t;
     y = &z;
     x = *y;
     if (x == z)
-        output 1;
+        %output 1;
 
     return 0;
 }

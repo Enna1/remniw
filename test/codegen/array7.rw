@@ -28,8 +28,8 @@ func main() int {
     array[1] = succ;
     ptr = &array;
     while(n > 0) {
-        output *ptr[0](n);
-        output *ptr[1](n);
+        %output *ptr[0](n);
+        %output *ptr[1](n);
         n = n - 1;
     }
 

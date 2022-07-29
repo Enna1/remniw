@@ -17,11 +17,11 @@ func main() int {
     z = 3*(x+y-z) + 5 -17; // z = 9
     while(n > 0){
         x = f(y,z); // x = 5*17 + 7*9 =
-        y = x * input;
+        y = x * %input;
         n=n-1;
     }
     z = 3*(x+y-z) + 5 -16;
-    output z;
+    %output z;
     return 0;
 }
 

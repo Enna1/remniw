@@ -9,9 +9,9 @@ func foo(x int,y int) int {
 
 func main() int {
     var a,b int;
-    a = input;
+    a = %input;
     b = foo(a,17);
-    output b;
+    %output b;
     return 0;
 }
 

@@ -34,7 +34,6 @@ public:
         VariableExpr,
         FunctionCallExpr,
         NullExpr,
-        AllocExpr,
         SizeofExpr,
         RefExpr,
         DerefExpr,
@@ -45,6 +44,7 @@ public:
         LocalVarDeclStmt,
         EmptyStmt,
         OutputStmt,
+        AllocStmt,
         DeallocStmt,
         BlockStmt,
         ReturnStmt,
@@ -172,21 +172,6 @@ public:
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::NullExpr;
     }
-};
-
-class AllocExprAST: public ExprAST {
-public:
-    AllocExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Init):
-        ExprAST(ASTNode::AllocExpr, Loc, /*LValue*/ true), Init(std::move(Init)) {}
-
-    ExprAST *getInit() const { return Init.get(); }
-
-    static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::AllocExpr;
-    }
-
-private:
-    std::unique_ptr<ExprAST> Init;
 };
 
 class SizeofExprAST: public ExprAST {
@@ -364,6 +349,25 @@ public:
 
 private:
     std::unique_ptr<ExprAST> Expr;
+};
+
+class AllocStmtAST: public StmtAST {
+public:
+    AllocStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> Ptr,
+                 std::unique_ptr<ExprAST> Size):
+        StmtAST(ASTNode::AllocStmt, Loc),
+        Ptr(std::move(Ptr)), Size(std::move(Size)) {}
+
+    ExprAST *getPtr() const { return Ptr.get(); }
+    ExprAST *getSize() const { return Size.get(); }
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::AllocStmt;
+    }
+
+private:
+    std::unique_ptr<ExprAST> Ptr;
+    std::unique_ptr<ExprAST> Size;
 };
 
 class DeallocStmtAST: public StmtAST {

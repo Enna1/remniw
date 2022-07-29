@@ -7,7 +7,7 @@ func succ(i int) int {
 }
 
 func main() int {
-    output succ(10);
+    %output succ(10);
     return 0;
 }
 

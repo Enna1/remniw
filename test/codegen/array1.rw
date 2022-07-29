@@ -5,9 +5,9 @@
 func main() int {
     var tmp int;
     var arr[100] int;
-    tmp = input;
+    tmp =  %input;
     arr[tmp] = tmp;
-    output arr[tmp];
+    %output arr[tmp];
     return 0;
 }
 

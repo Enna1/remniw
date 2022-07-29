@@ -17,7 +17,7 @@ func testme(x int, y int) int {
 
 func main() int {
   var ix, iy int;
-  ix = input;
-  iy = input;
+  ix = %input;
+  iy = %input;
   return testme(ix, iy);
 }

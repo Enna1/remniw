@@ -13,10 +13,10 @@ func f(x int) int {
 }
 
 func main() int {
-  output f(17);
-  output f(95);
-  output f(150);
-  output f(200);
+  %output f(17);
+  %output f(95);
+  %output f(150);
+  %output f(200);
   return 0;
 }
 

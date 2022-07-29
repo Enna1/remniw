@@ -10,7 +10,7 @@ func main() int {
   pb = pa;
   *pb = 2;
   if (x == 2)
-    output 1;
+    %output 1;
   return 0;
 }
 

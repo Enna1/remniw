@@ -12,7 +12,7 @@ func main() int {
     } else {
         y=12;
     }
-    output y;
+    %output y;
     return 0;
 }
 

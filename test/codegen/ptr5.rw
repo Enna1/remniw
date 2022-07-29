@@ -10,13 +10,13 @@ func main() int {
 
   c = &d;
   if (c == &d)
-    output 1;
+    %output 1;
   a = &b;
   if (a == &b)
-    output 1;
+    %output 1;
   *a = c;
   if (b == c)
-    output 1;
+    %output 1;
 
   return 0;
 }

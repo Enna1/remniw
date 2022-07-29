@@ -7,14 +7,14 @@
 
 func main() int {
     var x,y,z int;
-    x = input;
-    y = input;
-    z = input;
+    x = %input;
+    y = %input;
+    z = %input;
     if (x == 0)
         if (y == 0)
-            output z;
+            %output z;
         else
-            output x;
+            %output x;
     return 0;
 }
 

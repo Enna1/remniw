@@ -23,7 +23,7 @@ func f(a int) int {
 
 func test(i int) int {
     while( i > 0 ){
-        output i;
+        %output i;
         i = i - 1;
     }
     return 0;
@@ -37,7 +37,7 @@ func main() int {
     } else {
         a = 19;
     }
-    output h(succ,17);
+    %output h(succ,17);
     return 0;
 }
 

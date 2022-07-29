@@ -19,22 +19,22 @@ func main() int {
     zero = 0;
 
     top = idf(5);
-    output top;
+    %output top;
 
     top = idf(-4);
-    output top;
+    %output top;
 
     pos = posf(5);
-    output pos;
+    %output pos;
 
     pos = posf(7);
-    output pos;
+    %output pos;
 
     neg = negf(-4);
-    output neg;
+    %output neg;
 
     neg = negf(-8);
-    output neg;
+    %output neg;
 
     return 0;
 }

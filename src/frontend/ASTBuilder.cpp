@@ -253,8 +253,9 @@ antlrcpp::Any ASTBuilder::visitDerefExpr(RemniwParser::DerefExprContext *Ctx) {
     return nullptr;
 }
 
-antlrcpp::Any ASTBuilder::visitArraySubscriptExpr(RemniwParser::ArraySubscriptExprContext *Ctx) {
-    bool LValue = exprIsLValue; // FIXME
+antlrcpp::Any
+ASTBuilder::visitArraySubscriptExpr(RemniwParser::ArraySubscriptExprContext *Ctx) {
+    bool LValue = exprIsLValue;  // FIXME
     exprIsLValue = true;
     visit(Ctx->expr(0));
     std::unique_ptr<ExprAST> Base = std::move(visitedExpr);
@@ -336,16 +337,6 @@ antlrcpp::Any ASTBuilder::visitNullExpr(RemniwParser::NullExprContext *Ctx) {
     return nullptr;
 }
 
-antlrcpp::Any ASTBuilder::visitAllocExpr(RemniwParser::AllocExprContext *Ctx) {
-    exprIsLValue = false;
-    visit(Ctx->expr());
-    visitedExpr = std::make_unique<AllocExprAST>(
-        SourceLocation {Ctx->getStart()->getLine(),
-                        Ctx->getStart()->getCharPositionInLine()},
-        std::move(visitedExpr));
-    return nullptr;
-}
-
 antlrcpp::Any ASTBuilder::visitSizeofExpr(RemniwParser::SizeofExprContext *Ctx) {
     visit(Ctx->varType());
     visitedExpr = std::make_unique<SizeofExprAST>(
@@ -374,6 +365,20 @@ antlrcpp::Any ASTBuilder::visitOutputStmt(RemniwParser::OutputStmtContext *Ctx) 
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
         std::move(visitedExpr));
+    return nullptr;
+}
+
+antlrcpp::Any ASTBuilder::visitAllocStmt(RemniwParser::AllocStmtContext *Ctx) {
+    exprIsLValue = true;
+    visit(Ctx->expr(0));
+    std::unique_ptr<ExprAST> Ptr = std::move(visitedExpr);
+    exprIsLValue = false;
+    visit(Ctx->expr(1));
+    std::unique_ptr<ExprAST> Size = std::move(visitedExpr);
+    visitedStmt = std::make_unique<AllocStmtAST>(
+        SourceLocation {Ctx->getStart()->getLine(),
+                        Ctx->getStart()->getCharPositionInLine()},
+        std::move(Ptr), std::move(Size));
     return nullptr;
 }
 

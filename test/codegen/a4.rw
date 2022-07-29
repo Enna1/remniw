@@ -9,10 +9,10 @@ func main() int {
     q = 0;
     y = &q;
     x = *y;
-    output *y;
+    %output *y;
     p = 1;
     y = &p;
-    output *y;
+    %output *y;
     return 0;
 }
 

@@ -5,7 +5,7 @@
 func test(p *int) int {
     var q int;
     q=3;
-    output (*p);
+    %output (*p);
     return 0;
 }
 
@@ -14,7 +14,7 @@ func main() int {
     var b *int;
     a = 1;
     b = &a;
-    output test(b);
+    %output test(b);
     return 0;
 }
 

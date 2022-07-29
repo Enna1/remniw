@@ -22,9 +22,9 @@ func main() int {
 
     z=x*y; // z = -49
 
-    output x;
-    output y;
-    output z;
+    %output x;
+    %output y;
+    %output z;
 
     return 0;
 }

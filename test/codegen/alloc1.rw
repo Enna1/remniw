@@ -4,10 +4,12 @@
 
 func main() int {
     var x int;
-    {
-        x = %input;
-    }
-    %output x;
+    var y *int;
+    x = %input;
+    %alloc(y, %sizeof int);
+    *y = x;
+    %output *y;
+    %dealloc(y);
     return 0;
 }
 

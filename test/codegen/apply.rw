@@ -19,7 +19,7 @@ func fib(n int) int {
 }
 
 func main() int {
-    output apply(fib,5);
+    %output apply(fib,5);
     return 0;
 }
 

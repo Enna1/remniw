@@ -14,9 +14,9 @@ func main() int {
     } else {
         b = a/3; // b = 4
     }
-    output b;
+    %output b;
     b=117;
-    output b;
+    %output b;
 
     return 0;
 }

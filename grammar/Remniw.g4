@@ -32,8 +32,7 @@ arguments
 
 expr
    : expr arguments # FuncCallExpr
-   | 'alloc' expr # AllocExpr
-   | 'sizeof' varType # SizeofExpr
+   | '%sizeof' varType # SizeofExpr
    | '&' id # RefExpr
    | '*' expr # DerefExpr
    | expr '[' expr ']' # ArraySubscriptExpr
@@ -47,8 +46,8 @@ expr
    | expr '>' expr # RelationalExpr
    | expr '==' expr # EqualExpr
    | '(' expr ')' # ParenExpr
-   | 'input' # InputExpr
-   | 'nil' # NullExpr
+   | '%input' # InputExpr
+   | '%nil' # NullExpr
    | '{' ((id ':' expr ',')* id ':' expr)? '}' # RecordCreateExpr
    | expr '.' id # RecordAccessExpr
    ;
@@ -57,6 +56,7 @@ expr
 stmt
    : assignmentStmt
    | outputStmt
+   | allocStmt
    | deallocStmt
    | emptyStmt
    | blockStmt
@@ -69,11 +69,15 @@ assignmentStmt
    ;
 
 outputStmt
-   : 'output' expr ';'
+   : '%output' expr ';'
+   ;
+
+allocStmt
+   : '%alloc' '(' expr ',' expr ')' ';'
    ;
 
 deallocStmt
-   : 'dealloc' expr ';'
+   : '%dealloc' '(' expr ')' ';'
    ;
 
 emptyStmt

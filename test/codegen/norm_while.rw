@@ -10,7 +10,7 @@ func main() int {
     while (*y > 0) {
         *y = *y-1;
     }
-    output x;
+    %output x;
     return 0;
 }
 

@@ -21,7 +21,7 @@ func fib(n int) int {
 func main() int {
     var n int;
     n=input;
-    output fib(n);
+    %output fib(n);
     return 0;
 }
 

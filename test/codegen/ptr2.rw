@@ -13,7 +13,7 @@ func main() int{
     n=17;
     p=&n;
     q=&p;
-    output doubleDeref(q);
+    %output doubleDeref(q);
     return 0;
 }
 

@@ -21,9 +21,9 @@ func foo(n int) int {
 
 func main() int {
     var x,y int;
-    x = input;
+    x = %input;
     if (x>0) { y = foo(x); } else { y = foo(x); }
-    output y;
+    %output y;
     return 0;
 }
 
