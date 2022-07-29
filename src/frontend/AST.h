@@ -175,9 +175,6 @@ public:
 };
 
 class AllocExprAST: public ExprAST {
-private:
-    std::unique_ptr<ExprAST> Init;
-
 public:
     AllocExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Init):
         ExprAST(ASTNode::AllocExpr, Loc, /*LValue*/ true), Init(std::move(Init)) {}
@@ -187,6 +184,24 @@ public:
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::AllocExpr;
     }
+
+private:
+    std::unique_ptr<ExprAST> Init;
+};
+
+class SizeofExprAST: public ExprAST {
+public:
+    SizeofExprAST(SourceLocation Loc, remniw::Type *Ty):
+        ExprAST(ASTNode::SizeofExpr, Loc, /*LValue*/ false), Ty(Ty) {}
+
+    remniw::Type *getType() const { return Ty; }
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::SizeofExpr;
+    }
+
+private:
+    remniw::Type *Ty;
 };
 
 class RefExprAST: public ExprAST {
@@ -345,6 +360,21 @@ public:
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::OutputStmt;
+    }
+
+private:
+    std::unique_ptr<ExprAST> Expr;
+};
+
+class DeallocStmtAST: public StmtAST {
+public:
+    DeallocStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> Expr):
+        StmtAST(ASTNode::DeallocStmt, Loc), Expr(std::move(Expr)) {}
+
+    ExprAST *getExpr() const { return Expr.get(); }
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::DeallocStmt;
     }
 
 private:

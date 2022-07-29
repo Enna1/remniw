@@ -47,6 +47,19 @@ llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
     return nullptr;
 }
 
+// Get size in bytes required of remniw::Type.
+// First convert remniw::Type to corresponding llvm::Type,
+// Then get Size(bytes) of llvm::Type
+// llvm::Type *IRCodeGeneratorImpl::getSizeOfREMNIWType(remniw::Type *Ty) {
+//     if (llvm::isa<remniw::IntType>(Ty) || llvm::isa<remniw::PointerType>(Ty) || 
+//         llvm::isa<remniw::FunctionType>(Ty)) {
+//         return 8;
+//     } else if (auto *ArrayTy = llvm::dyn_cast<remniw::ArrayType>(Ty)) {
+//         return ArrayTy->getNumElements() * getSizeOfREMNIWType(ArrayTy->getElementType());
+//     }
+//     llvm_unreachable("Unhandled remniw::Type");
+// }
+
 // utility function for emit scanf, printf
 Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnType,
                                         ArrayRef<llvm::Type *> ParamTypes,
@@ -124,6 +137,9 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::AllocExpr:
         Ret = codegenAllocExpr(static_cast<AllocExprAST *>(Expr));
         break;
+    case ASTNode::SizeofExpr:
+        Ret = codegenSizeofExpr(static_cast<SizeofExprAST *>(Expr));
+        break;
     case ASTNode::RefExpr: Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr)); break;
     case ASTNode::DerefExpr:
         Ret = codegenDerefExpr(static_cast<DerefExprAST *>(Expr));
@@ -153,6 +169,9 @@ Value *IRCodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
         break;
     case ASTNode::OutputStmt:
         Ret = codegenOutputStmt(static_cast<OutputStmtAST *>(Stmt));
+        break;
+    case ASTNode::DeallocStmt:
+        Ret = codegenDeallocStmt(static_cast<DeallocStmtAST *>(Stmt));
         break;
     case ASTNode::BlockStmt:
         Ret = codegenBlockStmt(static_cast<BlockStmtAST *>(Stmt));
@@ -235,6 +254,11 @@ Value *IRCodeGeneratorImpl::codegenAllocExpr(AllocExprAST *AllocExpr) {
     return nullptr;
 }
 
+// TODO
+Value *IRCodeGeneratorImpl::codegenSizeofExpr(SizeofExprAST *SizeofExpr) {
+    return nullptr;
+}
+
 Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
     Value *Val = codegenVariableExpr(RefExpr->getVar());
     return Val;
@@ -302,6 +326,11 @@ Value *IRCodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
     Value *V = codegenExpr(OutputStmt->getExpr());
     assert(V && "Invalid operand of OutputStmt");
     return emitPrintf(OutputFmtStr, V);
+}
+
+// TODO
+Value *IRCodeGeneratorImpl::codegenDeallocStmt(DeallocStmtAST *DeallocStmt) {
+    return nullptr;
 }
 
 Value *IRCodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {

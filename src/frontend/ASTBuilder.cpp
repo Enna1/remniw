@@ -346,6 +346,15 @@ antlrcpp::Any ASTBuilder::visitAllocExpr(RemniwParser::AllocExprContext *Ctx) {
     return nullptr;
 }
 
+antlrcpp::Any ASTBuilder::visitSizeofExpr(RemniwParser::SizeofExprContext *Ctx) {
+    visit(Ctx->varType());
+    visitedExpr = std::make_unique<SizeofExprAST>(
+        SourceLocation {Ctx->getStart()->getLine(),
+                        Ctx->getStart()->getCharPositionInLine()},
+        visitedType);
+    return nullptr;
+}
+
 antlrcpp::Any ASTBuilder::visitInputExpr(RemniwParser::InputExprContext *Ctx) {
     visitedExpr = std::make_unique<InputExprAST>(SourceLocation {
         Ctx->getStart()->getLine(), Ctx->getStart()->getCharPositionInLine()});
@@ -362,6 +371,16 @@ antlrcpp::Any ASTBuilder::visitOutputStmt(RemniwParser::OutputStmtContext *Ctx) 
     exprIsLValue = false;
     visit(Ctx->expr());
     visitedStmt = std::make_unique<OutputStmtAST>(
+        SourceLocation {Ctx->getStart()->getLine(),
+                        Ctx->getStart()->getCharPositionInLine()},
+        std::move(visitedExpr));
+    return nullptr;
+}
+
+antlrcpp::Any ASTBuilder::visitDeallocStmt(RemniwParser::DeallocStmtContext *Ctx) {
+    exprIsLValue = false;
+    visit(Ctx->expr());
+    visitedStmt = std::make_unique<DeallocStmtAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
         std::move(visitedExpr));

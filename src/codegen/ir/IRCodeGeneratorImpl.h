@@ -28,6 +28,7 @@ public:
     llvm::Value *codegenFunctionCallExpr(FunctionCallExprAST *);
     llvm::Value *codegenNullExpr(NullExprAST *);
     llvm::Value *codegenAllocExpr(AllocExprAST *);
+    llvm::Value *codegenSizeofExpr(SizeofExprAST *);
     llvm::Value *codegenRefExpr(RefExprAST *);
     llvm::Value *codegenDerefExpr(DerefExprAST *);
     llvm::Value *codegenArraySubscriptExpr(ArraySubscriptExprAST *);
@@ -36,6 +37,7 @@ public:
     llvm::Value *codegenLocalVarDeclStmt(LocalVarDeclStmtAST *);
     llvm::Value *codegenEmptyStmt(EmptyStmtAST *);
     llvm::Value *codegenOutputStmt(OutputStmtAST *);
+    llvm::Value *codegenDeallocStmt(DeallocStmtAST *);
     llvm::Value *codegenBlockStmt(BlockStmtAST *);
     llvm::Value *codegenReturnStmt(ReturnStmtAST *);
     llvm::Value *codegenIfStmt(IfStmtAST *);
