@@ -13,7 +13,7 @@ func main() int {
     var f int;
     n = %input;
     f = 1;
-    if (n>0) {
+    if (n > 0) {
         f = f*n;
         n = n-1;
     }

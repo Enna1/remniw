@@ -21,7 +21,7 @@ func main() int {
     neg = negf(3);
     %output neg;
 
-    if(u > 0) {
+    if (u > 0) {
         f = posf;
     }
     else {

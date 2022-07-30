@@ -237,7 +237,7 @@ void RecursiveASTVisitor<Derived>::visitRefExpr(RefExprAST *RefExpr) {
 
     visitExpr(RefExpr->getVar());
 
-    actAfterVisitRefExpr(RefExpr);
+    getDerived().actAfterVisitRefExpr(RefExpr);
 }
 
 template<typename Derived>
@@ -290,7 +290,7 @@ void RecursiveASTVisitor<Derived>::visitLocalVarDeclStmt(
     for (auto *VarDeclNode : LocalVarDeclStmt->getVars())
         visitVarDeclNode(VarDeclNode);
 
-    actAfterVisitLocalVarDeclStmt(LocalVarDeclStmt);
+    getDerived().actAfterVisitLocalVarDeclStmt(LocalVarDeclStmt);
 }
 
 template<typename Derived>

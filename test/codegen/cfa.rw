@@ -14,7 +14,7 @@ func ide(k int) int { return k; }
 
 func foo(n int) int {
     var r int;
-    if (n==0) { r=dec(n); }
+    if (n == 0) { r = dec(n); }
     r = inc(n);
     return r;
 }
@@ -22,7 +22,7 @@ func foo(n int) int {
 func main() int {
     var x,y int;
     x = %input;
-    if (x>0) { y = foo(x); } else { y = foo(x); }
+    if (x > 0) { y = foo(x); } else { y = foo(x); }
     %output y;
     return 0;
 }

@@ -4,19 +4,19 @@
 
 func main() int {
     var n int;
-    var arr [10]int;
     var ptr *[10]int;
+    %alloc(ptr, %sizeof [10]int);
     n = 9;
     while (n > -1) {
-        arr[n] = n;
+        (*ptr)[n] = n;
         n = n - 1;
     }
     n = 9;
-    ptr = &arr;
     while (n > -1) {
-        %output *ptr[n];
+        %output (*ptr)[n];
         n = n - 1;
     }
+    %dealloc(ptr);
     return 0;
 }
 

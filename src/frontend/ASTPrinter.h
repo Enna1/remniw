@@ -33,7 +33,6 @@ public:
         Out.indent(Ind) << "VariableExpr " << Node << " '" << Node->getName() << "' "
                         << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
-        ;
         return false;
     }
 

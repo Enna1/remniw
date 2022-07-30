@@ -10,7 +10,7 @@ func f() int {
     var a int;
     var b int;
     a=10;
-    if( a == 10 ){
+    if (a == 10) {
         b=g(&a);
     }
 

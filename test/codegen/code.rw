@@ -22,7 +22,7 @@ func f(a int) int {
 }
 
 func test(i int) int {
-    while( i > 0 ){
+    while (i > 0){
         %output i;
         i = i - 1;
     }
@@ -32,7 +32,7 @@ func test(i int) int {
 func main() int {
     var a int;
     a = 17;
-    if( a>17 ){
+    if (a > 17) {
         a = 13;
     } else {
         a = 19;

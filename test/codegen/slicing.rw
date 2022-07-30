@@ -3,7 +3,7 @@
 // RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 2 | %t3 | FileCheck %s
 
 func foo(m int) int {
-    m = m*2;
+    m = m * 2;
     return m;
 }
 
@@ -13,18 +13,18 @@ func main() int{
     x = foo(y);
     i = x;
     j = y;
-    while (i>0) {
-        y = y*y;
-        i = i-1;
+    while (i > 0) {
+        y = y * y;
+        i = i - 1;
     }
-    while (j>0) {
-        x = x*x;
-        j = j-1;
+    while (j > 0) {
+        x = x * x;
+        j = j - 1;
     }
-    if (x>0) {
-        x = 0-x;
+    if (x > 0) {
+        x = 0 - x;
     } else {
-        x = x+1;
+        x = x + 1;
     }
     %output x;
     return 0;

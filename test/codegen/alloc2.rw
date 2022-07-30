@@ -4,10 +4,13 @@
 
 func main() int {
     var tmp int;
-    var arr[100] int;
+    var ptr *[10][20]int;
+    %alloc(ptr, %sizeof [10][20]int);
     tmp = %input;
-    arr[tmp] = tmp;
-    %output arr[tmp];
+    (*ptr)[0][0] = tmp;
+    (*ptr)[6][6] = (*ptr)[0][0];
+    %output (*ptr)[6][6];
+    %dealloc(ptr);
     return 0;
 }
 

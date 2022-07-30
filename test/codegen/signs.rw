@@ -9,7 +9,7 @@ func fun(x int) int{
     k = 8;
     y = 7;
 
-    while(k > y) {
+    while (k > y) {
         k = k - 1;
     }
 
@@ -19,15 +19,15 @@ func fun(x int) int{
 func main() int {
     var pos, neg, top, zero int;
     var later int;
-    pos = 5 + 5; %output pos; // CHECK: 10
-    pos = 5 * 5; %output pos; // CHECK-NEXT: 25
-    neg = -5 - 5; %output neg; // CHECK-NEXT: -10
-    neg = -5 * 5; %output neg; // CHECK-NEXT: -25
-    neg = 5 * -5; %output neg; // CHECK-NEXT: -25
-    top = 5 - 5; %output top;  // CHECK-NEXT: 0
-    top = top * 5; %output top; // CHECK-NEXT: 0
-    zero = top * 0; %output zero; // CHECK-NEXT: 0
+    pos = 5 + 5; %output pos;      // CHECK: 10
+    pos = 5 * 5; %output pos;      // CHECK-NEXT: 25
+    neg = -5 - 5; %output neg;     // CHECK-NEXT: -10
+    neg = -5 * 5; %output neg;     // CHECK-NEXT: -25
+    neg = 5 * -5; %output neg;     // CHECK-NEXT: -25
+    top = 5 - 5; %output top;      // CHECK-NEXT: 0
+    top = top * 5; %output top;    // CHECK-NEXT: 0
+    zero = top * 0; %output zero;  // CHECK-NEXT: 0
     zero = 5 * zero; %output zero; // CHECK-NEXT: 0
-    later = 7; %output later; // CHECK-NEXT: 7
+    later = 7; %output later;      // CHECK-NEXT: 7
     return 0;
 }

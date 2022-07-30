@@ -10,9 +10,9 @@ func main() int{
     var n int;
     var p *int;
     var q **int;
-    n=17;
-    p=&n;
-    q=&p;
+    n = 17;
+    p = &n;
+    q = &p;
     %output doubleDeref(q);
     return 0;
 }

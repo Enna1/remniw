@@ -19,32 +19,30 @@ func succ(i int) int {
 }
 
 func main() int {
-    var array[2] func(int) int;
-    var ptr *[2] func(int) int;
     var n int;
+    var array_ptr *[6] func(int) int;
 
     n = 6;
-    array[0] = fib;
-    array[1] = succ;
-    ptr = &array;
+    %alloc(array_ptr, %sizeof [6] func(int) int);
+    (*array_ptr)[0] = fib;
+    (*array_ptr)[1] = succ;
+    (*array_ptr)[2] = succ;
+    (*array_ptr)[3] = fib;
+    (*array_ptr)[4] = succ;
+    (*array_ptr)[5] = succ;
+
     while (n > 0) {
-        %output *ptr[0](n);
-        %output *ptr[1](n);
+        %output (*array_ptr)[n-1](n);
         n = n - 1;
     }
 
+    %dealloc(array_ptr);
     return 0;
 }
 
-// CHECK: 13
 // CHECK: 7
-// CHECK: 8
 // CHECK: 6
 // CHECK: 5
-// CHECK: 5
-// CHECK: 3
 // CHECK: 4
-// CHECK: 2
 // CHECK: 3
 // CHECK: 1
-// CHECK: 2

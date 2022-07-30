@@ -5,7 +5,7 @@
 func ite(n int) int {
     var f int;
     f = 1;
-    while (n>0) {
+    while (n > 0) {
         f = f*n;
         n = n-1;
     }

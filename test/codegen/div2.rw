@@ -2,8 +2,8 @@
 // RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
 // RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
 
-func div(a int, b int) int{
-    return a/b;
+func div(a int, b int) int {
+    return a / b;
 }
 
 func main() int {
@@ -13,7 +13,7 @@ func main() int {
     a = 18;
     b = 17 + (a / 3);
 
-    if( a > 17 ){
+    if (a > 17) {
         a = 5+2;
         c = &a;
     } else {
@@ -23,7 +23,7 @@ func main() int {
 
     a = *c;
 
-    while( a > 5 ) {
+    while (a > 5) {
         a = div(a/2,3); // a=div(3,3)=1
     }
     %output a;

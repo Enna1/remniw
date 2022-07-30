@@ -9,13 +9,13 @@ func main() int {
     b = 17 + (a / 3); // b = 22
     a = 13;
 
-    if( a > 17 ){
+    if (a > 17) {
         a = 77*b;
     } else {
         b = a/3; // b = 4
     }
     %output b;
-    b=117;
+    b = 117;
     %output b;
 
     return 0;

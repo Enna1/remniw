@@ -5,7 +5,7 @@
 func main() int {
     var tmp int;
     var arr[10][20] int;
-    tmp =  %input;
+    tmp = %input;
     arr[0][0] = tmp;
     arr[6][6] = arr[0][0];
     %output arr[6][6];

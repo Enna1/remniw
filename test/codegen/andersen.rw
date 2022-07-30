@@ -1,0 +1,43 @@
+// RUN: %remniw %s -o %t
+// RUN: echo 1 | lli %t | FileCheck %s --check-prefix=CHECK_B
+// RUN: echo 111 | lli %t | FileCheck %s --check-prefix=CHECK_A
+
+// RUN: %remniw %s -o %t -debug
+// RUN: echo 1 | lli %t | FileCheck %s --check-prefix=CHECK_B
+// RUN: echo 1111 | lli %t | FileCheck %s --check-prefix=CHECK_A
+
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3
+// RUN: echo 1 | %t3 | FileCheck %s --check-prefix=CHECK_B
+// RUN: echo 11111 | %t3 | FileCheck %s --check-prefix=CHECK_A
+
+func f() int {
+    var a,b *int;
+    var d,e,tmp int;
+    a = &d;
+    b = &e;
+    a = b;
+    *a = tmp;
+    return 0;
+}
+
+func main() int {
+    var a,b int;
+    var w,x,y,tmp *int;
+    var z **int;
+    z = &x;
+    w = &a;
+    a = 42;
+    b = %input;
+    if (a > b) {
+      tmp = &a;
+      y = &b;
+    } else {
+      x = &b;
+      y = &a;
+    }
+    %output *y;
+    return 0;
+}
+
+// CHECK_A: 42
+// CHECK_B: 1

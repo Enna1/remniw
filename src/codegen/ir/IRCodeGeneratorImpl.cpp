@@ -87,7 +87,7 @@ Value *IRCodeGeneratorImpl::emitScanf(Value *Fmt, Value *VAList) {
 
 Value *IRCodeGeneratorImpl::emitMalloc(llvm::Type *ReturnType, Value *Size) {
     if (EnableAphoticShield)
-        return emitLibCall("as_alloca", ReturnType, {Size->getType()}, {Size},
+        return emitLibCall("as_alloc", ReturnType, {Size->getType()}, {Size},
                            /*IsVaArgs=*/false);
     return emitLibCall("malloc", ReturnType, {Size->getType()}, {Size},
                        /*IsVaArgs=*/false);
@@ -95,7 +95,7 @@ Value *IRCodeGeneratorImpl::emitMalloc(llvm::Type *ReturnType, Value *Size) {
 
 Value *IRCodeGeneratorImpl::emitFree(Value *Ptr) {
     if (EnableAphoticShield)
-        return emitLibCall("as_dealloca", IRB->getVoidTy(), {Ptr->getType()}, {Ptr},
+        return emitLibCall("as_dealloc", IRB->getVoidTy(), {Ptr->getType()}, {Ptr},
                            /*IsVaArgs=*/false);
     return emitLibCall("free", IRB->getVoidTy(), {Ptr->getType()}, {Ptr},
                        /*IsVaArgs=*/false);
@@ -256,6 +256,8 @@ Value *IRCodeGeneratorImpl::codegenSizeofExpr(SizeofExprAST *SizeofExpr) {
 }
 
 Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
+    assert(!TheModule->getFunction(RefExpr->getVar()->getName()) &&
+           "Operand of RefExpr cannot be function");
     Value *Val = codegenVariableExpr(RefExpr->getVar());
     return Val;
 }

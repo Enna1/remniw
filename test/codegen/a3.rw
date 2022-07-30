@@ -6,8 +6,8 @@ func bar(x *int) *int{
     return x;
 }
 
-func foh(x int,y int) int {
-    return x+y;
+func foh(x int, y int) int {
+    return x + y;
 }
 
 func baz(x ***int, y *int) int {

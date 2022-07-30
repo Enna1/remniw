@@ -9,10 +9,10 @@ func apply(f func(int) int, a int) int {
 func fib(n int) int {
     var result int;
 
-    if( n>1 ){
-        result = fib(n-1)+fib(n-2);
+    if (n > 1) {
+        result = fib(n-1) + fib(n-2);
     } else {
-        result=1;
+        result = 1;
     }
 
     return result;
