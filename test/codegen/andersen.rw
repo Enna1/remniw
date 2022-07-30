@@ -2,10 +2,6 @@
 // RUN: echo 1 | lli %t | FileCheck %s --check-prefix=CHECK_B
 // RUN: echo 111 | lli %t | FileCheck %s --check-prefix=CHECK_A
 
-// RUN: %remniw %s -o %t -debug
-// RUN: echo 1 | lli %t | FileCheck %s --check-prefix=CHECK_B
-// RUN: echo 1111 | lli %t | FileCheck %s --check-prefix=CHECK_A
-
 // RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3
 // RUN: echo 1 | %t3 | FileCheck %s --check-prefix=CHECK_B
 // RUN: echo 11111 | %t3 | FileCheck %s --check-prefix=CHECK_A
