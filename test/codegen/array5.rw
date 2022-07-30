@@ -11,7 +11,7 @@ func main() int {
     var arr[100] int;
     tmp = %input;
     arr[0] = tmp;
-    tmp = foo(arr);
+    tmp = foo(&arr);
     %output arr[0];
     return 0;
 }

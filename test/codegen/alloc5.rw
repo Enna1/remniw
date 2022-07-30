@@ -2,9 +2,9 @@
 // RUN: %remniw %s -o %t -debug ; echo 66 | lli %t | FileCheck %s
 // RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 66 | %t3 | FileCheck %s
 
-func foo(arr []int) int {
+func foo(arr *[100]int) int {
     var res int;
-    res = arr[99];
+    res = (*arr)[99];
     return res;
 }
 
@@ -14,7 +14,7 @@ func main() int {
     %alloc(arr, %sizeof [100]int);
     tmp = %input;
     (*arr)[99] = tmp;
-    tmp = foo(*arr);
+    tmp = foo(arr);
     %output (*arr)[99];
     %dealloc(arr);
     return 0;
