@@ -8,6 +8,7 @@
 #include "AsmSymbol.h"
 #include "Register.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
@@ -281,6 +282,7 @@ struct BrgFunction {
 class BrgTreeBuilder: public llvm::InstVisitor<BrgTreeBuilder, BrgTreeNode *> {
 private:
     llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> ConstantStrings;
+    llvm::SmallVector<llvm::Function *> GlobalCtors;
     llvm::SmallVector<BrgFunction *> Functions;
     llvm::DenseMap<llvm::GlobalVariable *, BrgTreeNode *> GlobalVariableToNodeMap;
     llvm::DenseMap<llvm::Function *, BrgTreeNode *> FunctionToNodeMap;
@@ -312,7 +314,9 @@ public:
         return ConstantStrings;
     }
 
-    llvm::SmallVector<BrgFunction *> &getFunctions() { return Functions; }
+    llvm::SmallVector<BrgFunction *> getFunctions() { return Functions; }
+
+    llvm::SmallVector<llvm::Function *> getGlobalCtors() { return GlobalCtors; }
 
     template<class Iterator>
     void visit(Iterator Start, Iterator End) {
@@ -322,7 +326,7 @@ public:
     }
 
     void visit(llvm::Module &M) {
-        // Hanlde constant strings
+        // Handle constant strings
         for (llvm::GlobalVariable &GV : M.globals()) {
             if (llvm::ConstantDataArray *CDA =
                     llvm::dyn_cast<llvm::ConstantDataArray>(GV.getInitializer())) {
@@ -333,6 +337,8 @@ public:
                 }
             }
         }
+        // Handle llvm.global_ctors
+        findGlobalCtors(M);
         // Handle functions
         visit(M.begin(), M.end());
     }
@@ -462,7 +468,18 @@ public:
         return InstNode;
     }
 
-    // BrgTreeNode* visitReturnInst(llvm::ReturnInst &I);
+    BrgTreeNode *visitReturnInst(llvm::ReturnInst &I) {
+        std::vector<BrgTreeNode *> Kids;
+        if (llvm::Value *RetVal = I.getReturnValue()) {
+            Kids.push_back(getBrgNodeForValue(RetVal));
+        } else {
+            Kids.push_back(BrgTreeNode::getUndefNode());
+        }
+        auto *InstNode = BrgTreeNode::createInstNode(&I, Kids);
+        CurrentFunction->InstToNodeMap[&I] = InstNode;
+        return InstNode;
+    }
+
     // BrgTreeNode* visitLoadInst(llvm::LoadInst &I);
     // BrgTreeNode* visitStoreInst(llvm::StoreInst &I);
     // BrgTreeNode* visitICmpInst(llvm::ICmpInst &I);
@@ -540,6 +557,25 @@ private:
         llvm::Type *Ty = AI.getAllocatedType();
         uint64_t SizeInBytes = AI.getModule()->getDataLayout().getTypeAllocSize(Ty);
         return SizeInBytes * ArraySize;
+    }
+
+    // Find the llvm.global_ctors list, get a list of function name
+    void findGlobalCtors(llvm::Module &M) {
+        llvm::GlobalVariable *GV = M.getGlobalVariable("llvm.global_ctors");
+        if (!GV)
+            return;
+        llvm::ConstantArray *CA =
+            llvm::dyn_cast<llvm::ConstantArray>(GV->getInitializer());
+        if (!CA)
+            return;
+        for (auto &V : CA->operands()) {
+            auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(V);
+            if (!CS)
+                continue;
+            auto *F = llvm::dyn_cast<llvm::Function>(CS->getOperand(1));
+            if (F)
+                GlobalCtors.push_back(F);
+        }
     }
 };
 

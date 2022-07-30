@@ -48,6 +48,8 @@ private:
     llvm::Value *codegenExpr(ExprAST *);
     llvm::Value *codegenStmt(StmtAST *);
     llvm::Type *REMNIWTypeToLLVMType(remniw::Type *);
+    uint64_t getSizeOfREMNIWType(remniw::Type *);
+
     llvm::Value *emitLibCall(llvm::StringRef LibFuncName, llvm::Type *ReturnType,
                              llvm::ArrayRef<llvm::Type *> ParamTypes,
                              llvm::ArrayRef<llvm::Value *> Operands,
@@ -56,7 +58,10 @@ private:
     llvm::Value *emitScanf(llvm::Value *Fmt, llvm::Value *VAList);
     llvm::Value *emitMalloc(llvm::Type *ReturnType, llvm::Value *Size);
     llvm::Value *emitFree(llvm::Value *Ptr);
-    uint64_t getSizeOfREMNIWType(remniw::Type *);
+
+    llvm::FunctionCallee
+    createAphoticShieldCtorAndInitFunctions(llvm::StringRef CtorName,
+                                            llvm::StringRef InitName);
 };
 
 }  // namespace remniw

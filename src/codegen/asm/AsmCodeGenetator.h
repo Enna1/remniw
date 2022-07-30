@@ -17,7 +17,8 @@ public:
         AsmBuilder ABuilder(AsmCtx, BBuilder.getFunctions());
         AsmRewriter Rewriter(ABuilder.getAsmFunctions());
         remniw::AsmPrinter Printer(OS, Rewriter.getAsmFunctions(),
-                                   BBuilder.getConstantStrings());
+                                   BBuilder.getConstantStrings(),
+                                   BBuilder.getGlobalCtors());
         Printer.print();
     }
 

@@ -2,20 +2,24 @@
 
 #include "AsmFunction.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/Function.h"
 
 namespace remniw {
 
 class AsmPrinter {
 private:
     llvm::raw_ostream &OS;
-    llvm::SmallVector<AsmFunction*> AsmFunctions;
+    llvm::SmallVector<AsmFunction *> AsmFunctions;
     llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GlobalVariables;
+    llvm::SmallVector<llvm::Function *> GlobalCtors;
 
 public:
-    AsmPrinter(llvm::raw_ostream &OS, llvm::SmallVector<AsmFunction*> AsmFunctions,
-               llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs):
+    AsmPrinter(llvm::raw_ostream &OS,
+               llvm::SmallVector<AsmFunction *> AsmFunctions,
+               llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs,
+               llvm::SmallVector<llvm::Function *> GlobalCtors):
         OS(OS),
-        AsmFunctions(AsmFunctions), GlobalVariables(GVs) {}
+        AsmFunctions(AsmFunctions), GlobalVariables(GVs), GlobalCtors(GlobalCtors) {}
 
     void print() {
         for (auto &AsmFunc : AsmFunctions) {
@@ -23,6 +27,7 @@ public:
             EmitFunctionBody(AsmFunc);
         }
         EmitGlobalVariables();
+        EmitInitArray();
     }
 
     void EmitFunctionDeclaration(AsmFunction *F) {
@@ -47,6 +52,14 @@ public:
             OS << "\"";
             OS.write_escaped(p.second);
             OS << "\"\n";
+        }
+    }
+
+    void EmitInitArray() {
+        for (auto *F : GlobalCtors) {
+            OS << ".section\t.init_array,\"aw\",@init_array\n";
+            OS << ".p2align\t3\n";
+            OS << ".quad\t" << F->getName() << "\n";
         }
     }
 };

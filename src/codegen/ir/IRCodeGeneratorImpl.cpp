@@ -12,6 +12,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <cassert>
 #include <cstdint>
 
@@ -233,7 +234,8 @@ IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallEx
                "Incorrect #arguments passed");
         unsigned Idx = 0;
         for (auto &Arg : CalledFunction->args()) {
-            assert((Arg.getType() == CallArgs[Idx++]->getType()) && "Inconsistent argument type");
+            assert((Arg.getType() == CallArgs[Idx++]->getType()) &&
+                   "Inconsistent argument type");
         }
         return IRB->CreateCall(CalledFunction, CallArgs, "call");
     } else {
@@ -479,6 +481,32 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
     return F;
 }
 
+FunctionCallee
+IRCodeGeneratorImpl::createAphoticShieldCtorAndInitFunctions(StringRef CtorName,
+                                                             StringRef InitName) {
+    assert(!InitName.empty() && "Expected init function name");
+    // Declare as_init, the aphotic_shield runtime libarary init function.
+    auto *AphoticShieldInitFuncType =
+        llvm::FunctionType::get(IRB->getVoidTy(), {}, false);
+    FunctionCallee AphoticShieldInitFunc =
+        TheModule->getOrInsertFunction(InitName, AphoticShieldInitFuncType);
+    // Define module_ctor function as_module_ctor,
+    // add it to global ctors that implemented as __attribute__((constructor)),
+    // so as_module_ctor will be called before main function executed.
+    auto *AphoticShieldCtorFuncType =
+        llvm::FunctionType::get(IRB->getVoidTy(), {}, false);
+    Function *AphoticShieldCtorFunc =
+        llvm::Function::Create(AphoticShieldCtorFuncType, GlobalValue::InternalLinkage, 0,
+                               CtorName, TheModule.get());
+    // Create a new basic block to start insertion into.
+    BasicBlock *BB = BasicBlock::Create(*TheLLVMContext, "entry", AphoticShieldCtorFunc);
+    IRB->SetInsertPoint(BB);
+    IRB->CreateCall(AphoticShieldInitFunc, {});
+    IRB->CreateRetVoid();
+    appendToGlobalCtors(*TheModule, AphoticShieldCtorFunc, /*Priority*/ 65535);
+    return AphoticShieldCtorFunc;
+}
+
 std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
     // Add prototype for each function
     // This make emit FunctionCallExprAST easy
@@ -494,6 +522,9 @@ std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
     // Emit LLVM IR for all functions
     for (auto *FuncAST : AST->getFunctions())
         codegenFunction(FuncAST);
+
+    if (EnableAphoticShield)
+        createAphoticShieldCtorAndInitFunctions("as_module_ctor", "as_init");
 
     // Verify the generated code.
     verifyModule(*TheModule);

@@ -108,6 +108,7 @@ void dumpReport(uintptr_t ErrorPtr, const aphotic_shield::AllocatorState *State,
                  "Unknown error on address 0x%zx\n", ErrorPtr);
         Print(ErrorMessageBuffer);
         Print("APHOTIC-SHIELD cannot provide any more information about this error.\n");
+        break;
     case aphotic_shield::Error::USE_AFTER_FREE:
         snprintf(ErrorMessageBuffer, kErrorMessageBufferLen,
                  "Use After Free on address 0x%zx\n", ErrorPtr);
