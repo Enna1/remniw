@@ -2,8 +2,8 @@
 // RUN: %remniw %s -o %t -debug ; echo 66 | lli %t | FileCheck %s
 // RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 66 | %t3 | FileCheck %s
 
-func foo(arr *int) int {
-    return arr[0];
+func foo(arr *[100]int) int {
+    return (*arr)[0];
 }
 
 func main() int {
@@ -11,7 +11,7 @@ func main() int {
     var arr[100] int;
     tmp = input;
     arr[0] = tmp;
-    tmp = foo(arr);
+    tmp = foo(&arr);
     output tmp;
     return 0;
 }

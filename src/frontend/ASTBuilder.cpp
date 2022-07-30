@@ -25,10 +25,7 @@ antlrcpp::Any ASTBuilder::visitIntType(RemniwParser::IntTypeContext *Ctx) {
 }
 
 antlrcpp::Any ASTBuilder::visitPointerType(RemniwParser::PointerTypeContext *Ctx) {
-    if (Ctx->varType())
-        visit(Ctx->varType());
-    if (Ctx->paramType())
-        visit(Ctx->varType());
+    visit(Ctx->varType());
     visitedType = visitedType->getPointerTo();
     return nullptr;
 }
@@ -45,7 +42,7 @@ antlrcpp::Any ASTBuilder::visitFunctionType(RemniwParser::FunctionTypeContext *C
     return nullptr;
 }
 
-antlrcpp::Any ASTBuilder::visitVarArrayType(RemniwParser::VarArrayTypeContext *Ctx) {
+antlrcpp::Any ASTBuilder::visitArrayType(RemniwParser::ArrayTypeContext *Ctx) {
     visit(Ctx->varType());
     uint64_t NumElements = 0;
     // strtoll returns long long >= 64 bits, so check it's in range.
@@ -57,13 +54,6 @@ antlrcpp::Any ASTBuilder::visitVarArrayType(RemniwParser::VarArrayTypeContext *C
         NumElements = Val;
     }
     visitedType = Type::getArrayType(visitedType, NumElements);
-    return nullptr;
-}
-
-// Note: we implement paramArrayType as pointerType
-antlrcpp::Any ASTBuilder::visitParamArrayType(RemniwParser::ParamArrayTypeContext *Ctx) {
-    visit(Ctx->paramType());
-    visitedType = visitedType->getPointerTo();
     return nullptr;
 }
 

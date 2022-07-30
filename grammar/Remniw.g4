@@ -87,13 +87,12 @@ whileStmt
    ;
 
 varType
-   : varArrayType
+   : arrayType
    | scalarType
    ;
 
 paramType
-   : paramArrayType
-   | scalarType
+   : scalarType
    ;
 
 scalarType
@@ -102,12 +101,8 @@ scalarType
    | functionType
    ;
 
-varArrayType
+arrayType
    : '[' integer ']' varType
-   ;
-
-paramArrayType
-   : '[' ']' paramType
    ;
 
 intType
@@ -115,7 +110,7 @@ intType
    ;
 
 pointerType
-   : '*' (varType | paramType)
+   : '*' varType
    ;
 
 functionType

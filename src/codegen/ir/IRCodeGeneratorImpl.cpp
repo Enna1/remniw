@@ -177,12 +177,7 @@ Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
             return V;
         } else {
             assert(V->getType()->isPointerTy());
-            auto PointeeTy = V->getType()->getPointerElementType();
-            if (PointeeTy->isArrayTy())
-                return IRB->CreateInBoundsGEP(PointeeTy, V,
-                                              {IRB->getInt64(0), IRB->getInt64(0)});
-            else
-                return IRB->CreateLoad(V->getType()->getPointerElementType(), V, Name);
+            return IRB->CreateLoad(V->getType()->getPointerElementType(), V, Name);
         }
     }
 
@@ -209,6 +204,10 @@ IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallEx
     if (auto *CalledFunction = llvm::dyn_cast<llvm::Function>(CalledValue)) {
         assert(CalledFunction->arg_size() == FunctionCallExpr->getArgSize() &&
                "Incorrect #arguments passed");
+        unsigned Idx = 0;
+        for (auto &Arg : CalledFunction->args()) {
+            assert((Arg.getType() == CallArgs[Idx++]->getType()) && "Inconsistent argument type");
+        }
         return IRB->CreateCall(CalledFunction, CallArgs, "call");
     } else {
         assert(CalledValue->getType()->isPointerTy() &&
@@ -247,14 +246,10 @@ Value *IRCodeGeneratorImpl::codegenArraySubscriptExpr(
     assert((Base && Selector) && "Invalid operand of ArraySubscriptExpr");
     assert(Base->getType()->isPointerTy());
     auto BasePointeeTy = Base->getType()->getPointerElementType();
-    assert(BasePointeeTy->isArrayTy() || BasePointeeTy->isPointerTy());
-    Value *Ret;
-    if (BasePointeeTy->isArrayTy()) {
-        Ret = IRB->CreateInBoundsGEP(BasePointeeTy, Base, {IRB->getInt64(0), Selector});
-    } else if (BasePointeeTy->isPointerTy()) {
-        Value *Tmp = IRB->CreateLoad(BasePointeeTy, Base);
-        Ret = IRB->CreateInBoundsGEP(BasePointeeTy->getPointerElementType(), Tmp, {Selector});
-    }
+    assert(BasePointeeTy->isArrayTy() &&
+           "Base operand of ArraySubscriptExpr must be ArrayType");
+    Value *Ret =
+        IRB->CreateInBoundsGEP(BasePointeeTy, Base, {IRB->getInt64(0), Selector});
     if (!ArraySubscriptExpr->IsLValue()) {
         Ret = IRB->CreateLoad(Ret->getType()->getPointerElementType(), Ret);
     }
