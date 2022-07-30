@@ -20,7 +20,7 @@ func fib(n int) int {
 
 func main() int {
     var n int;
-    n=input;
+    n=%input;
     %output fib(n);
     return 0;
 }
