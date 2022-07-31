@@ -41,7 +41,7 @@ func brainfuck(command_array *[1001]int, input_array *[1001]int) int {
       data[data_ptr] = data[data_ptr] - 1;
     /* Output character at current data cell */
     else if (command == 46 /*'.'*/)
-      output data[data_ptr];
+      %output data[data_ptr];
     /* Accept one character from input pointer ip and advance to next one */
     else if (command == 44 /*','*/) {
       data[data_ptr] = (*input_array)[input_ptr];

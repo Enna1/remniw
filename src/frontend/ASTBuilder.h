@@ -62,7 +62,7 @@ public:
 
     virtual antlrcpp::Any visitNullExpr(RemniwParser::NullExprContext *Ctx);
 
-    virtual antlrcpp::Any visitAllocExpr(RemniwParser::AllocExprContext *Ctx);
+    virtual antlrcpp::Any visitSizeofExpr(RemniwParser::SizeofExprContext *Ctx);
 
     virtual antlrcpp::Any visitInputExpr(RemniwParser::InputExprContext *Ctx);
 
@@ -83,6 +83,10 @@ public:
     virtual antlrcpp::Any visitEmptyStmt(RemniwParser::EmptyStmtContext *Ctx);
 
     virtual antlrcpp::Any visitOutputStmt(RemniwParser::OutputStmtContext *Ctx);
+
+    virtual antlrcpp::Any visitAllocStmt(RemniwParser::AllocStmtContext *Ctx);
+
+    virtual antlrcpp::Any visitDeallocStmt(RemniwParser::DeallocStmtContext *Ctx);
 
     virtual antlrcpp::Any visitBlockStmt(RemniwParser::BlockStmtContext *Ctx);
 

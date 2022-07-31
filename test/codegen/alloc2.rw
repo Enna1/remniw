@@ -1,0 +1,17 @@
+// RUN: %remniw %s -o %t ; echo 66 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; echo 66 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 66 | %t3 | FileCheck %s
+
+func main() int {
+    var tmp int;
+    var ptr *[10][20]int;
+    %alloc(ptr, %sizeof [10][20]int);
+    tmp = %input;
+    (*ptr)[0][0] = tmp;
+    (*ptr)[6][6] = (*ptr)[0][0];
+    %output (*ptr)[6][6];
+    %dealloc(ptr);
+    return 0;
+}
+
+// CHECK: 66

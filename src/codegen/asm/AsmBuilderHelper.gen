@@ -85,6 +85,11 @@ stmt: BRG_RET(reg) { $cost[0].cost = $cost[2].cost + 1; }
                        remniw::AsmOperand::createReg(remniw::Register::RAX));
 };
 
+stmt: BRG_RET(BRG_UNDEF) { $cost[0].cost = 0; }
+= {
+    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(BRG_UNDEF)\n";);
+};
+
 stmt: BRG_RET(imm) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(imm)\n";);

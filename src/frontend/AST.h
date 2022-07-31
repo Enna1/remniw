@@ -34,7 +34,7 @@ public:
         VariableExpr,
         FunctionCallExpr,
         NullExpr,
-        AllocExpr,
+        SizeofExpr,
         RefExpr,
         DerefExpr,
         ArraySubscriptExpr,
@@ -44,6 +44,8 @@ public:
         LocalVarDeclStmt,
         EmptyStmt,
         OutputStmt,
+        AllocStmt,
+        DeallocStmt,
         BlockStmt,
         ReturnStmt,
         IfStmt,
@@ -172,19 +174,19 @@ public:
     }
 };
 
-class AllocExprAST: public ExprAST {
-private:
-    std::unique_ptr<ExprAST> Init;
-
+class SizeofExprAST: public ExprAST {
 public:
-    AllocExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Init):
-        ExprAST(ASTNode::AllocExpr, Loc, /*LValue*/ true), Init(std::move(Init)) {}
+    SizeofExprAST(SourceLocation Loc, remniw::Type *Ty):
+        ExprAST(ASTNode::SizeofExpr, Loc, /*LValue*/ false), Ty(Ty) {}
 
-    ExprAST *getInit() const { return Init.get(); }
+    remniw::Type *getType() const { return Ty; }
 
     static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::AllocExpr;
+        return Node->getKind() == ASTNode::SizeofExpr;
     }
+
+private:
+    remniw::Type *Ty;
 };
 
 class RefExprAST: public ExprAST {
@@ -343,6 +345,40 @@ public:
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::OutputStmt;
+    }
+
+private:
+    std::unique_ptr<ExprAST> Expr;
+};
+
+class AllocStmtAST: public StmtAST {
+public:
+    AllocStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> Ptr,
+                 std::unique_ptr<ExprAST> Size):
+        StmtAST(ASTNode::AllocStmt, Loc),
+        Ptr(std::move(Ptr)), Size(std::move(Size)) {}
+
+    ExprAST *getPtr() const { return Ptr.get(); }
+    ExprAST *getSize() const { return Size.get(); }
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::AllocStmt;
+    }
+
+private:
+    std::unique_ptr<ExprAST> Ptr;
+    std::unique_ptr<ExprAST> Size;
+};
+
+class DeallocStmtAST: public StmtAST {
+public:
+    DeallocStmtAST(SourceLocation Loc, std::unique_ptr<ExprAST> Expr):
+        StmtAST(ASTNode::DeallocStmt, Loc), Expr(std::move(Expr)) {}
+
+    ExprAST *getExpr() const { return Expr.get(); }
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::DeallocStmt;
     }
 
 private:

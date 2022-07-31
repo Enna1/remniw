@@ -10,10 +10,19 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <cassert>
+#include <cstdint>
 
 using namespace llvm;
+
+extern cl::OptionCategory RemniwCat;
+
+cl::opt<bool> EnableAphoticShield("enable-aphotic-shield",
+                                  cl::desc("Enable APHOTIC_SHIELD allocator"),
+                                  cl::init(false), cl::Hidden, cl::cat(RemniwCat));
 
 namespace remniw {
 
@@ -37,10 +46,19 @@ llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
                                        ParamTypes, false)
             ->getPointerTo();
     }
+    llvm_unreachable("Unhandled remniw::Type");
     return nullptr;
 }
 
-// utility function for emit scanf, printf
+// Get size in bytes required of remniw::Type.
+// First convert remniw::Type to corresponding llvm::Type,
+// Then get Size(bytes) of llvm::Type
+uint64_t IRCodeGeneratorImpl::getSizeOfREMNIWType(remniw::Type *Ty) {
+    llvm::Type *LLVMTy = REMNIWTypeToLLVMType(Ty);
+    return TheModule->getDataLayout().getTypeAllocSize(LLVMTy);
+}
+
+// utility function for emit scanf, printf, etc
 Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *ReturnType,
                                         ArrayRef<llvm::Type *> ParamTypes,
                                         ArrayRef<Value *> Operands, bool IsVaArgs) {
@@ -48,19 +66,7 @@ Value *IRCodeGeneratorImpl::emitLibCall(StringRef LibFuncName, llvm::Type *Retur
     llvm::FunctionType *FuncType =
         llvm::FunctionType::get(ReturnType, ParamTypes, IsVaArgs);
     FunctionCallee Callee = M->getOrInsertFunction(LibFuncName, FuncType);
-    if (LibFuncName.equals("printf")) {
-        // setRetAndArgsNoUndef(F);
-        // setDoesNotThrow(F);
-        // setDoesNotCapture(F, 0);
-        // setOnlyReadsMemory(F, 0);
-    }
-    if (LibFuncName.equals("scanf")) {
-        // setRetAndArgsNoUndef(F);
-        // setDoesNotThrow(F);
-        // setDoesNotCapture(F, 0);
-        // setOnlyReadsMemory(F, 0);
-    }
-    CallInst *CI = IRB->CreateCall(Callee, Operands, LibFuncName);
+    CallInst *CI = IRB->CreateCall(Callee, Operands);
     if (const Function *F = dyn_cast<Function>(Callee.getCallee()->stripPointerCasts()))
         CI->setCallingConv(F->getCallingConv());
     return CI;
@@ -78,6 +84,22 @@ Value *IRCodeGeneratorImpl::emitScanf(Value *Fmt, Value *VAList) {
     return emitLibCall("scanf", IRB->getInt32Ty(), {IRB->getInt8PtrTy()},
                        {IRB->CreateBitCast(Fmt, IRB->getInt8PtrTy(AS), "cstr"), VAList},
                        /*IsVaArgs=*/true);
+}
+
+Value *IRCodeGeneratorImpl::emitMalloc(llvm::Type *ReturnType, Value *Size) {
+    if (EnableAphoticShield)
+        return emitLibCall("as_alloc", ReturnType, {Size->getType()}, {Size},
+                           /*IsVaArgs=*/false);
+    return emitLibCall("malloc", ReturnType, {Size->getType()}, {Size},
+                       /*IsVaArgs=*/false);
+}
+
+Value *IRCodeGeneratorImpl::emitFree(Value *Ptr) {
+    if (EnableAphoticShield)
+        return emitLibCall("as_dealloc", IRB->getVoidTy(), {Ptr->getType()}, {Ptr},
+                           /*IsVaArgs=*/false);
+    return emitLibCall("free", IRB->getVoidTy(), {Ptr->getType()}, {Ptr},
+                       /*IsVaArgs=*/false);
 }
 
 //  Create an alloca instruction in the entry block of the function.
@@ -114,8 +136,8 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::NullExpr:
         Ret = codegenNullExpr(static_cast<NullExprAST *>(Expr));
         break;
-    case ASTNode::AllocExpr:
-        Ret = codegenAllocExpr(static_cast<AllocExprAST *>(Expr));
+    case ASTNode::SizeofExpr:
+        Ret = codegenSizeofExpr(static_cast<SizeofExprAST *>(Expr));
         break;
     case ASTNode::RefExpr: Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr)); break;
     case ASTNode::DerefExpr:
@@ -146,6 +168,12 @@ Value *IRCodeGeneratorImpl::codegenStmt(StmtAST *Stmt) {
         break;
     case ASTNode::OutputStmt:
         Ret = codegenOutputStmt(static_cast<OutputStmtAST *>(Stmt));
+        break;
+    case ASTNode::AllocStmt:
+        Ret = codegenAllocStmt(static_cast<AllocStmtAST *>(Stmt));
+        break;
+    case ASTNode::DeallocStmt:
+        Ret = codegenDeallocStmt(static_cast<DeallocStmtAST *>(Stmt));
         break;
     case ASTNode::BlockStmt:
         Ret = codegenBlockStmt(static_cast<BlockStmtAST *>(Stmt));
@@ -206,7 +234,8 @@ IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallEx
                "Incorrect #arguments passed");
         unsigned Idx = 0;
         for (auto &Arg : CalledFunction->args()) {
-            assert((Arg.getType() == CallArgs[Idx++]->getType()) && "Inconsistent argument type");
+            assert((Arg.getType() == CallArgs[Idx++]->getType()) &&
+                   "Inconsistent argument type");
         }
         return IRB->CreateCall(CalledFunction, CallArgs, "call");
     } else {
@@ -223,12 +252,14 @@ Value *IRCodeGeneratorImpl::codegenNullExpr(NullExprAST *NullExpr) {
     return nullptr;
 }
 
-// TODO
-Value *IRCodeGeneratorImpl::codegenAllocExpr(AllocExprAST *AllocExpr) {
-    return nullptr;
+Value *IRCodeGeneratorImpl::codegenSizeofExpr(SizeofExprAST *SizeofExpr) {
+    uint64_t SizeInBytes = getSizeOfREMNIWType(SizeofExpr->getType());
+    return ConstantInt::get(IRB->getInt64Ty(), SizeInBytes, /*IsSigned=*/true);
 }
 
 Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
+    assert(!TheModule->getFunction(RefExpr->getVar()->getName()) &&
+           "Operand of RefExpr cannot be function");
     Value *Val = codegenVariableExpr(RefExpr->getVar());
     return Val;
 }
@@ -297,6 +328,23 @@ Value *IRCodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
     return emitPrintf(OutputFmtStr, V);
 }
 
+Value *IRCodeGeneratorImpl::codegenAllocStmt(AllocStmtAST *AllocStmt) {
+    assert(AllocStmt->getPtr()->IsLValue() && "AllocStmt first operand must be lvalue");
+    Value *Ptr = codegenExpr(AllocStmt->getPtr());
+    Value *Size = codegenExpr(AllocStmt->getSize());
+    assert(Ptr->getType()->isPointerTy() && llvm::isa<ConstantInt>(Size) &&
+           "AllocStmt first operand must be pointer type and "
+           "second operand must be contant int");
+    Value *Addr = emitMalloc(Ptr->getType()->getPointerElementType(), Size);
+    return IRB->CreateStore(Addr, Ptr);
+}
+
+Value *IRCodeGeneratorImpl::codegenDeallocStmt(DeallocStmtAST *DeallocStmt) {
+    Value *Ptr = codegenExpr(DeallocStmt->getExpr());
+    assert(Ptr && Ptr->getType()->isPointerTy() && "Invalid operand of OutputStmt");
+    return emitFree(Ptr);
+}
+
 Value *IRCodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {
     for (auto *Stmt : BlockStmt->getStmts())
         codegenStmt(Stmt);
@@ -304,7 +352,7 @@ Value *IRCodeGeneratorImpl::codegenBlockStmt(BlockStmtAST *BlockStmt) {
 }
 
 Value *IRCodeGeneratorImpl::codegenReturnStmt(ReturnStmtAST *ReturnStmt) {
-    // We handle ReturnStmt in Function()
+    // We handle ReturnStmt in codegenFunction()
     return nullptr;
 }
 
@@ -433,6 +481,32 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
     return F;
 }
 
+FunctionCallee
+IRCodeGeneratorImpl::createAphoticShieldCtorAndInitFunctions(StringRef CtorName,
+                                                             StringRef InitName) {
+    assert(!InitName.empty() && "Expected init function name");
+    // Declare as_init, the aphotic_shield runtime libarary init function.
+    auto *AphoticShieldInitFuncType =
+        llvm::FunctionType::get(IRB->getVoidTy(), {}, false);
+    FunctionCallee AphoticShieldInitFunc =
+        TheModule->getOrInsertFunction(InitName, AphoticShieldInitFuncType);
+    // Define module_ctor function as_module_ctor,
+    // add it to global ctors that implemented as __attribute__((constructor)),
+    // so as_module_ctor will be called before main function executed.
+    auto *AphoticShieldCtorFuncType =
+        llvm::FunctionType::get(IRB->getVoidTy(), {}, false);
+    Function *AphoticShieldCtorFunc =
+        llvm::Function::Create(AphoticShieldCtorFuncType, GlobalValue::InternalLinkage, 0,
+                               CtorName, TheModule.get());
+    // Create a new basic block to start insertion into.
+    BasicBlock *BB = BasicBlock::Create(*TheLLVMContext, "entry", AphoticShieldCtorFunc);
+    IRB->SetInsertPoint(BB);
+    IRB->CreateCall(AphoticShieldInitFunc, {});
+    IRB->CreateRetVoid();
+    appendToGlobalCtors(*TheModule, AphoticShieldCtorFunc, /*Priority*/ 65535);
+    return AphoticShieldCtorFunc;
+}
+
 std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
     // Add prototype for each function
     // This make emit FunctionCallExprAST easy
@@ -448,6 +522,9 @@ std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
     // Emit LLVM IR for all functions
     for (auto *FuncAST : AST->getFunctions())
         codegenFunction(FuncAST);
+
+    if (EnableAphoticShield)
+        createAphoticShieldCtorAndInitFunctions("as_module_ctor", "as_init");
 
     // Verify the generated code.
     verifyModule(*TheModule);

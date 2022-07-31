@@ -1,0 +1,32 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func main() int {
+    var n int;
+    var arr [10]int;
+    var ptr *[10]int;
+    n = 9;
+    while (n > -1) {
+        arr[n] = n;
+        n = n - 1;
+    }
+    n = 9;
+    ptr = &arr;
+    while (n > -1) {
+        %output *ptr[n];
+        n = n - 1;
+    }
+    return 0;
+}
+
+// CHECK: 9
+// CHECK: 8
+// CHECK: 7
+// CHECK: 6
+// CHECK: 5
+// CHECK: 4
+// CHECK: 3
+// CHECK: 2
+// CHECK: 1
+// CHECK: 0

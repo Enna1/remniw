@@ -33,9 +33,9 @@ public:
     void actAfterVisitNullExpr(NullExprAST *) {}
     void visitNullExpr(NullExprAST *);
 
-    bool actBeforeVisitAllocExpr(AllocExprAST *) { return false; }
-    void actAfterVisitAllocExpr(AllocExprAST *) {}
-    void visitAllocExpr(AllocExprAST *);
+    bool actBeforeVisitSizeofExpr(SizeofExprAST *) { return false; }
+    void actAfterVisitSizeofExpr(SizeofExprAST *) {}
+    void visitSizeofExpr(SizeofExprAST *);
 
     bool actBeforeVisitRefExpr(RefExprAST *) { return false; }
     void actAfterVisitRefExpr(RefExprAST *) {}
@@ -68,6 +68,14 @@ public:
     bool actBeforeVisitOutputStmt(OutputStmtAST *) { return false; }
     void actAfterVisitOutputStmt(OutputStmtAST *) {}
     void visitOutputStmt(OutputStmtAST *);
+
+    bool actBeforeVisitAllocStmt(AllocStmtAST *) { return false; }
+    void actAfterVisitAllocStmt(AllocStmtAST *) {}
+    void visitAllocStmt(AllocStmtAST *);
+
+    bool actBeforeVisitDeallocStmt(DeallocStmtAST *) { return false; }
+    void actAfterVisitDeallocStmt(DeallocStmtAST *) {}
+    void visitDeallocStmt(DeallocStmtAST *);
 
     bool actBeforeVisitBlockStmt(BlockStmtAST *) { return false; }
     void actAfterVisitBlockStmt(BlockStmtAST *) {}
@@ -113,8 +121,8 @@ void RecursiveASTVisitor<Derived>::visitExpr(ExprAST *Expr) {
     case ASTNode::NullExpr:
         getDerived().visitNullExpr(static_cast<NullExprAST *>(Expr));
         break;
-    case ASTNode::AllocExpr:
-        getDerived().visitAllocExpr(static_cast<AllocExprAST *>(Expr));
+    case ASTNode::SizeofExpr:
+        getDerived().visitSizeofExpr(static_cast<SizeofExprAST *>(Expr));
         break;
     case ASTNode::RefExpr:
         getDerived().visitRefExpr(static_cast<RefExprAST *>(Expr));
@@ -146,6 +154,12 @@ void RecursiveASTVisitor<Derived>::visitStmt(StmtAST *Stmt) {
         break;
     case ASTNode::OutputStmt:
         getDerived().visitOutputStmt(static_cast<OutputStmtAST *>(Stmt));
+        break;
+    case ASTNode::AllocStmt:
+        getDerived().visitAllocStmt(static_cast<AllocStmtAST *>(Stmt));
+        break;
+    case ASTNode::DeallocStmt:
+        getDerived().visitDeallocStmt(static_cast<DeallocStmtAST *>(Stmt));
         break;
     case ASTNode::BlockStmt:
         getDerived().visitBlockStmt(static_cast<BlockStmtAST *>(Stmt));
@@ -209,13 +223,11 @@ void RecursiveASTVisitor<Derived>::visitNullExpr(NullExprAST *NullExpr) {
 }
 
 template<typename Derived>
-void RecursiveASTVisitor<Derived>::visitAllocExpr(AllocExprAST *AllocExpr) {
-    if (getDerived().actBeforeVisitAllocExpr(AllocExpr))
+void RecursiveASTVisitor<Derived>::visitSizeofExpr(SizeofExprAST *SizeofExpr) {
+    if (getDerived().actBeforeVisitSizeofExpr(SizeofExpr))
         return;
 
-    visitExpr(AllocExpr->getInit());
-
-    getDerived().actAfterVisitAllocExpr(AllocExpr);
+    getDerived().actAfterVisitSizeofExpr(SizeofExpr);
 }
 
 template<typename Derived>
@@ -225,7 +237,7 @@ void RecursiveASTVisitor<Derived>::visitRefExpr(RefExprAST *RefExpr) {
 
     visitExpr(RefExpr->getVar());
 
-    actAfterVisitRefExpr(RefExpr);
+    getDerived().actAfterVisitRefExpr(RefExpr);
 }
 
 template<typename Derived>
@@ -278,7 +290,7 @@ void RecursiveASTVisitor<Derived>::visitLocalVarDeclStmt(
     for (auto *VarDeclNode : LocalVarDeclStmt->getVars())
         visitVarDeclNode(VarDeclNode);
 
-    actAfterVisitLocalVarDeclStmt(LocalVarDeclStmt);
+    getDerived().actAfterVisitLocalVarDeclStmt(LocalVarDeclStmt);
 }
 
 template<typename Derived>
@@ -297,6 +309,27 @@ void RecursiveASTVisitor<Derived>::visitOutputStmt(OutputStmtAST *OutputStmt) {
     visitExpr(OutputStmt->getExpr());
 
     getDerived().actAfterVisitOutputStmt(OutputStmt);
+}
+
+template<typename Derived>
+void RecursiveASTVisitor<Derived>::visitAllocStmt(AllocStmtAST *AllocStmt) {
+    if (getDerived().actBeforeVisitAllocStmt(AllocStmt))
+        return;
+
+    visitExpr(AllocStmt->getPtr());
+    visitExpr(AllocStmt->getSize());
+
+    getDerived().actAfterVisitAllocStmt(AllocStmt);
+}
+
+template<typename Derived>
+void RecursiveASTVisitor<Derived>::visitDeallocStmt(DeallocStmtAST *DeallocStmt) {
+    if (getDerived().actBeforeVisitDeallocStmt(DeallocStmt))
+        return;
+
+    visitExpr(DeallocStmt->getExpr());
+
+    getDerived().actAfterVisitDeallocStmt(DeallocStmt);
 }
 
 template<typename Derived>

@@ -1,0 +1,22 @@
+// RUN: %remniw %s -o %t ; echo 10 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; echo 10 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 10 | %t3 | FileCheck %s
+
+func ite(n int) int {
+    var f int;
+    f = 1;
+    while (n > 0) {
+        f = f*n;
+        n = n-1;
+    }
+    return f;
+}
+
+func main() int {
+    var n int;
+    n = %input;
+    %output ite(n);
+    return 0;
+}
+
+// CHECK: 3628800

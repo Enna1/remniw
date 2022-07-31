@@ -148,12 +148,6 @@ public:
             Type::getFunctionType(ArgTypes, ASTNodeToType(FunctionCallExpr)));
     }
 
-    // alloc E: [[alloc E]] = &[[E]]
-    void actAfterVisitAllocExpr(AllocExprAST *AllocExpr) {
-        Constraints.emplace_back(ASTNodeToType(AllocExpr),
-                                 ASTNodeToType(AllocExpr->getInit())->getPointerTo());
-    }
-
     // &X: [[&X]] = &[[X]]
     void actAfterVisitRefExpr(RefExprAST *RefExpr) {
         Constraints.emplace_back(ASTNodeToType(RefExpr),

@@ -1,0 +1,18 @@
+// RUN: %remniw %s -o %t ; echo 2021920 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; echo 2021920 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 2021920 | %t3 | FileCheck %s
+
+func foo(x int,y int) int {
+     x = 2*y;
+     return x+1;
+}
+
+func main() int {
+    var a,b int;
+    a = %input;
+    b = foo(a,17);
+    %output b;
+    return 0;
+}
+
+// CHECK: 35

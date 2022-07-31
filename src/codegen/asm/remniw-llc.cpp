@@ -6,6 +6,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include <memory>
+#include <string>
 
 using namespace llvm;
 
@@ -13,8 +15,8 @@ static llvm::cl::opt<std::string> InputFilename(llvm::cl::Positional,
                                                 llvm::cl::desc("<input bitcode>"),
                                                 llvm::cl::init("-"));
 static llvm::cl::opt<std::string>
-    OutputFilename("o", llvm::cl::desc("Override output filename"),
-                   llvm::cl::init("-"), llvm::cl::value_desc("filename"));
+    OutputFilename("o", llvm::cl::desc("Override output filename"), llvm::cl::init("-"),
+                   llvm::cl::value_desc("filename"));
 
 int main(int argc, char *argv[]) {
     // parse arguments from command line

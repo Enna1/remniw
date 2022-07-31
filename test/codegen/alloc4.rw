@@ -1,0 +1,48 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func fib(n int) int {
+    var result int;
+
+    if (n > 1){
+        result = fib(n-1) + fib(n-2);
+    } else {
+        result = 1;
+    }
+
+    return result;
+}
+
+func succ(i int) int {
+    return i + 1;
+}
+
+func main() int {
+    var n int;
+    var array_ptr *[6] func(int) int;
+
+    n = 6;
+    %alloc(array_ptr, %sizeof [6] func(int) int);
+    (*array_ptr)[0] = fib;
+    (*array_ptr)[1] = succ;
+    (*array_ptr)[2] = succ;
+    (*array_ptr)[3] = fib;
+    (*array_ptr)[4] = succ;
+    (*array_ptr)[5] = succ;
+
+    while (n > 0) {
+        %output (*array_ptr)[n-1](n);
+        n = n - 1;
+    }
+
+    %dealloc(array_ptr);
+    return 0;
+}
+
+// CHECK: 7
+// CHECK: 6
+// CHECK: 5
+// CHECK: 4
+// CHECK: 3
+// CHECK: 1

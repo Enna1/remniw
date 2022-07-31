@@ -33,7 +33,6 @@ public:
         Out.indent(Ind) << "VariableExpr " << Node << " '" << Node->getName() << "' "
                         << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
-        ;
         return false;
     }
 
@@ -53,13 +52,6 @@ public:
 
     bool actBeforeVisitNullExpr(NullExprAST *Node) {
         Out.indent(Ind) << "NullExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
-        return false;
-    }
-
-    bool actBeforeVisitAllocExpr(AllocExprAST *Node) {
-        Out.indent(Ind) << "AllocExpr " << Node << ", "
                         << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
@@ -135,6 +127,24 @@ public:
     }
 
     void actAfterVisitOutputStmt(OutputStmtAST *) { Ind -= 1; }
+
+    bool actBeforeVisitAllocStmt(AllocStmtAST *Node) {
+        Out.indent(Ind) << "AllocStmt " << Node << " <" << Node->getLine() << ':'
+                        << Node->getCol() << ">\n";
+        Ind += 1;
+        return false;
+    }
+
+    void actAfterVisitAllocStmt(AllocStmtAST *) { Ind -= 1; }
+
+    bool actBeforeVisitDeallocStmt(DeallocStmtAST *Node) {
+        Out.indent(Ind) << "DeallocStmt " << Node << " <" << Node->getLine() << ':'
+                        << Node->getCol() << ">\n";
+        Ind += 1;
+        return false;
+    }
+
+    void actAfterVisitDeallocStmt(DeallocStmtAST *) { Ind -= 1; }
 
     bool actBeforeVisitBlockStmtAST(BlockStmtAST *Node) {
         Out.indent(Ind) << "BlockStmt " << Node << " <" << Node->getLine() << ':'

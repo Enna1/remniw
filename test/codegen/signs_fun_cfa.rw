@@ -1,0 +1,38 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func posf(b int) int {
+    return 5;
+}
+
+func negf(c int) int {
+    return -5;
+}
+
+func main() int {
+    var pos, neg, top, u int;
+    var f func(int) int;
+    u = 0;
+
+    pos = posf(-4);
+    %output pos;
+
+    neg = negf(3);
+    %output neg;
+
+    if (u > 0) {
+        f = posf;
+    }
+    else {
+        f = negf;
+    }
+    top = (f)(4);
+    %output top;
+
+    return 0;
+}
+
+// CHECK: 5
+// CHECK-NEXT: -5
+// CHECK-NEXT: -5

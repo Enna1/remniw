@@ -24,6 +24,7 @@ jobs:
           cmake ../
           make -j `nproc`
           make check-remniw
+          make check-aphotic_shield
           popd
       - run: |
           mkdir asan-build

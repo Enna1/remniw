@@ -1,0 +1,33 @@
+// RUN: %remniw %s -o %t ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+
+func fun(x int) int{
+    var y int;
+    var k int;
+
+    k = 8;
+    y = 7;
+
+    while (k > y) {
+        k = k - 1;
+    }
+
+    return 0;
+}
+
+func main() int {
+    var pos, neg, top, zero int;
+    var later int;
+    pos = 5 + 5; %output pos;      // CHECK: 10
+    pos = 5 * 5; %output pos;      // CHECK-NEXT: 25
+    neg = -5 - 5; %output neg;     // CHECK-NEXT: -10
+    neg = -5 * 5; %output neg;     // CHECK-NEXT: -25
+    neg = 5 * -5; %output neg;     // CHECK-NEXT: -25
+    top = 5 - 5; %output top;      // CHECK-NEXT: 0
+    top = top * 5; %output top;    // CHECK-NEXT: 0
+    zero = top * 0; %output zero;  // CHECK-NEXT: 0
+    zero = 5 * zero; %output zero; // CHECK-NEXT: 0
+    later = 7; %output later;      // CHECK-NEXT: 7
+    return 0;
+}

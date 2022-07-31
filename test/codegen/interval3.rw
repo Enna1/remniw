@@ -1,0 +1,20 @@
+// RUN: %remniw %s -o %t ; echo 9 5 1 7 5 3 0 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t -debug ; echo 9 5 1 7 5 3 0 | lli %t | FileCheck %s
+// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 9 5 1 7 5 3 0 | %t3 | FileCheck %s
+
+func main() int {
+    var x,y int;
+    x = 0;
+    y = 0;
+    while (%input) {
+        x = 7;
+        x = x+1;
+        y = y+1;
+    }
+    %output x;
+    %output y;
+    return 0;
+}
+
+// CHECK: 8
+// CHECK-NEXT: 6

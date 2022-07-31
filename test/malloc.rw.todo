@@ -1,6 +1,0 @@
-test(){
-    var p;
-    p = alloc null;
-    *p = p;
-    return 0;
-}
