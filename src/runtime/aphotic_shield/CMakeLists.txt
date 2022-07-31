@@ -5,3 +5,5 @@ add_library(aphotic_shield STATIC
     error_report.cpp
     options.cpp
 )
+
+target_compile_options(aphotic_shield PRIVATE -fno-exceptions)
