@@ -6,4 +6,4 @@ add_library(aphotic_shield STATIC
     options.cpp
 )
 
-target_compile_options(aphotic_shield PRIVATE -fno-exceptions)
+target_compile_options(aphotic_shield PRIVATE -fno-exceptions -fno-sanitize=all)
