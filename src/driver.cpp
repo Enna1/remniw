@@ -29,7 +29,7 @@ llvm::cl::OptionCategory RemniwCat("remniw compiler options");
 static llvm::cl::opt<bool> EmitLLVM(
     "emit-llvm",
     llvm::cl::desc("Output LLVM IR (human-readable LLVM assembly language format)"),
-    llvm::cl::init(true), llvm::cl::cat(RemniwCat));
+    llvm::cl::init(false), llvm::cl::cat(RemniwCat));
 
 static llvm::cl::opt<std::string>
     InputFilename(llvm::cl::Positional, llvm::cl::desc("<input remniw source code>"),

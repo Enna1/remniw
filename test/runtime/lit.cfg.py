@@ -34,7 +34,7 @@ config.test_source_root = os.path.dirname(__file__)
 # test_exec_root: The root path where tests should be run.
 config.test_exec_root = os.path.join(config.obj_root, 'test')
 
-# replaced %remniw by the path to the tool executable.
+# replaced %remniw -emit-llvm by the path to the tool executable.
 config.substitutions.append(('%remniw',
     os.path.join(config.obj_root, 'bin/remniw')))
 
