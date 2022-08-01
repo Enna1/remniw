@@ -7,7 +7,7 @@ add_subdirectory(optimizer)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/config.h @ONLY)
 
 # compiler binary target
-add_executable(remniw ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+add_executable(remniw ${CMAKE_CURRENT_SOURCE_DIR}/driver.cpp)
 target_link_libraries(remniw PRIVATE frontend
                                      semantic
                                      ircodegen
