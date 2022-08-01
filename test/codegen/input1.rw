@@ -1,6 +1,7 @@
-// RUN: %remniw %s -o %t ; echo 147258369 | lli %t | FileCheck %s
-// RUN: %remniw %s -o %t -debug ; echo 147258369 | lli %t | FileCheck %s
-// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 147258369 | %t3 | FileCheck %s
+// RUN: %remniw -emit-llvm %s -o %t ; echo 147258369 | lli %t | FileCheck %s
+// RUN: %remniw -emit-llvm %s -o %t -debug ; echo 147258369 | lli %t | FileCheck %s
+// RUN: %remniw -emit-llvm %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 147258369 | %t3 | FileCheck %s
+// RUN: %remniw %s -o %t4 ; echo 147258369 | %t4 | FileCheck %s
 
 func test() int{
     var a int;

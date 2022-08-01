@@ -203,3 +203,5 @@ private:
 };
 
 }  // namespace remniw
+
+#undef DEBUG_TYPE

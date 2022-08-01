@@ -1,10 +1,14 @@
-// RUN: %remniw %s -o %t
+// RUN: %remniw -emit-llvm %s -o %t
 // RUN: echo 1 | lli %t | FileCheck %s --check-prefix=CHECK_B
 // RUN: echo 111 | lli %t | FileCheck %s --check-prefix=CHECK_A
 
-// RUN: %remniw %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3
+// RUN: %remniw -emit-llvm %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3
 // RUN: echo 1 | %t3 | FileCheck %s --check-prefix=CHECK_B
 // RUN: echo 11111 | %t3 | FileCheck %s --check-prefix=CHECK_A
+
+// RUN: %remniw %s -o %t4
+// RUN: echo 1 | %t4 | FileCheck %s --check-prefix=CHECK_B
+// RUN: echo 111111 | %t4 | FileCheck %s --check-prefix=CHECK_A
 
 func f() int {
     var a,b *int;

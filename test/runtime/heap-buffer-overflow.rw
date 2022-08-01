@@ -1,6 +1,9 @@
-// RUN: %remniw %s -o %t1  --enable-aphotic-shield ; %remniw-llc %t1 -o %t2.s
+// RUN: %remniw -emit-llvm %s -o %t1  --enable-aphotic-shield ; %remniw-llc %t1 -o %t2.s
 // RUN: %cxx_aphotic_shield %t2.s -o %t3
 // RUN: %expect_crash %t3 2>&1 | FileCheck %s
+
+// RUN: %remniw --enable-aphotic-shield %s -o %t4
+// RUN: %expect_crash %t4 2>&1 | FileCheck %s
 
 // CHECK: APHOTIC-SHIELD detected a memory error
 // CHECK: Buffer Overflow on address 0x{{[a-f0-9]+}}

@@ -43,12 +43,8 @@ func main() int {
     return 0;
 }
 
-# generate llvm ir
-$ /path/to/remniw/build/bin/remniw /path/to/remniw/test/more_args.rw -o more_args.ll
-# generate assembly code
-$ /path/to/remniw/build/bin/remniw-llc more_args.ll -o more_args.s
-# generate executable 
-$ clang more_args.s -o more_args
+# generate executable
+$ /path/to/remniw/build/bin/remniw /path/to/remniw/test/more_args.rw -o more_args
 # execute
 $ ./more_args
 55
@@ -66,7 +62,7 @@ remniw 编译器包含 5 个 phase：
 
 ### 语法 Syntax
 
-remniw 语言的语法设计脱胎于 [Static Program Analysis](https://cs.au.dk/~amoeller/spa/) 中的 TIP 语言，目前只支持整型、指针这两种变量类型。
+remniw 语言的语法设计脱胎于 [Static Program Analysis](https://cs.au.dk/~amoeller/spa/) 中的 TIP 语言，目前支持的变量类型包括整型、指针、数组。
 
 下面给出一个使用 remniw 语言编写的计算斐波那契数列的程序源代码：
 
@@ -108,6 +104,7 @@ remnniw 编译器的中间表示使用的是 LLVM IR 的一个子集，目前只
 - `store` Instruction
 - `icmp` Instruction
 - `call` Instruction
+- `getelementptr` Instruction
 
 只使用 LLVM IR 的子集有一个好处，在实现机器无关优化时只需要考虑有限的 llvm instruction，这样方便我们更专注于分析、优化算法本身，而不会陷于繁多的 llvm instruction。
 
