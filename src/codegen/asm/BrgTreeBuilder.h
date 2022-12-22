@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "AsmOperand.h"
 #include "AsmSymbol.h"
 #include "Register.h"
 #include "llvm/ADT/DenseMap.h"
@@ -28,6 +29,7 @@ enum BrgTerm {
     Reg,
 #define HANDLE_INST(N, OPC, CLASS) OPC,
 #include "llvm/IR/Instruction.def"
+#undef HANDLE_INST
 };
 
 class BrgTreeNode {
@@ -42,25 +44,6 @@ public:
         LabelNode,
     };
 
-    struct RegOp {
-        uint32_t RegNo;
-    };
-
-    struct MemOp {
-        int64_t Disp;
-        uint32_t BaseReg;
-        uint32_t IndexReg;
-        uint32_t Scale;
-    };
-
-    struct ImmOp {
-        int64_t Val;
-    };
-
-    struct LabelOp {
-        remniw::AsmSymbol *Symbol;
-    };
-
 private:
     burm_state *State;
     KindTy Kind;
@@ -68,10 +51,10 @@ private:
     std::vector<BrgTreeNode *> Kids;
     bool ActionExecuted;
     union {
-        struct RegOp Reg;         // RegNode
-        struct MemOp Mem;         // MemNode
-        struct ImmOp Imm;         // ImmNode
-        struct LabelOp Label;     // LabelNode
+        remniw::AsmOperand::RegOp Reg;         // RegNode
+        remniw::AsmOperand::MemOp Mem;         // MemNode
+        remniw::AsmOperand::ImmOp Imm;         // ImmNode
+        remniw::AsmOperand::LabelOp Label;     // LabelNode
         llvm::Instruction *Inst;  // InstNode
     };
 
@@ -149,7 +132,7 @@ public:
     }
 
     static BrgTreeNode *createMemNode(int64_t Offset,
-                                      uint32_t BaseReg = remniw::Register::RBP,
+                                      uint32_t BaseReg,
                                       uint32_t IndexReg = remniw::Register::NoRegister,
                                       uint32_t Scale = 1) {
         auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca);
@@ -185,6 +168,11 @@ public:
     void setReg(uint32_t RegNo) {
         Kind = KindTy::RegNode;
         Reg.RegNo = RegNo;
+    }
+
+    remniw::AsmOperand::MemOp getMem() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem;
     }
 
     int64_t getMemDisp() {
@@ -360,7 +348,7 @@ public:
                 llvm::Type *Ty = F.getArg(i)->getType();
                 uint64_t SizeInBytes =
                     F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                ArgNode = BrgTreeNode::createMemNode(8 * (i - 6 + 2));
+                ArgNode = BrgTreeNode::createMemNode(8 * (i - 6 + 2), remniw::Register::RBP, remniw::Register::NoRegister, 1);
             }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
@@ -380,7 +368,7 @@ public:
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         Offset -= AllocaSizeInBytes;
-        auto *InstNode = BrgTreeNode::createMemNode(Offset);
+        auto *InstNode = BrgTreeNode::createMemNode(Offset, remniw::Register::RBP, remniw::Register::NoRegister, 1);
         CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
     }
