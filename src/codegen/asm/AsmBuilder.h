@@ -44,6 +44,60 @@ public:
             delete F;
     }
 
+    virtual void handleLOAD(AsmOperand::MemOp Mem) = 0;
+    virtual void handleLOAD(AsmOperand::RegOp Reg) = 0;
+
+    virtual void handleRET(AsmOperand::RegOp Reg) = 0;
+    virtual void handleRET(AsmOperand::ImmOp Imm) = 0;
+
+    virtual void handleSTORE(AsmOperand::RegOp Reg, AsmOperand::MemOp Mem) = 0;
+    virtual void handleSTORE(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+    virtual void handleSTORE(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
+    virtual void handleSTORE(AsmOperand::RegOp Reg, AsmOperand::MemOp Mem) = 0;
+    virtual void handleSTORE(AsmOperand::MemOp Mem1, AsmOperand::MemOp Mem2) = 0;
+    virtual void handleSTORE(AsmOperand::LabelOp Label, AsmOperand::MemOp Mem) = 0;
+
+    virtual void handleGETELEMENTPTR(AsmOperand::MemOp Mem, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleGETELEMENTPTR(AsmOperand::MemOp Mem, AsmOperand::RegOp Reg) = 0;
+    virtual void handleGETELEMENTPTR(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleGETELEMENTPTR(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+
+    virtual void handleICMP(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+    virtual void handleICMP(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleICMP(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
+
+    virtual void handleBR(AsmOperand::LabelOp Label1, AsmOperand::LabelOp Label2) = 0;
+    virtual void handleBR(AsmOperand::LabelOp Label) = 0;
+
+    virtual void handleADD(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+    virtual void handleADD(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleADD(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
+    virtual void handleADD(AsmOperand::ImmOp Imm1, AsmOperand::ImmOp Imm2) = 0;
+
+    virtual void handleSUB(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+    virtual void handleSUB(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleSUB(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
+    virtual void handleSUB(AsmOperand::ImmOp Imm1, AsmOperand::ImmOp Imm2) = 0;
+
+    virtual void handleMUL(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+    virtual void handleMUL(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleMUL(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
+    virtual void handleMUL(AsmOperand::ImmOp Imm, AsmOperand::ImmOp Imm) = 0;
+
+    virtual void handleSDIV(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+    virtual void handleSDIV(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleSDIV(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
+    virtual void handleSDIV(AsmOperand::ImmOp Imm1, AsmOperand::ImmOp Imm2) = 0;
+
+    virtual void handleARG(unsigned ArgNo, AsmOperand::RegOp Reg) = 0;
+    virtual void handleARG(unsigned ArgNo, AsmOperand::ImmOp Imm) = 0;
+    virtual void handleARG(unsigned ArgNo, AsmOperand::MemOp Mem) = 0;
+    virtual void handleARG(unsigned ArgNo, AsmOperand::LabelOp Label) = 0;
+
+    virtual void handleCALL(AsmOperand::LabelOp Label) = 0;
+    virtual void handleCALL(AsmOperand::RegOp Reg) = 0;
+    virtual void handleCALL(AsmOperand::MemOp Mem) = 0;
+
     void buildAsmFunction(const BrgFunction *);
 
     llvm::SmallVector<AsmFunction *> &getAsmFunctions() { return AsmFunctions; }
