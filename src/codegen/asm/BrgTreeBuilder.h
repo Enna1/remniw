@@ -160,7 +160,27 @@ public:
         return Inst;
     }
 
-    uint32_t getReg() {
+    AsmOperand::RegOp getAsAsmOperandReg() {
+        assert(Kind == KindTy::RegNode && "Not a RegNode");
+        return Reg;
+    }
+
+    AsmOperand::MemOp getAsAsmOperandMem() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem;
+    }
+
+    AsmOperand::ImmOp getAsAsmOperandImm() {
+        assert(Kind == KindTy::ImmNode && "Not a ImmNode");
+        return Imm;
+    }
+
+    AsmOperand::LabelOp getAsAsmOperandLabel() {
+        assert(Kind == KindTy::LabelNode && "Not a LabelNode");
+        return Label;
+    }
+
+    uint32_t getRegNo() {
         assert(Kind == KindTy::RegNode && "Not a RegNode");
         return Reg.RegNo;
     }

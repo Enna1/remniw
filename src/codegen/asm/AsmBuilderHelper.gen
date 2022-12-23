@@ -46,13 +46,8 @@ reg: BRG_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
         return;
     $0->setActionExecuted();
     $action[2](Builder);
-    uint32_t VirtReg = remniw::Register::createVirtReg();
-    $0->setReg(VirtReg);
-    Builder->createMov(remniw::AsmOperand::createMem($2->getMemDisp(),
-                                                     $2->getMemBaseReg(),
-                                                     $2->getMemIndexReg(),
-                                                     $2->getMemScale()),
-                       remniw::AsmOperand::createReg(VirtReg));
+    uint32_t VirtReg = Builder->handleLOAD($2->getAsAsmOperandMem());
+    $0->setReg(VirtReg);;
 };
 
 reg: BRG_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
@@ -62,10 +57,8 @@ reg: BRG_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
         return;
     $0->setActionExecuted();
     $action[2](Builder);
-    uint32_t VirtReg = remniw::Register::createVirtReg();
-    $0->setReg(VirtReg);
-    Builder->createMov(remniw::AsmOperand::createMem(0, $2->getReg()),
-                       remniw::AsmOperand::createReg(VirtReg));
+    uint32_t VirtReg = Builder->handleLOAD($2->getAsAsmOperandReg());
+    $0->setReg(VirtReg);;
 };
 
 stmt: reg { $cost[0].cost = $cost[1].cost; }
@@ -81,8 +74,7 @@ stmt: BRG_RET(reg) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(reg)\n";);
     $action[2](Builder);
-    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
-                       remniw::AsmOperand::createReg(remniw::Register::RAX));
+    Builder->handleRET($2->getAsAsmOperandReg());
 };
 
 stmt: BRG_RET(BRG_UNDEF) { $cost[0].cost = 0; }
@@ -94,8 +86,7 @@ stmt: BRG_RET(imm) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(imm)\n";);
     $action[2](Builder);
-    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
-                       remniw::AsmOperand::createReg(remniw::Register::RAX));
+    Builder->handleRET($2->getAsAsmOperandImm());
 };
 
 stmt: BRG_STORE(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
