@@ -3,6 +3,7 @@
 #include "AsmContext.h"
 #include "AsmFunction.h"
 #include "AsmInstruction.h"
+#include "AsmOperand.h"
 #include "BrgTreeBuilder.h"
 #include "LiveInterval.h"
 #include "Register.h"
@@ -44,63 +45,97 @@ public:
             delete F;
     }
 
-    virtual void handleLOAD(AsmOperand::MemOp Mem) = 0;
-    virtual void handleLOAD(AsmOperand::RegOp Reg) = 0;
+    void buildAsmFunction(const BrgFunction *);
+    llvm::SmallVector<AsmFunction *> &getAsmFunctions() { return AsmFunctions; }
 
-    virtual void handleRET(AsmOperand::RegOp Reg) = 0;
-    virtual void handleRET(AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) = 0;
+    virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) = 0;
 
-    virtual void handleSTORE(AsmOperand::RegOp Reg, AsmOperand::MemOp Mem) = 0;
-    virtual void handleSTORE(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
-    virtual void handleSTORE(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
-    virtual void handleSTORE(AsmOperand::RegOp Reg, AsmOperand::MemOp Mem) = 0;
-    virtual void handleSTORE(AsmOperand::MemOp Mem1, AsmOperand::MemOp Mem2) = 0;
-    virtual void handleSTORE(AsmOperand::LabelOp Label, AsmOperand::MemOp Mem) = 0;
+    virtual void handleRET(llvm::Instruction *I, AsmOperand::RegOp Reg) = 0;
+    virtual void handleRET(llvm::Instruction *I, AsmOperand::ImmOp Imm) = 0;
 
-    virtual void handleGETELEMENTPTR(AsmOperand::MemOp Mem, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleGETELEMENTPTR(AsmOperand::MemOp Mem, AsmOperand::RegOp Reg) = 0;
-    virtual void handleGETELEMENTPTR(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleGETELEMENTPTR(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, AsmOperand::RegOp Reg,
+                             AsmOperand::MemOp Mem) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, AsmOperand::RegOp Reg1,
+                             AsmOperand::RegOp Reg2) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, AsmOperand::ImmOp Imm,
+                             AsmOperand::RegOp Reg) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, AsmOperand::RegOp Reg,
+                             AsmOperand::MemOp Mem) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, AsmOperand::MemOp Mem1,
+                             AsmOperand::MemOp Mem2, bool DestIsArgument) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, AsmOperand::LabelOp Label,
+                             AsmOperand::MemOp Mem) = 0;
 
-    virtual void handleICMP(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
-    virtual void handleICMP(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleICMP(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
+    virtual AsmOperand::MemOp handleGETELEMENTPTR(llvm::Instruction *I,
+                                                  AsmOperand::MemOp Mem,
+                                                  AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::MemOp handleGETELEMENTPTR(llvm::Instruction *I,
+                                                  AsmOperand::MemOp Mem,
+                                                  AsmOperand::RegOp Reg) = 0;
+    virtual AsmOperand::MemOp handleGETELEMENTPTR(llvm::Instruction *I,
+                                                  AsmOperand::RegOp Reg,
+                                                  AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::MemOp handleGETELEMENTPTR(llvm::Instruction *I,
+                                                  AsmOperand::RegOp Reg1,
+                                                  AsmOperand::RegOp Reg2) = 0;
 
-    virtual void handleBR(AsmOperand::LabelOp Label1, AsmOperand::LabelOp Label2) = 0;
-    virtual void handleBR(AsmOperand::LabelOp Label) = 0;
+    virtual void handleICMP(llvm::Instruction *I, AsmOperand::RegOp Reg1,
+                            AsmOperand::RegOp Reg2) = 0;
+    virtual void handleICMP(llvm::Instruction *I, AsmOperand::RegOp Reg,
+                            AsmOperand::ImmOp Imm) = 0;
+    virtual void handleICMP(llvm::Instruction *I, AsmOperand::ImmOp Imm,
+                            AsmOperand::RegOp Reg) = 0;
 
-    virtual void handleADD(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
-    virtual void handleADD(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleADD(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
-    virtual void handleADD(AsmOperand::ImmOp Imm1, AsmOperand::ImmOp Imm2) = 0;
+    virtual void handleBR(llvm::Instruction *I, AsmOperand::LabelOp Label1,
+                          AsmOperand::LabelOp Label2) = 0;
+    virtual void handleBR(llvm::Instruction *I, AsmOperand::LabelOp Label) = 0;
 
-    virtual void handleSUB(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
-    virtual void handleSUB(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleSUB(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
-    virtual void handleSUB(AsmOperand::ImmOp Imm1, AsmOperand::ImmOp Imm2) = 0;
+    virtual AsmOperand::RegOp handleADD(llvm::Instruction *I, AsmOperand::RegOp Reg1,
+                                        AsmOperand::RegOp Reg2) = 0;
+    virtual AsmOperand::RegOp handleADD(llvm::Instruction *I, AsmOperand::RegOp Reg,
+                                        AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::RegOp handleADD(llvm::Instruction *I, AsmOperand::ImmOp Imm,
+                                        AsmOperand::RegOp Reg) = 0;
+    virtual AsmOperand::RegOp handleADD(llvm::Instruction *I, AsmOperand::ImmOp Imm1,
+                                        AsmOperand::ImmOp Imm2) = 0;
 
-    virtual void handleMUL(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
-    virtual void handleMUL(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleMUL(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
-    virtual void handleMUL(AsmOperand::ImmOp Imm, AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::RegOp handleSUB(llvm::Instruction *I, AsmOperand::RegOp Reg1,
+                                        AsmOperand::RegOp Reg2) = 0;
+    virtual AsmOperand::RegOp handleSUB(llvm::Instruction *I, AsmOperand::RegOp Reg,
+                                        AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::RegOp handleSUB(llvm::Instruction *I, AsmOperand::ImmOp Imm,
+                                        AsmOperand::RegOp Reg) = 0;
+    virtual AsmOperand::RegOp handleSUB(llvm::Instruction *I, AsmOperand::ImmOp Imm1,
+                                        AsmOperand::ImmOp Imm2) = 0;
 
-    virtual void handleSDIV(AsmOperand::RegOp Reg1, AsmOperand::RegOp Reg2) = 0;
-    virtual void handleSDIV(AsmOperand::RegOp Reg, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleSDIV(AsmOperand::ImmOp Imm, AsmOperand::RegOp Reg) = 0;
-    virtual void handleSDIV(AsmOperand::ImmOp Imm1, AsmOperand::ImmOp Imm2) = 0;
+    virtual AsmOperand::RegOp handleMUL(llvm::Instruction *I, AsmOperand::RegOp Reg1,
+                                        AsmOperand::RegOp Reg2) = 0;
+    virtual AsmOperand::RegOp handleMUL(llvm::Instruction *I, AsmOperand::RegOp Reg,
+                                        AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::RegOp handleMUL(llvm::Instruction *I, AsmOperand::ImmOp Imm,
+                                        AsmOperand::RegOp Reg) = 0;
+    virtual AsmOperand::RegOp handleMUL(llvm::Instruction *I, AsmOperand::ImmOp Imm,
+                                        AsmOperand::ImmOp Imm) = 0;
+
+    virtual AsmOperand::RegOp handleSDIV(llvm::Instruction *I, AsmOperand::RegOp Reg1,
+                                         AsmOperand::RegOp Reg2) = 0;
+    virtual AsmOperand::RegOp handleSDIV(llvm::Instruction *I, AsmOperand::RegOp Reg,
+                                         AsmOperand::ImmOp Imm) = 0;
+    virtual AsmOperand::RegOp handleSDIV(llvm::Instruction *I, AsmOperand::ImmOp Imm,
+                                         AsmOperand::RegOp Reg) = 0;
+    virtual AsmOperand::RegOp handleSDIV(llvm::Instruction *I, AsmOperand::ImmOp Imm1,
+                                         AsmOperand::ImmOp Imm2) = 0;
+
+    virtual AsmOperand::RegOp handleCALL(llvm::Instruction *I,
+                                         AsmOperand::LabelOp Label) = 0;
+    virtual AsmOperand::RegOp handleCALL(llvm::Instruction *I, AsmOperand::RegOp Reg) = 0;
+    virtual AsmOperand::RegOp handleCALL(llvm::Instruction *I, AsmOperand::MemOp Mem) = 0;
 
     virtual void handleARG(unsigned ArgNo, AsmOperand::RegOp Reg) = 0;
     virtual void handleARG(unsigned ArgNo, AsmOperand::ImmOp Imm) = 0;
     virtual void handleARG(unsigned ArgNo, AsmOperand::MemOp Mem) = 0;
     virtual void handleARG(unsigned ArgNo, AsmOperand::LabelOp Label) = 0;
-
-    virtual void handleCALL(AsmOperand::LabelOp Label) = 0;
-    virtual void handleCALL(AsmOperand::RegOp Reg) = 0;
-    virtual void handleCALL(AsmOperand::MemOp Mem) = 0;
-
-    void buildAsmFunction(const BrgFunction *);
-
-    llvm::SmallVector<AsmFunction *> &getAsmFunctions() { return AsmFunctions; }
 
     void updateRegLiveRanges(uint32_t Reg) {
         uint32_t StartPoint = static_cast<uint32_t>(CurrentFunction->size());
@@ -179,139 +214,33 @@ public:
         }
     }
 
-    void updateAsmOperandLiveRanges(const AsmOperand &Op) {
-        LLVM_DEBUG({ llvm::outs() << "updateAsmOperandLiveRanges " << &Op << "\n"; });
-        if (Op.isReg()) {
-            updateRegLiveRanges(Op.getReg());
-        }
-        if (Op.isMem()) {
-            uint32_t MemBaseReg = Op.getMemBaseReg();
-            if (MemBaseReg != Register::RBP) {
-                updateRegLiveRanges(MemBaseReg);
-            }
-            uint32_t MemIndexReg = Op.getMemIndexReg();
-            if (MemIndexReg != Register::NoRegister) {
-                updateRegLiveRanges(MemIndexReg);
-            }
-        }
-    }
-    
-    void createMov(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
-        updateAsmOperandLiveRanges(*Src);
-        updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmMovInst::create(std::move(Src), std::move(Dst), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
+    // void updateAsmOperandLiveRanges(const AsmOperand &Op) {
+    //     LLVM_DEBUG(llvm::outs() << "updateAsmOperandLiveRanges " << &Op << "\n";);
+    //     if (Op.isReg()) {
+    //         updateRegLiveRanges(Op.getReg());
+    //     }
+    //     if (Op.isMem()) {
+    //         uint32_t MemBaseReg = Op.getMemBaseReg();
+    //         if (MemBaseReg != Register::RBP) {
+    //             updateRegLiveRanges(MemBaseReg);
+    //         }
+    //         uint32_t MemIndexReg = Op.getMemIndexReg();
+    //         if (MemIndexReg != Register::NoRegister) {
+    //             updateRegLiveRanges(MemIndexReg);
+    //         }
+    //     }
+    // }
+
+    void updateAsmOperandLiveRanges(const AsmOperand::RegOp &Reg) {
+        LLVM_DEBUG(llvm::outs() << "updateAsmOperandLiveRanges " << &Reg << "\n";);
+        updateRegLiveRanges(Reg.RegNo);
     }
 
-    void createLea(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
-        updateAsmOperandLiveRanges(*Src);
-        updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmLeaInst::create(std::move(Src), std::move(Dst), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createCmp(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
-        updateAsmOperandLiveRanges(*Src);
-        updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmCmpInst::create(std::move(Src), std::move(Dst), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createJmp(AsmJmpInst::JmpKindTy JmpKind, std::unique_ptr<AsmOperand> Op) {
-        updateAsmOperandLiveRanges(*Op);
-        auto *I = AsmJmpInst::create(JmpKind, std::move(Op), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createAdd(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
-        updateAsmOperandLiveRanges(*Src);
-        updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmAddInst::create(std::move(Src), std::move(Dst), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createSub(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
-        updateAsmOperandLiveRanges(*Src);
-        updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmSubInst::create(std::move(Src), std::move(Dst), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createImul(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
-        updateAsmOperandLiveRanges(*Src);
-        updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmImulInst::create(std::move(Src), std::move(Dst), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createIdiv(std::unique_ptr<AsmOperand> Op) {
-        updateAsmOperandLiveRanges(*Op);
-        updateRegLiveRanges(Register::RAX);
-        updateRegLiveRanges(Register::RDX);
-        auto *I = AsmIdivInst::create(std::move(Op), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createCqto() {
-        updateRegLiveRanges(Register::RAX);
-        updateRegLiveRanges(Register::RDX);
-        auto *I = AsmCqtoInst::create(CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createCall(std::unique_ptr<AsmOperand> Callee, bool DirectCall, unsigned NumArgs) {
-        updateAsmOperandLiveRanges(*Callee);
-        auto *I = AsmCallInst::create(std::move(Callee), DirectCall, NumArgs, CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-        CurrentCallInstIndexs.push_back(CurrentFunction->size());
-    }
-
-    void createXor(std::unique_ptr<AsmOperand> Src, std::unique_ptr<AsmOperand> Dst) {
-        updateAsmOperandLiveRanges(*Src);
-        updateAsmOperandLiveRanges(*Dst);
-        auto *I = AsmXorInst::create(std::move(Src), std::move(Dst), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
-    }
-
-    void createLabel(std::unique_ptr<AsmOperand> LabelOp) {
-        auto *I = AsmLabelInst::create(std::move(LabelOp), CurrentFunction);
-        LLVM_DEBUG({
-            llvm::outs() << CurrentFunction->size();
-            I->print(llvm::outs());
-        });
+    void updateAsmOperandLiveRanges(const AsmOperand::MemOp &Mem) {
+        LLVM_DEBUG(llvm::outs() << "updateAsmOperandLiveRanges " << &Mem << "\n";);
+        updateRegLiveRanges(Mem.BaseReg);
+        if (Mem.IndexReg != Register::NoRegister)
+            updateRegLiveRanges(Mem.IndexReg);
     }
 };
 

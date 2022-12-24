@@ -14,371 +14,284 @@
 %declare<void> mem<remniw::AsmBuilderPtr Builder>;
 %declare<void> label<remniw::AsmBuilderPtr Builder>;
 %declare<void> cond<remniw::AsmBuilderPtr Builder>;
-%declare<void> arg<remniw::AsmBuilderPtr Builder, unsigned argNo>;
-%declare<void> args<remniw::AsmBuilderPtr Builder, unsigned argNo>;
+%declare<void> arg<remniw::AsmBuilderPtr Builder, unsigned ArgNo>;
+%declare<void> args<remniw::AsmBuilderPtr Builder, unsigned ArgNo>;
 
 %%
 
 label: BRG_LABEL { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "label: BRG_LABEL\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: label: BRG_LABEL\n";);
 };
 
 imm: BRG_CONST { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "imm: BRG_CONST\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: imm: BRG_CONST\n";);
 };
 
 reg: BRG_REG { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_REG\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_REG\n";);
 };
 
 mem: BRG_ALLOCA { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_ALLOCA\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: mem: BRG_ALLOCA\n";);
 };
 
 reg: BRG_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_LOAD(mem)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_LOAD(mem)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
-    uint32_t VirtReg = Builder->handleLOAD($2->getAsAsmOperandMem());
-    $0->setReg(VirtReg);;
+    uint32_t VirtReg =
+        Builder->handleLOAD($1->getInstruction(), $2->getAsAsmOperandMem());
+    $0->setReg(VirtReg);
 };
 
 reg: BRG_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_LOAD(reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_LOAD(reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
-    uint32_t VirtReg = Builder->handleLOAD($2->getAsAsmOperandReg());
-    $0->setReg(VirtReg);;
+    uint32_t VirtReg =
+        Builder->handleLOAD($1->getInstruction(), $2->getAsAsmOperandReg());
+    $0->setReg(VirtReg);
 };
 
 stmt: reg { $cost[0].cost = $cost[1].cost; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: reg\n";);
-    // if ($0->isActionExecuted())
-    //     return;
-    // $0->setActionExecuted();
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: reg\n";);
     $action[1](Builder);
 };
 
 stmt: BRG_RET(reg) { $cost[0].cost = $cost[2].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_RET(reg)\n";);
     $action[2](Builder);
-    Builder->handleRET($2->getAsAsmOperandReg());
+    Builder->handleRET($1->getInstruction(), $2->getAsAsmOperandReg());
 };
 
 stmt: BRG_RET(BRG_UNDEF) { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(BRG_UNDEF)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_RET(BRG_UNDEF)\n";);
 };
 
 stmt: BRG_RET(imm) { $cost[0].cost = $cost[2].cost + 1; }
 = {
     LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(imm)\n";);
     $action[2](Builder);
-    Builder->handleRET($2->getAsAsmOperandImm());
+    Builder->handleRET($1->getInstruction(), $2->getAsAsmOperandImm());
 };
 
 stmt: BRG_STORE(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(reg, mem)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_STORE(reg, mem)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
-                       remniw::AsmOperand::createMem($3->getMemDisp(),
-                                                     $3->getMemBaseReg(),
-                                                     $3->getMemIndexReg(),
-                                                     $3->getMemScale()));
+    Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandReg(),
+                         $3->getAsAsmOperandMem());
 };
 
 stmt: BRG_STORE(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(reg, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_STORE(reg, reg)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
-                       remniw::AsmOperand::createMem(0, $3->getReg()));
+    Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandReg(),
+                         $3->getAsAsmOperandReg());
 };
 
 stmt: BRG_STORE(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(imm, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_STORE(imm, reg)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
-                       remniw::AsmOperand::createMem(0, $3->getReg()));
+    Builder->handleSTORE($1->getInstruction(), $2->getAsmOperandAsImm(),
+                         $3->getAsmOperandAsReg());
 };
 
 stmt: BRG_STORE(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(imm, mem)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_STORE(imm, mem)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
-                       remniw::AsmOperand::createMem($3->getMemDisp(),
-                                                     $3->getMemBaseReg(),
-                                                     $3->getMemIndexReg(),
-                                                     $3->getMemScale()));
+    Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandImm(),
+                         $3->getAsAsmOperandMem());
 };
 
 stmt: BRG_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(mem, mem)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_STORE(mem, mem)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    auto* SI = llvm::cast<llvm::StoreInst>($1->getInstruction());
+    auto *SI = llvm::cast<llvm::StoreInst>($1->getInstruction());
     // In BrgTreeBuilder, we construct MemBrgTreeNode for argument.
     // So here we specially handle StoreInst which initializes
     // permanent storage for a function argument
     if (llvm::isa<llvm::Argument>(SI->getValueOperand())) {
-        uint32_t VirtReg = remniw::Register::createVirtReg();
-        $0->setReg(VirtReg);
-        Builder->createMov(remniw::AsmOperand::createMem($2->getMemDisp(),
-                                                         $2->getMemBaseReg(),
-                                                         $2->getMemIndexReg(),
-                                                         $2->getMemScale()),
-                           remniw::AsmOperand::createReg(VirtReg));
-        Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
-                           remniw::AsmOperand::createMem($3->getMemDisp(),
-                                                         $3->getMemBaseReg(),
-                                                         $3->getMemIndexReg(),
-                                                         $3->getMemScale()));
+        Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandMem(),
+                             $3->getAsAsmOperandMem(),
+                             /*bool DestIsArgument=*/true);
     } else {
-        uint32_t VirtReg = remniw::Register::createVirtReg();
-        $0->setReg(VirtReg);
-        Builder->createLea(remniw::AsmOperand::createMem($2->getMemDisp(),
-                                                         $2->getMemBaseReg(),
-                                                         $2->getMemIndexReg(),
-                                                         $2->getMemScale()),
-                           remniw::AsmOperand::createReg(VirtReg));
-        Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
-                           remniw::AsmOperand::createMem($3->getMemDisp(),
-                                                         $3->getMemBaseReg(),
-                                                         $3->getMemIndexReg(),
-                                                         $3->getMemScale()));
+        Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandMem(),
+                             $3->getAsAsmOperandMem(),
+                             /*bool DestIsArgument=*/false);
     }
 };
 
 stmt: BRG_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(label, mem)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_STORE(label, mem)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    uint32_t VirtReg = remniw::Register::createVirtReg();
-    Builder->createLea(remniw::AsmOperand::createLabel($2->getLabel()),
-                       remniw::AsmOperand::createReg(VirtReg));
-    Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
-                       remniw::AsmOperand::createMem($3->getMemDisp(),
-                                                     $3->getMemBaseReg(),
-                                                     $3->getMemIndexReg(),
-                                                     $3->getMemScale()));
+    Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandLabel(),
+                         $3->getAsAsmOperandMem());
 };
-
 
 mem: BRG_GETELEMENTPTR(mem, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    // For GetElementPtrInst, if all indices are constant
-    // we can calculate the MemOp offset directly
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(mem, imm)\n";);
+    // For GetElementPtrInst, if all indices are constant we can calculate the MemOp
+    // offset directly
+    LLVM_DEBUG(llvm::outs() << "brg action: mem: BRG_GETELEMENTPTR(mem, imm)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
-    uint32_t SizeInBytes =
-        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
-            GEP->getResultElementType());
-    $0->setMemNode($2->getMemDisp() + SizeInBytes * $3->getImmVal(),
-                   $2->getMemBaseReg(),
-                   $2->getMemIndexReg(),
-                   $2->getMemScale());
+    AsmOperand::MemOp Mem = Builder->handleGETELEMENTPTR(
+        $1->getInstruction(), $2->getAsAsmOperandMem(), $3->getAsmOperandAsImm());
+    $0->setMemNode(Mem);
 };
 
 mem: BRG_GETELEMENTPTR(mem, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(mem, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: mem: BRG_GETELEMENTPTR(mem, reg)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
-    uint32_t SizeInBytes =
-        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
-            GEP->getResultElementType());
-    if ($2->getMemBaseReg() == remniw::Register::NoRegister) {
-        $0->setMemNode($2->getMemDisp(), $2->getMemBaseReg(), $3->getReg(), SizeInBytes);
-    } else {
-        uint32_t VirtReg = remniw::Register::createVirtReg();
-        Builder->createLea(remniw::AsmOperand::createMem($2->getMemDisp(),
-                                                         $2->getMemBaseReg(),
-                                                         $2->getMemIndexReg(),
-                                                         $2->getMemScale()),
-                           remniw::AsmOperand::createReg(VirtReg));
-        $0->setMemNode(0, VirtReg, $3->getReg(), SizeInBytes);
-    }
+    AsmOperand::MemOp Mem = Builder->handleGETELEMENTPTR(
+        $1->getInstruction(), $2->getAsAsmOperandMem(), $3->getAsmOperandAsReg());
+    $0->setMemNode(Mem);
 };
 
 mem: BRG_GETELEMENTPTR(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(reg, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: mem: BRG_GETELEMENTPTR(reg, imm)\n";);
     $action[2](Builder);
     $action[3](Builder);
-    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
-    uint32_t SizeInBytes =
-        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
-            GEP->getResultElementType());
-    $0->setMemNode(SizeInBytes * $3->getImmVal(), $2->getReg());
+    AsmOperand::MemOp Mem = Builder->handleGETELEMENTPTR(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsmOperandAsImm());
+    $0->setMemNode(Mem);
 };
 
 mem: BRG_GETELEMENTPTR(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(reg, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: mem: BRG_GETELEMENTPTR(reg, reg)\n";);
     $action[2](Builder);
     $action[3](Builder);
     auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
-    uint32_t SizeInBytes =
-        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
-            GEP->getResultElementType());
-    $0->setMemNode(0, $2->getReg(), $3->getReg(), SizeInBytes);
+    AsmOperand::MemOp Mem = Builder->handleGETELEMENTPTR(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandReg());
+    $0->setMemNode(Mem);
 };
 
 cond: BRG_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "cond: BRG_ICMP(reg, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: cond: BRG_ICMP(reg, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createCmp(remniw::AsmOperand::createReg($3->getReg()),
-                       remniw::AsmOperand::createReg($2->getReg()));
+    Builder->handleICMP($1->getInstruction(), $2->getAsAsmOperandReg(),
+                        $3->getAsAsmOperandReg());
 };
 
 cond: BRG_ICMP(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "cond: BRG_ICMP(reg, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: cond: BRG_ICMP(reg, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createCmp(remniw::AsmOperand::createImm($3->getImmVal()),
-                       remniw::AsmOperand::createReg($2->getReg()));
+    Builder->handleICMP($1->getInstruction(), $2->getAsAsmOperandReg(),
+                        $3->getAsAsmOperandImm());
 };
 
 cond: BRG_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "cond: BRG_ICMP(imm, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: cond: BRG_ICMP(imm, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    uint32_t VirtReg = remniw::Register::createVirtReg();
-    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
-                       remniw::AsmOperand::createReg(VirtReg));
-    Builder->createCmp(remniw::AsmOperand::createReg($3->getReg()),
-                       remniw::AsmOperand::createReg(VirtReg));
+    Builder->handleICMP($1->getInstruction(), $2->getAsAsmOperandImm(),
+                        $3->getAsAsmOperandReg());
 };
 
 # Conditional Branch
 stmt: BRG_BR(cond, label, label)
 { $cost[0].cost = $cost[2].cost + $cost[3].cost + $cost[4].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_BR(cond, label, label)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_BR(cond, label, label)\n";);
     $action[2](Builder);
-    remniw::AsmJmpInst::JmpKindTy JmpTrue, JmpFalse;
-    auto *CI = llvm::cast<llvm::CmpInst>($2->getInstruction());
-    switch (CI->getPredicate()) {
-    case llvm::CmpInst::Predicate::ICMP_EQ:
-        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Je;
-        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Jne;
-        break;
-    case llvm::CmpInst::Predicate::ICMP_NE:
-        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Jne;
-        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Je;
-        break;
-    case llvm::CmpInst::Predicate::ICMP_SGT:
-        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Jg;
-        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Jle;
-        break;
-    default:
-        llvm_unreachable("Invalid CmpInst!\n");
-    }
-    auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
-    llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
-    if (NextBB == BI->getSuccessor(0)) {
-        Builder->createJmp(JmpFalse, remniw::AsmOperand::createLabel($4->getLabel()));
-    }
-    else if (NextBB == BI->getSuccessor(1)) {
-        Builder->createJmp(JmpTrue, remniw::AsmOperand::createLabel($3->getLabel()));
-    }
-    else {
-        Builder->createJmp(JmpTrue, remniw::AsmOperand::createLabel($3->getLabel()));
-        Builder->createJmp(JmpFalse, remniw::AsmOperand::createLabel($4->getLabel()));
-    }
+    Builder->handleBR($1->getInstruction(), $3->getAsAsmOperandLabel(),
+                      $4->getAsAsmOperandLabel());
 };
 
 # Unconditional Branch
 stmt: BRG_BR(label, BRG_UNDEF, BRG_UNDEF) { $cost[0].cost = $cost[2].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_BR(label, BRG_UNDEF, BRG_UNDEF)\n";);
-    auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
-    llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
-    if (NextBB != BI->getSuccessor(0)) {
-        Builder->createJmp(remniw::AsmJmpInst::JmpKindTy::Jmp,
-                           remniw::AsmOperand::createLabel($2->getLabel()));
-    }
+    LLVM_DEBUG(
+        llvm::outs() << "brg action: stmt: BRG_BR(label, BRG_UNDEF, BRG_UNDEF)\n";);
+    Builder->handleBR($1->getInstruction(), $2->getAsAsmOperandLabel());
 };
 
 reg: BRG_ADD(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(reg, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_ADD(reg, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createAdd(remniw::AsmOperand::createReg($2->getReg()),
-                       remniw::AsmOperand::createReg($3->getReg()));
-    $0->setReg($3->getReg());
+    AsmOperand::RegOp Reg = Builder->handleADD(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_ADD(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(reg, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_ADD(reg, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createAdd(remniw::AsmOperand::createImm($3->getImmVal()),
-                       remniw::AsmOperand::createReg($2->getReg()));
-    $0->setReg($2->getReg());
+    AsmOperand::RegOp Reg = Builder->handleADD(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandImm());
+    $0->setReg(Reg);
 };
 
 reg: BRG_ADD(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(imm, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_ADD(imm, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createAdd(remniw::AsmOperand::createImm($2->getImmVal()),
-                       remniw::AsmOperand::createReg($3->getReg()));
-    $0->setReg($3->getReg());
+    AsmOperand::RegOp Reg = Builder->handleADD(
+        $1->getInstruction(), $2->getAsAsmOperandImm(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_ADD(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(imm, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_ADD(imm, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
@@ -389,48 +302,46 @@ reg: BRG_ADD(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 
 reg: BRG_SUB(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(reg, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SUB(reg, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createSub(remniw::AsmOperand::createReg($3->getReg()),
-                       remniw::AsmOperand::createReg($2->getReg()));
-    $0->setReg($2->getReg());
+    AsmOperand::RegOp Reg = Builder->handleSUB(
+        $1->getInstruction(), $2->getAsAsmOperandImm(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_SUB(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(reg, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SUB(reg, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createSub(remniw::AsmOperand::createImm($3->getImmVal()),
-                       remniw::AsmOperand::createReg($2->getReg()));
-    $0->setReg($2->getReg());
+    AsmOperand::RegOp Reg = Builder->handleSUB(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandImm());
+    $0->setReg(Reg);
 };
 
 reg: BRG_SUB(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(imm, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SUB(imm, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    $0->setReg(remniw::Register::createVirtReg());
-    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
-                       remniw::AsmOperand::createReg($0->getReg()));
-    Builder->createSub(remniw::AsmOperand::createReg($3->getReg()),
-                       remniw::AsmOperand::createReg($0->getReg()));
+    AsmOperand::RegOp Reg = Builder->handleSUB(
+        $1->getInstruction(), $2->getAsAsmOperandImm(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_SUB(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(imm, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SUB(imm, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
@@ -441,46 +352,46 @@ reg: BRG_SUB(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 
 reg: BRG_MUL(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(reg, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_MUL(reg, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createImul(remniw::AsmOperand::createReg($2->getReg()),
-                        remniw::AsmOperand::createReg($3->getReg()));
-    $0->setReg($3->getReg());
+    AsmOperand::RegOp Reg = Builder->handleMUL(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_MUL(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(reg, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_MUL(reg, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createImul(remniw::AsmOperand::createImm($3->getImmVal()),
-                        remniw::AsmOperand::createReg($2->getReg()));
-    $0->setReg($2->getReg());
+    AsmOperand::RegOp Reg = Builder->handleMUL(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandImm());
+    $0->setReg(Reg);
 };
 
 reg: BRG_MUL(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(imm, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_MUL(imm, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createImul(remniw::AsmOperand::createImm($2->getImmVal()),
-                        remniw::AsmOperand::createReg($3->getReg()));
-    $0->setReg($3->getReg());
+    AsmOperand::RegOp Reg = Builder->handleMUL(
+        $1->getInstruction(), $2->getAsAsmOperandImm(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_MUL(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(imm, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_MUL(imm, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
@@ -491,56 +402,46 @@ reg: BRG_MUL(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
 
 reg: BRG_SDIV(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(reg, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SDIV(reg, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
-                       remniw::AsmOperand::createReg(remniw::Register::RAX));
-    Builder->createCqto();
-    Builder->createIdiv(remniw::AsmOperand::createReg($3->getReg()));
-    $0->setReg(remniw::Register::RAX);
+    AsmOperand::RegOp Reg = Builder->handleSDIV(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(reg, imm)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SDIV(reg, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    $0->setReg(remniw::Register::createVirtReg());
-    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
-                       remniw::AsmOperand::createReg(remniw::Register::RAX));
-    Builder->createCqto();
-    Builder->createMov(remniw::AsmOperand::createImm($3->getImmVal()),
-                       remniw::AsmOperand::createReg($0->getReg()));
-    Builder->createIdiv(remniw::AsmOperand::createReg($0->getReg()));
-    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
-                       remniw::AsmOperand::createReg($0->getReg()));
+    AsmOperand::RegOp Reg = Builder->handleSDIV(
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandImm());
+    $0->setReg(Reg);
 };
 
 reg: BRG_SDIV(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(imm, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SDIV(imm, reg)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
-                       remniw::AsmOperand::createReg(remniw::Register::RAX));
-    Builder->createCqto();
-    Builder->createIdiv(remniw::AsmOperand::createReg($3->getReg()));
-    $0->setReg(remniw::Register::RAX);
+    AsmOperand::RegOp Reg = Builder->handleSDIV(
+        $1->getInstruction(), $2->getAsAsmOperandImm(), $3->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 reg: BRG_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(imm, reg)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_SDIV(imm, imm)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
@@ -551,134 +452,84 @@ reg: BRG_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
 
 arg: reg { $cost[0].cost = $cost[1].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: reg\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: arg: reg\n";);
     $action[1](Builder);
-    if (argNo < 6) {
-        Builder->createMov(remniw::AsmOperand::createReg($1->getReg()),
-                           remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
-    } else {
-        Builder->createMov(remniw::AsmOperand::createReg($1->getReg()),
-                           remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
-    }
+    Builder->handleARG(ArgNo, $1->getAsAsmOperandReg());
 };
 
 arg: imm { $cost[0].cost = $cost[1].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: imm\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: arg: imm\n";);
     $action[1](Builder);
-    if (argNo < 6) {
-        Builder->createMov(remniw::AsmOperand::createImm($1->getImmVal()),
-            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
-    } else {
-        Builder->createMov(remniw::AsmOperand::createImm($1->getImmVal()),
-            remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
-    }
+    Builder->handleARG(ArgNo, $1->getAsAsmOperandImm());
 };
 
 arg: mem { $cost[0].cost = $cost[1].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: mem\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: arg: mem\n";);
     $action[1](Builder);
-    if (argNo < 6) {
-        Builder->createLea(remniw::AsmOperand::createMem($1->getMemDisp(),
-                                                         $1->getMemBaseReg(),
-                                                         $1->getMemIndexReg(),
-                                                         $1->getMemScale()),
-            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
-    } else {
-        uint32_t VirtReg = remniw::Register::createVirtReg();
-        Builder->createMov(remniw::AsmOperand::createMem($1->getMemDisp(),
-                                                         $1->getMemBaseReg(),
-                                                         $1->getMemIndexReg(),
-                                                         $1->getMemScale()),
-                           remniw::AsmOperand::createReg(VirtReg));
-        Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
-                           remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
-    }
+    Builder->handleARG(ArgNo, $1->getAsAsmOperandMem());
 };
 
 arg: label { $cost[0].cost = $cost[1].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: label\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: arg: label\n";);
     $action[1](Builder);
-    if (argNo < 6) {
-        Builder->createLea(remniw::AsmOperand::createLabel($1->getLabel()),
-                           remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
-    } else {
-        Builder->createLea(remniw::AsmOperand::createLabel($1->getLabel()),
-                           remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
-    }
+    Builder->handleARG(ArgNo, $1->getAsAsmOperandLabel());
 };
 
 args: BRG_ARGS(BRG_UNDEF, BRG_UNDEF) { $cost[0].cost = 0; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "args: BRG_ARGS(BRG_UNDEF, BRG_UNDEF)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: args: BRG_ARGS(BRG_UNDEF, BRG_UNDEF)\n";);
 };
 
 args: BRG_ARGS(arg, args)  { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "args: BRG_ARGS(arg, args)\n";);
-    $action[2](Builder, argNo);
-    $action[3](Builder, argNo+1);
+    LLVM_DEBUG(llvm::outs() << "brg action: args: BRG_ARGS(arg, args)\n";);
+    $action[2](Builder, ArgNo);
+    $action[3](Builder, ArgNo + 1);
 };
 
 # Direct Call
 reg: BRG_CALL(label, args) { $cost[0].cost = $cost[2].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_CALL(label, args)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_CALL(label, args)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder, 0);
-    auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
-    std::string CalleeName = $2->getLabel()->getName();
-    if (CalleeName == "printf" || CalleeName == "scanf") {
-        Builder->createXor(remniw::AsmOperand::createReg(remniw::Register::RAX),
-                           remniw::AsmOperand::createReg(remniw::Register::RAX));
-    }
-    Builder->createCall(remniw::AsmOperand::createLabel($2->getLabel()),
-                        /*DirectCall*/true, CB->arg_size());
-    $0->setReg(remniw::Register::createVirtReg());
-    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
-                       remniw::AsmOperand::createReg($0->getReg()));
+    AsmOperand::RegOp Reg =
+        Builder->handleCALL($1->getInstruction(), $2->getAsAsmOperandLabel());
+    $0->setReg(Reg);
 };
 
 # Indirect Call
 reg: BRG_CALL(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_CALL(reg, args)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_CALL(reg, args)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder, 0);
-    auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
-    Builder->createCall(remniw::AsmOperand::createReg($2->getReg()),
-                        /*DirectCall*/false, CB->arg_size());
-    $0->setReg(remniw::Register::createVirtReg());
-    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
-                       remniw::AsmOperand::createReg($0->getReg()));
+    AsmOperand::RegOp Reg =
+        Builder->handleCALL($1->getInstruction(), $2->getAsAsmOperandReg());
+    $0->setReg(Reg);
 };
 
 # Indirect call
 reg: BRG_CALL(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
 = {
-    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_CALL(mem, args)\n";);
+    LLVM_DEBUG(llvm::outs() << "brg action: reg: BRG_CALL(mem, args)\n";);
     if ($0->isActionExecuted())
         return;
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder, 0);
-    auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
-    Builder->createCall(remniw::AsmOperand::createMem($2->getMemDisp(),
-                                                      $2->getMemBaseReg(),
-                                                      $2->getMemIndexReg(),
-                                                      $2->getMemScale()),
-                        /*DirectCall*/false, CB->arg_size());
-    $0->setReg(remniw::Register::createVirtReg());
-    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
-                       remniw::AsmOperand::createReg($0->getReg()));
+    AsmOperand::RegOp Reg =
+        Builder->handleCALL($1->getInstruction(), $2->getAsAsmOperandMem());
+    $0->setReg(Reg);
 };
 
 %%

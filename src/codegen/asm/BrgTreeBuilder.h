@@ -51,11 +51,11 @@ private:
     std::vector<BrgTreeNode *> Kids;
     bool ActionExecuted;
     union {
-        remniw::AsmOperand::RegOp Reg;         // RegNode
-        remniw::AsmOperand::MemOp Mem;         // MemNode
-        remniw::AsmOperand::ImmOp Imm;         // ImmNode
-        remniw::AsmOperand::LabelOp Label;     // LabelNode
-        llvm::Instruction *Inst;  // InstNode
+        remniw::AsmOperand::RegOp Reg;      // RegNode
+        remniw::AsmOperand::MemOp Mem;      // MemNode
+        remniw::AsmOperand::ImmOp Imm;      // ImmNode
+        remniw::AsmOperand::LabelOp Label;  // LabelNode
+        llvm::Instruction *Inst;            // InstNode
     };
 
     BrgTreeNode(KindTy Kind, int Op): Kind(Kind), Op(Op), ActionExecuted(false) {}
@@ -131,8 +131,7 @@ public:
         return Ret;
     }
 
-    static BrgTreeNode *createMemNode(int64_t Offset,
-                                      uint32_t BaseReg,
+    static BrgTreeNode *createMemNode(int64_t Offset, uint32_t BaseReg,
                                       uint32_t IndexReg = remniw::Register::NoRegister,
                                       uint32_t Scale = 1) {
         auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca);
@@ -215,7 +214,7 @@ public:
         return Mem.Scale;
     }
 
-    void setMemNode(int64_t Offset, uint32_t BaseReg = remniw::Register::RBP,
+    void setMemNode(int64_t Offset, uint32_t BaseReg,
                     uint32_t IndexReg = remniw::Register::NoRegister,
                     uint32_t Scale = 1) {
         Kind = KindTy::MemNode;
@@ -368,7 +367,9 @@ public:
                 llvm::Type *Ty = F.getArg(i)->getType();
                 uint64_t SizeInBytes =
                     F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                ArgNode = BrgTreeNode::createMemNode(8 * (i - 6 + 2), remniw::Register::RBP, remniw::Register::NoRegister, 1);
+                ArgNode =
+                    BrgTreeNode::createMemNode(8 * (i - 6 + 2), remniw::Register::RBP,
+                                               remniw::Register::NoRegister, 1);
             }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
@@ -388,7 +389,8 @@ public:
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         Offset -= AllocaSizeInBytes;
-        auto *InstNode = BrgTreeNode::createMemNode(Offset, remniw::Register::RBP, remniw::Register::NoRegister, 1);
+        auto *InstNode = BrgTreeNode::createMemNode(Offset, remniw::Register::RBP,
+                                                    remniw::Register::NoRegister, 1);
         CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
     }
