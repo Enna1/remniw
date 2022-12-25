@@ -2,6 +2,7 @@
 
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
+#include <string>
 
 namespace remniw {
 
@@ -67,6 +68,18 @@ public:
         static uint32_t VirtRegIndex = 0;
         return index2VirtReg(VirtRegIndex++);
     }
+};
+
+class RegisterInfo {
+public:
+    virtual bool isCallerSavedRegister(uint32_t Reg) = 0;
+    virtual bool isCalleeSavedRegister(uint32_t Reg) = 0;
+    virtual bool isArgRegister(uint32_t Reg) = 0;
+
+    virtual void
+    getFreeRegistersForRegisterAllocator(llvm::SmallVector<bool, 32> &FreeRegisters) = 0;
+
+    virtual std::string convertRegisterToString(uint32_t Reg) = 0;
 };
 
 }  // namespace remniw

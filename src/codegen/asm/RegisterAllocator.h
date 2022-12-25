@@ -10,7 +10,7 @@
 #include <set>
 #include <unordered_map>
 
-#define DEBUG_TYPE "remniw-lsra"
+#define DEBUG_TYPE "remniw-RegisterAllocator"
 
 namespace remniw {
 
@@ -31,6 +31,7 @@ struct LiveIntervalEndPointIncreasingOrderCompare
 
 class LinearScanRegisterAllocator {
 private:
+    RegisterInfo &RI;
     std::vector<LiveInterval *> LiveIntervals;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
                         LiveIntervalStartPointIncreasingOrderCompare>
@@ -41,11 +42,14 @@ private:
     llvm::SmallVector<bool, 32> FreeRegisters;
     std::unordered_map<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
     uint32_t StackSlotIndex;
+
 public:
     LinearScanRegisterAllocator(
-        std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
+        RegisterInfo &RI,
+        std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap):
+        RI(RI) {
         initIntervalSets(RegLiveRangesMap);
-        initFreeRegisters();
+        RI.getFreeRegistersForRegisterAllocator(FreeRegisters);
     }
 
     ~LinearScanRegisterAllocator() {
@@ -77,6 +81,7 @@ public:
         LLVM_DEBUG({
             llvm::outs() << "===== LSRA ===== \n";
             dumpRegAllocResults();
+            llvm::outs() << "\n";
         });
     }
 
@@ -102,29 +107,6 @@ private:
                 }
             }
         }
-    }
-
-    void initFreeRegisters() {
-        FreeRegisters.resize(16 /*number of registers*/ + 1);
-        FreeRegisters[Register::NoRegister /*0*/] = false;
-        // Caller saved registers
-        FreeRegisters[Register::RAX /*1*/] = true;
-        FreeRegisters[Register::RDI /*2*/] = true;
-        FreeRegisters[Register::RSI /*3*/] = true;
-        FreeRegisters[Register::RDX /*4*/] = true;
-        FreeRegisters[Register::RCX /*5*/] = true;
-        FreeRegisters[Register::R8 /*6*/] = true;
-        FreeRegisters[Register::R9 /*7*/] = true;
-        FreeRegisters[Register::R10 /*8*/] = true;
-        FreeRegisters[Register::R11 /*9*/] = true;
-        // Callee saved registers
-        FreeRegisters[Register::RSP /*10*/] = false;
-        FreeRegisters[Register::RBP /*11*/] = false;
-        FreeRegisters[Register::RBX /*12*/] = true;
-        FreeRegisters[Register::R12 /*13*/] = true;
-        FreeRegisters[Register::R13 /*14*/] = true;
-        FreeRegisters[Register::R14 /*15*/] = true;
-        FreeRegisters[Register::R15 /*16*/] = true;
     }
 
     void ExpireOldIntervals(LiveInterval *LI) {
@@ -159,9 +141,9 @@ private:
             if (ConflictWithFixed)
                 continue;
 
-            if (LI->UsedAcrossCall && !Register::isCalleeSavedRegister(Reg))
+            if (LI->UsedAcrossCall && !RI.isCalleeSavedRegister(Reg))
                 continue;
-            if (!LI->UsedAcrossCall && !Register::isCallerSavedRegister(Reg))
+            if (!LI->UsedAcrossCall && !RI.isCallerSavedRegister(Reg))
                 continue;
 
             // Find an available PhysReg
@@ -190,15 +172,15 @@ private:
 
     void dumpRegAllocResults() {
         for (auto p : VirtRegToAllocatedRegMap) {
-            std::cout << "Virtual Register: " << p.first << " assigned "
-                      << Register::convertRegisterToString(p.second) << std::endl;
+            llvm::outs() << "Virtual Register: " << p.first << " assigned "
+                         << RI.convertRegisterToString(p.second) << "\n";
         }
         for (auto LI : Fixed) {
-            std::cout << "Fixed Physical Register: "
-                      << Register::convertRegisterToString(LI->Reg) << ", ["
-                      << LI->StartPoint << "," << LI->EndPoint << ")" << std::endl;
+            llvm::outs() << "Fixed Physical Register: "
+                         << RI.convertRegisterToString(LI->Reg) << ", [" << LI->StartPoint
+                         << "," << LI->EndPoint << ")"
+                         << "\n";
         }
-        std::cout << "======\n";
     }
 };
 

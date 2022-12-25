@@ -22,7 +22,7 @@
 using namespace antlr4;
 using namespace remniw;
 
-#define DEBUG_TYPE "remniw"
+#define DEBUG_TYPE "remniw-Driver"
 
 llvm::cl::OptionCategory RemniwCat("remniw compiler options");
 
@@ -39,6 +39,16 @@ static llvm::cl::opt<std::string>
     OutputFilename("o", llvm::cl::desc("Override output filename"),
                    llvm::cl::init("a.out"), llvm::cl::value_desc("filename"),
                    llvm::cl::cat(RemniwCat));
+
+enum Target {
+    x86,
+    riscv
+};
+static llvm::cl::opt<Target>
+    CodegenTarget(llvm::cl::desc("Choose codegen target:"), llvm::cl::cat(RemniwCat),
+                  llvm::cl::values(clEnumVal(x86, "X86 assembly"),
+                                   clEnumVal(riscv, "RISCV assembly")),
+                  llvm::cl::init(x86));
 
 int main(int argc, char* argv[]) {
     llvm::cl::HideUnrelatedOptions(RemniwCat);
@@ -104,7 +114,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     llvm::raw_fd_ostream TmpOut(FD, /*shouldClose=*/true);
-    AsmCodeGenerator ASMCG(M.get(), TmpOut);
+    if (CodegenTarget == x86) {
+        // auto AsmBuilder = std::make_unique<X86AsmBuilder>();
+        // AsmCodeGenerator CG(*AsmBuilder.get(), M.get(), TmpOut);
+    }
     TmpOut.close();
 
     // Invoke /usr/bin/g++ to compile and link assembly code to executable file.
@@ -124,7 +137,8 @@ int main(int argc, char* argv[]) {
     llvm::ErrorOr<std::string> Program = llvm::sys::findProgramByName("clang");
     if (!Program)
         ErrMsg = Program.getError().message();
-    if (llvm::sys::ExecuteAndWait(Program.get(), CCParams, llvm::None, {}, 0, 0, &ErrMsg)) {
+    if (llvm::sys::ExecuteAndWait(Program.get(), CCParams, llvm::None, {}, 0, 0,
+                                  &ErrMsg)) {
         llvm::errs() << "execvp(clang) failed: " << ErrMsg << '\n';
         exit(EXIT_FAILURE);
     }

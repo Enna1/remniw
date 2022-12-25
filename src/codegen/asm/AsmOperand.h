@@ -44,6 +44,11 @@ public:
         struct LabelOp Lbl;
     };
 
+    AsmOperand(RegOp Reg): Kind(KindTy::Register), Reg(Reg) {}
+    AsmOperand(MemOp Mem): Kind(KindTy::Memory), Mem(Mem) {}
+    AsmOperand(ImmOp Imm): Kind(KindTy::Immediate), Imm(Imm) {}
+    AsmOperand(LabelOp Lbl): Kind(KindTy::Label), Lbl(Lbl) {}
+
     static AsmOperand::RegOp createReg(uint32_t RegNo) { return {RegNo}; }
 
     static AsmOperand::ImmOp createImm(int64_t Val) { return {Val}; }
@@ -56,21 +61,13 @@ public:
 
     static AsmOperand::LabelOp createLabel(AsmSymbol* Symbol) { return {Symbol}; }
 
-    static std::unique_ptr<AsmOperand> create(AsmOperand::RegOp Reg) {
-        return std::make_unique<AsmOperand>(Reg);
-    }
+    static AsmOperand create(AsmOperand::RegOp Reg) { return {Reg}; }
 
-    static std::unique_ptr<AsmOperand> create(AsmOperand::ImmOp Imm) {
-        return std::make_unique<AsmOperand>(Imm);
-    }
+    static AsmOperand create(AsmOperand::ImmOp Imm) { return {Imm}; }
 
-    static std::unique_ptr<AsmOperand> create(AsmOperand::MemOp Mem) {
-        return std::make_unique<AsmOperand>(Mem);
-    }
+    static AsmOperand create(AsmOperand::MemOp Mem) { return {Mem}; }
 
-    static std::unique_ptr<AsmOperand> create(AsmOperand::LabelOp Lbl) {
-        return std::make_unique<AsmOperand>(Lbl);
-    }
+    static AsmOperand create(AsmOperand::LabelOp Lbl) { return {Lbl}; }
 
     std::unique_ptr<AsmOperand> clone() { return std::make_unique<AsmOperand>(*this); }
 
@@ -124,18 +121,19 @@ public:
         return Lbl.Symbol;
     }
 
+    // FIXME
     void print(llvm::raw_ostream& OS) const {
         switch (Kind) {
-        case Register: OS << Register::convertRegisterToString(Reg.RegNo); break;
+        case Register: OS << (Reg.RegNo); break;
         case Immediate: OS << "$" << Imm.Val; break;
         case Memory:
             if (Mem.Disp != 0)
                 OS << Mem.Disp;
             OS << "(";
             if (Mem.BaseReg)
-                OS << Register::convertRegisterToString(Mem.BaseReg);
+                OS << (Mem.BaseReg);
             if (Mem.IndexReg) {
-                OS << ", " << Register::convertRegisterToString(Mem.IndexReg);
+                OS << ", " << (Mem.IndexReg);
                 OS << ", " << Mem.Scale;
             }
             OS << ")";
@@ -144,12 +142,6 @@ public:
         default: llvm_unreachable("Invalid AsmOperand");
         }
     }
-
-private:
-    AsmOperand(RegOp Reg): Kind(KindTy::Register), Reg(Reg) {}
-    AsmOperand(MemOp Mem): Kind(KindTy::Memory), Mem(Mem) {}
-    AsmOperand(ImmOp Imm): Kind(KindTy::Immediate), Imm(Imm) {}
-    AsmOperand(LabelOp Lbl): Kind(KindTy::Label), Lbl(Lbl) {}
 };
 
 }  // namespace remniw

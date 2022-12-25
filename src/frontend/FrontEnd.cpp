@@ -7,7 +7,7 @@
 
 using namespace antlr4;
 
-#define DEBUG_TYPE "remniw"
+#define DEBUG_TYPE "remniw-FrontEnd"
 
 namespace remniw {
 

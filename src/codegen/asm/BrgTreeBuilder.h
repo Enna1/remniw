@@ -159,22 +159,22 @@ public:
         return Inst;
     }
 
-    AsmOperand::RegOp getAsAsmOperandReg() {
+    remniw::AsmOperand::RegOp getAsAsmOperandReg() {
         assert(Kind == KindTy::RegNode && "Not a RegNode");
         return Reg;
     }
 
-    AsmOperand::MemOp getAsAsmOperandMem() {
+    remniw::AsmOperand::MemOp getAsAsmOperandMem() {
         assert(Kind == KindTy::MemNode && "Not a MemNode");
         return Mem;
     }
 
-    AsmOperand::ImmOp getAsAsmOperandImm() {
+    remniw::AsmOperand::ImmOp getAsAsmOperandImm() {
         assert(Kind == KindTy::ImmNode && "Not a ImmNode");
         return Imm;
     }
 
-    AsmOperand::LabelOp getAsAsmOperandLabel() {
+    remniw::AsmOperand::LabelOp getAsAsmOperandLabel() {
         assert(Kind == KindTy::LabelNode && "Not a LabelNode");
         return Label;
     }
@@ -184,9 +184,14 @@ public:
         return Reg.RegNo;
     }
 
-    void setReg(uint32_t RegNo) {
+    void setRegNo(uint32_t RegNo) {
         Kind = KindTy::RegNode;
         Reg.RegNo = RegNo;
+    }
+
+    void setReg(remniw::AsmOperand::RegOp R) {
+        Kind = KindTy::RegNode;
+        Reg = R;
     }
 
     remniw::AsmOperand::MemOp getMem() {
@@ -222,6 +227,11 @@ public:
         Mem.BaseReg = BaseReg;
         Mem.IndexReg = IndexReg;
         Mem.Scale = Scale;
+    }
+
+    void setMem(remniw::AsmOperand::MemOp M) {
+        Kind = KindTy::MemNode;
+        Mem = M;
     }
 
     int64_t getImmVal() {
@@ -361,16 +371,17 @@ public:
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
             BrgTreeNode *ArgNode;
-            if (i < 6) {
-                ArgNode = BrgTreeNode::createRegNode(Register::ArgRegs[i]);
-            } else {
-                llvm::Type *Ty = F.getArg(i)->getType();
-                uint64_t SizeInBytes =
-                    F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                ArgNode =
-                    BrgTreeNode::createMemNode(8 * (i - 6 + 2), remniw::Register::RBP,
-                                               remniw::Register::NoRegister, 1);
-            }
+            // FIXME
+            // if (i < 6) {
+            //     ArgNode = BrgTreeNode::createRegNode(Register::ArgRegs[i]);
+            // } else {
+            //     llvm::Type *Ty = F.getArg(i)->getType();
+            //     uint64_t SizeInBytes =
+            //         F.getParent()->getDataLayout().getTypeAllocSize(Ty);
+            //     ArgNode =
+            //         BrgTreeNode::createMemNode(8 * (i - 6 + 2), remniw::Register::RBP,
+            //                                    remniw::Register::NoRegister, 1);
+            // }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
 
@@ -389,9 +400,11 @@ public:
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         Offset -= AllocaSizeInBytes;
-        auto *InstNode = BrgTreeNode::createMemNode(Offset, remniw::Register::RBP,
-                                                    remniw::Register::NoRegister, 1);
-        CurrentFunction->InstToNodeMap[&AI] = InstNode;
+        BrgTreeNode *InstNode;
+        // FIXME
+        // auto *InstNode = BrgTreeNode::createMemNode(Offset, remniw::Register::RBP,
+        //                                             remniw::Register::NoRegister, 1);
+        // CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
     }
 

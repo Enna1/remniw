@@ -1,4 +1,5 @@
 #include "AsmCodeGenetator.h"
+#include "codegen/asm/X86/X86AsmBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
@@ -18,6 +19,15 @@ static llvm::cl::opt<std::string>
     OutputFilename("o", llvm::cl::desc("Override output filename"), llvm::cl::init("-"),
                    llvm::cl::value_desc("filename"));
 
+enum Target {
+    x86,
+    riscv
+};
+static llvm::cl::opt<Target> CodegenTarget(
+    llvm::cl::desc("Choose codegen target:"),
+    llvm::cl::values(clEnumVal(x86, "X86 assembly"), clEnumVal(riscv, "RISCV assembly")),
+    llvm::cl::init(x86));
+
 int main(int argc, char *argv[]) {
     // parse arguments from command line
     llvm::cl::ParseCommandLineOptions(argc, argv, "remniw-llc\n");
@@ -29,8 +39,10 @@ int main(int argc, char *argv[]) {
 
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
-
-    remniw::AsmCodeGenerator CG(M.get(), Out.os());
+    if (CodegenTarget == x86) {
+        auto AsmBuilder = std::make_unique<remniw::X86AsmBuilder>();
+        remniw::AsmCodeGenerator CG(*AsmBuilder.get(), M.get(), Out.os());
+    }
     Out.keep();
 
     return 0;
