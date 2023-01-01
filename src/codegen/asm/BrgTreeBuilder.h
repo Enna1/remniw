@@ -255,8 +255,6 @@ typedef BrgTreeNode *NODEPTR;
 #define OP_LABEL(p)     ((p)->getOp())
 #define NO_ACTION(x)
 
-/** ================= Cost =================== **/
-
 struct COST {
     COST(int cost): cost(cost) {}
     int cost;
@@ -452,7 +450,7 @@ public:
             CurrentFunction->TmpArgNode.push_back(ArgsTmp);
             CurrentNode->setKids({getBrgNodeForValue(CI.getArgOperand(i)), ArgsTmp});
             CurrentNode = ArgsTmp;
-            if (i >= 6)  // push arg on stack
+            if (i >= 6)  // push arg on stack, FIXME
             {
                 llvm::Type *Ty = CI.getArgOperand(i)->getType();
                 uint64_t SizeInBytes =

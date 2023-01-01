@@ -4,11 +4,9 @@
 #include "Register.h"
 #include "llvm/Support/Debug.h"
 #include <algorithm>
-#include <iostream>
-#include <map>
 #include <queue>
-#include <set>
-#include <unordered_map>
+#include <vector>
+#include "llvm/ADT/DenseMap.h"
 
 #define DEBUG_TYPE "remniw-RegisterAllocator"
 
@@ -31,7 +29,7 @@ struct LiveIntervalEndPointIncreasingOrderCompare
 
 class LinearScanRegisterAllocator {
 private:
-    RegisterInfo &RI;
+    RegisterInfo &RI; // TargetRegisterInfo
     std::vector<LiveInterval *> LiveIntervals;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
                         LiveIntervalStartPointIncreasingOrderCompare>
@@ -40,15 +38,11 @@ private:
     std::vector<LiveInterval *> Active;
     std::vector<LiveInterval *> Spilled;
     llvm::SmallVector<bool, 32> FreeRegisters;
-    std::unordered_map<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
+    llvm::DenseMap<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
     uint32_t StackSlotIndex;
 
 public:
-    LinearScanRegisterAllocator(
-        RegisterInfo &RI,
-        std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap):
-        RI(RI) {
-        initIntervalSets(RegLiveRangesMap);
+    LinearScanRegisterAllocator(RegisterInfo &RI): RI(RI) {
         RI.getFreeRegistersForRegisterAllocator(FreeRegisters);
     }
 
@@ -61,8 +55,15 @@ public:
             delete LI;
     }
 
-    void LinearScan() {
+    void LinearScan(const std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
+        // Reset the internal states
         StackSlotIndex = 0;
+        Fixed.clear();
+        Active.clear();
+        Spilled.clear();
+        initIntervalSets(RegLiveRangesMap);
+
+        // Do linear scan register allocation
         while (!Unhandled.empty()) {
             LiveInterval *LI = Unhandled.top();
             Unhandled.pop();
@@ -78,22 +79,29 @@ public:
                 spillAtInterval(LI);
             }
         }
-        LLVM_DEBUG({
-            llvm::outs() << "===== LSRA ===== \n";
-            dumpRegAllocResults();
-            llvm::outs() << "\n";
-        });
     }
 
-    std::unordered_map<uint32_t, uint32_t> &getVirtRegToAllocatedRegMap() {
+    const std::unordered_map<uint32_t, uint32_t> &getVirtRegToAllocatedRegMap() {
         return VirtRegToAllocatedRegMap;
     }
 
     std::size_t getSpilledRegCount() { return Spilled.size(); }
 
+    void dumpRegAllocResults() {
+        for (auto p : VirtRegToAllocatedRegMap) {
+            llvm::outs() << "Virtual Register: " << p.first << " assigned "
+                         << RI.convertRegisterToString(p.second) << "\n";
+        }
+        for (auto LI : Fixed) {
+            llvm::outs() << "Fixed Physical Register: "
+                         << RI.convertRegisterToString(LI->Reg) << ", [" << LI->StartPoint
+                         << "," << LI->EndPoint << ")"
+                         << "\n";
+        }
+    }
+
 private:
-    void initIntervalSets(std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
-        Active.clear();
+    void initIntervalSets(const std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
         for (const auto &p : RegLiveRangesMap) {
             if (Register::isVirtualRegister(p.first)) {
                 Unhandled.push(new LiveInterval({p.second.Ranges.back().StartPoint,
@@ -167,19 +175,6 @@ private:
             VirtRegToAllocatedRegMap[LI->Reg] =
                 Register::index2StackSlot(StackSlotIndex++);
             Spilled.push_back(LI);
-        }
-    }
-
-    void dumpRegAllocResults() {
-        for (auto p : VirtRegToAllocatedRegMap) {
-            llvm::outs() << "Virtual Register: " << p.first << " assigned "
-                         << RI.convertRegisterToString(p.second) << "\n";
-        }
-        for (auto LI : Fixed) {
-            llvm::outs() << "Fixed Physical Register: "
-                         << RI.convertRegisterToString(LI->Reg) << ", [" << LI->StartPoint
-                         << "," << LI->EndPoint << ")"
-                         << "\n";
         }
     }
 };
