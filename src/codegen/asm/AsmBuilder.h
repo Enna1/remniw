@@ -7,6 +7,7 @@
 #include "BrgTreeBuilder.h"
 #include "LiveInterval.h"
 #include "Register.h"
+#include "TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constants.h"
@@ -42,6 +43,9 @@ public:
         for (auto *F : AsmFunctions)
             delete F;
     }
+
+    virtual const TargetRegisterInfo &getTargetRegisterInfo() const = 0;
+    virtual const TargetInstrInfo &getTargetInstrInfo() const = 0;
 
     void buildAsmFunction(const BrgFunction *);
 
@@ -228,7 +232,7 @@ public:
             uint32_t MemBaseReg = Op.getMemBaseReg();
             // FIXME
             // if (MemBaseReg != Register::RBP)
-                updateRegLiveRanges(MemBaseReg);
+            updateRegLiveRanges(MemBaseReg);
             uint32_t MemIndexReg = Op.getMemIndexReg();
             if (MemIndexReg != Register::NoRegister) {
                 updateRegLiveRanges(MemIndexReg);

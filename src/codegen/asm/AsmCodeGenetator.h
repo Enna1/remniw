@@ -5,27 +5,35 @@
 #include "AsmPrinter.h"
 #include "AsmRewriter.h"
 #include "BrgTreeBuilder.h"
+#include "TargetInfo.h"
+#include "codegen/asm/X86/X86AsmBuilder.h"
+#include "codegen/asm/X86/X86AsmRewriter.h"
 
 namespace remniw {
 
 class AsmCodeGenerator {
 public:
-    AsmCodeGenerator(AsmBuilder& AB, llvm::Module *M, llvm::raw_ostream &OS):
-        AB(AB), OS(OS), DL(M->getDataLayout()), AsmCtx() {
-        BrgTreeBuilder BB(DL, AsmCtx);
-        BB.visit(*M);
-        AB.build(BB.getFunctions());
-        AsmRewriter Rewriter(AB.getAsmFunctions());
-        remniw::AsmPrinter Printer(OS, Rewriter.getAsmFunctions(),
-                                   BB.getConstantStrings(),
-                                   BB.getGlobalCtors());
-        Printer.print();
+    AsmCodeGenerator(Target TheTarget): TheTarget(TheTarget), AsmCtx() {}
+
+    void compile(llvm::Module *M, llvm::raw_ostream &OS) {
+        if (TheTarget == Target::x86) {
+            X86AsmBuilder AB;
+            BrgTreeBuilder BB(M->getDataLayout(), AB.getTargetRegisterInfo(), AsmCtx);
+            BB.visit(*M);
+            AB.build(BB.getFunctions());
+
+            llvm::SmallVector<AsmFunction *> &AsmFunctions = AB.getAsmFunctions();
+            X86AsmRewriter Rewriter(AB.getTargetRegisterInfo());
+            Rewriter.rewrite(AsmFunctions);
+
+            AsmPrinter Printer(OS, AsmFunctions, BB.getConstantStrings(),
+                               BB.getGlobalCtors());
+            Printer.print();
+        }
     }
 
 private:
-    AsmBuilder& AB;
-    llvm::raw_ostream &OS;
-    const llvm::DataLayout &DL;
+    Target TheTarget;
     AsmContext AsmCtx;
 };
 

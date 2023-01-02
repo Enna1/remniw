@@ -8,6 +8,7 @@
 #include "AsmOperand.h"
 #include "AsmSymbol.h"
 #include "Register.h"
+#include "TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -120,6 +121,7 @@ public:
         return Ret;                                                                      \
     }
 #include "llvm/IR/Instruction.def"
+#undef HANDLE_INST
         }
         llvm_unreachable("Unknown instruction type encountered");
         return nullptr;
@@ -304,13 +306,16 @@ private:
     llvm::DenseMap<llvm::ConstantInt *, BrgTreeNode *> ConstantIntToNodeMap;
     llvm::DenseMap<uint64_t, BrgTreeNode *> ImmToNodeMap;
     const llvm::DataLayout &DL;
+    const TargetRegisterInfo &TRI;
     AsmContext &AsmCtx;
-    int64_t Offset;  // clear per function
+    int64_t OffsetFromFramePointer;  // clear per function
     BrgFunction *CurrentFunction;
 
 public:
-    BrgTreeBuilder(const llvm::DataLayout &DL, AsmContext &AsmCtx):
-        DL(DL), AsmCtx(AsmCtx), Offset(0), CurrentFunction(nullptr) {}
+    BrgTreeBuilder(const llvm::DataLayout &DL, const TargetRegisterInfo &TRI,
+                   AsmContext &AsmCtx):
+        DL(DL),
+        TRI(TRI), AsmCtx(AsmCtx), OffsetFromFramePointer(0), CurrentFunction(nullptr) {}
 
     ~BrgTreeBuilder() {
         for (auto *F : Functions)
@@ -364,26 +369,29 @@ public:
 
         Functions.push_back(new BrgFunction(F.getName().str()));
         CurrentFunction = Functions.back();
-        Offset = 0;
+        OffsetFromFramePointer = 0;
 
+        // FIXME: hardcoded 8-bytes: push retaddr on stack, push frame pointer on stack
+        int64_t FunctionArgOffsetFromFramePointer = 8 * 2;
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
             BrgTreeNode *ArgNode;
-            // FIXME
-            // if (i < 6) {
-            //     ArgNode = BrgTreeNode::createRegNode(Register::ArgRegs[i]);
-            // } else {
-            //     llvm::Type *Ty = F.getArg(i)->getType();
-            //     uint64_t SizeInBytes =
-            //         F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-            //     ArgNode =
-            //         BrgTreeNode::createMemNode(8 * (i - 6 + 2), remniw::Register::RBP,
-            //                                    remniw::Register::NoRegister, 1);
-            // }
+            unsigned NumArgRegs = TRI.getNumArgRegisters();
+            llvm::ArrayRef<uint32_t> ArgRegs = TRI.getArgRegisters();
+            if (i < NumArgRegs) {
+                ArgNode = BrgTreeNode::createRegNode(ArgRegs[i]);
+            } else {
+                llvm::Type *Ty = F.getArg(i)->getType();
+                uint64_t SizeInBytes =
+                    F.getParent()->getDataLayout().getTypeAllocSize(Ty);
+                FunctionArgOffsetFromFramePointer += SizeInBytes;
+                ArgNode = BrgTreeNode::createMemNode(FunctionArgOffsetFromFramePointer,
+                                                     TRI.getFramePointerRegister(),
+                                                     remniw::Register::NoRegister, 1);
+            }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
 
-        // body
         for (auto &BB : F) {
             CurrentFunction->Insts.push_back(getBrgNodeForValue(&BB));
             for (auto &I : BB) {
@@ -392,17 +400,16 @@ public:
             }
         }
 
-        CurrentFunction->StackSizeInBytes = -Offset;
+        CurrentFunction->StackSizeInBytes = -OffsetFromFramePointer;
     }
 
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
-        Offset -= AllocaSizeInBytes;
-        BrgTreeNode *InstNode;
-        // FIXME
-        // auto *InstNode = BrgTreeNode::createMemNode(Offset, remniw::Register::RBP,
-        //                                             remniw::Register::NoRegister, 1);
-        // CurrentFunction->InstToNodeMap[&AI] = InstNode;
+        OffsetFromFramePointer -= AllocaSizeInBytes;
+        auto *InstNode = BrgTreeNode::createMemNode(OffsetFromFramePointer,
+                                                    TRI.getFramePointerRegister(),
+                                                    remniw::Register::NoRegister, 1);
+        CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
     }
 
@@ -450,12 +457,12 @@ public:
             CurrentFunction->TmpArgNode.push_back(ArgsTmp);
             CurrentNode->setKids({getBrgNodeForValue(CI.getArgOperand(i)), ArgsTmp});
             CurrentNode = ArgsTmp;
-            if (i >= 6)  // push arg on stack, FIXME
+            if (i >= TRI.getNumArgRegisters())  // push arg on stack
             {
                 llvm::Type *Ty = CI.getArgOperand(i)->getType();
                 uint64_t SizeInBytes =
                     CI.getModule()->getDataLayout().getTypeAllocSize(Ty);
-                Offset -= SizeInBytes;
+                OffsetFromFramePointer -= SizeInBytes;
             }
         }
         BrgTreeNode *InstNode;

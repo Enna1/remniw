@@ -9,20 +9,19 @@ namespace remniw {
 class AsmPrinter {
 private:
     llvm::raw_ostream &OS;
-    llvm::SmallVector<AsmFunction *> AsmFunctions;
+    llvm::SmallVector<AsmFunction *> &AsmFunctions;
     llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GlobalVariables;
     llvm::SmallVector<llvm::Function *> GlobalCtors;
 
 public:
-    AsmPrinter(llvm::raw_ostream &OS,
-               llvm::SmallVector<AsmFunction *> AsmFunctions,
+    AsmPrinter(llvm::raw_ostream &OS, llvm::SmallVector<AsmFunction *> &AsmFunctions,
                llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs,
                llvm::SmallVector<llvm::Function *> GlobalCtors):
         OS(OS),
         AsmFunctions(AsmFunctions), GlobalVariables(GVs), GlobalCtors(GlobalCtors) {}
 
     void print() {
-        for (auto &AsmFunc : AsmFunctions) {
+        for (auto *AsmFunc : AsmFunctions) {
             EmitFunctionDeclaration(AsmFunc);
             EmitFunctionBody(AsmFunc);
         }

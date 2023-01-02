@@ -2,11 +2,12 @@
 
 #include "LiveInterval.h"
 #include "Register.h"
+#include "TargetInfo.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Debug.h"
 #include <algorithm>
 #include <queue>
 #include <vector>
-#include "llvm/ADT/DenseMap.h"
 
 #define DEBUG_TYPE "remniw-RegisterAllocator"
 
@@ -29,7 +30,7 @@ struct LiveIntervalEndPointIncreasingOrderCompare
 
 class LinearScanRegisterAllocator {
 private:
-    RegisterInfo &RI; // TargetRegisterInfo
+    const TargetRegisterInfo &RI;
     std::vector<LiveInterval *> LiveIntervals;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
                         LiveIntervalStartPointIncreasingOrderCompare>
@@ -37,12 +38,12 @@ private:
     std::vector<LiveInterval *> Fixed;
     std::vector<LiveInterval *> Active;
     std::vector<LiveInterval *> Spilled;
-    llvm::SmallVector<bool, 32> FreeRegisters;
+    llvm::SmallVector<bool> FreeRegisters;
     llvm::DenseMap<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
     uint32_t StackSlotIndex;
 
 public:
-    LinearScanRegisterAllocator(RegisterInfo &RI): RI(RI) {
+    LinearScanRegisterAllocator(const TargetRegisterInfo &RI): RI(RI) {
         RI.getFreeRegistersForRegisterAllocator(FreeRegisters);
     }
 
@@ -55,7 +56,8 @@ public:
             delete LI;
     }
 
-    void LinearScan(const std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
+    void
+    LinearScan(const std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
         // Reset the internal states
         StackSlotIndex = 0;
         Fixed.clear();
@@ -81,7 +83,7 @@ public:
         }
     }
 
-    const std::unordered_map<uint32_t, uint32_t> &getVirtRegToAllocatedRegMap() {
+    const llvm::DenseMap<uint32_t, uint32_t> &getVirtRegToAllocatedRegMap() {
         return VirtRegToAllocatedRegMap;
     }
 
@@ -101,7 +103,8 @@ public:
     }
 
 private:
-    void initIntervalSets(const std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
+    void
+    initIntervalSets(const std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
         for (const auto &p : RegLiveRangesMap) {
             if (Register::isVirtualRegister(p.first)) {
                 Unhandled.push(new LiveInterval({p.second.Ranges.back().StartPoint,

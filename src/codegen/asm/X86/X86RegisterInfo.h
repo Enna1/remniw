@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codegen/asm/Register.h"
+#include "codegen/asm/TargetInfo.h"
 
 namespace remniw {
 
@@ -47,20 +48,58 @@ static constexpr uint32_t CalleeSavedRegs[] = {X86::RSP, X86::RBP, X86::RBX, X86
 static constexpr uint32_t ArgRegs[] = {X86::RDI, X86::RSI, X86::RDX,
                                        X86::RCX, X86::R8,  X86::R9};
 
+static constexpr unsigned NumCallerSavedRegs =
+    sizeof(CallerSavedRegs) / sizeof(CallerSavedRegs[0]);
+
+static constexpr unsigned NumCalleeSavedRegs =
+    sizeof(CalleeSavedRegs) / sizeof(CalleeSavedRegs[0]);
+
+static constexpr unsigned NumArgRegs = sizeof(ArgRegs) / sizeof(ArgRegs[0]);
+
 }  // namespace X86
 
-class X86RegisterInfo: public RegisterInfo {
+class X86RegisterInfo: public TargetRegisterInfo {
 public:
-    bool isCallerSavedRegister(uint32_t Reg) override {
+    unsigned getRegisterSize() const { return 8 /*bytes*/; }
+
+    bool isCallerSavedRegister(uint32_t Reg) const override {
         return X86::RAX <= Reg && Reg <= X86::R11;
     }
-    bool isCalleeSavedRegister(uint32_t Reg) {
+
+    bool isCalleeSavedRegister(uint32_t Reg) const override {
         return X86::RSP <= Reg && Reg <= X86::R15;
     }
-    bool isArgRegister(uint32_t Reg) { return X86::RDI <= Reg && Reg <= X86::R9; }
 
-    void
-    getFreeRegistersForRegisterAllocator(llvm::SmallVector<bool, 32> &FreeRegisters) {
+    bool isArgRegister(uint32_t Reg) const override {
+        return X86::RDI <= Reg && Reg <= X86::R9;
+    }
+
+    unsigned getNumCallerSavedRegisters() const override {
+        return X86::NumCallerSavedRegs;
+    }
+
+    unsigned getNumCalleeSavedRegisters() const override {
+        return X86::NumCalleeSavedRegs;
+    }
+
+    unsigned getNumArgRegisters() const override { return X86::NumArgRegs; }
+
+    llvm::ArrayRef<uint32_t> getCallerSavedRegisters() const override {
+        return X86::CallerSavedRegs;
+    }
+
+    llvm::ArrayRef<uint32_t> getCalleeSavedRegisters() const override {
+        return X86::CalleeSavedRegs;
+    }
+
+    llvm::ArrayRef<uint32_t> getArgRegisters() const override { return X86::ArgRegs; }
+
+    virtual uint32_t getStackPointerRegister() const override { return X86::RSP; }
+
+    virtual uint32_t getFramePointerRegister() const override { return X86::RBP; }
+
+    void getFreeRegistersForRegisterAllocator(
+        llvm::SmallVector<bool> &FreeRegisters) const override {
         FreeRegisters.resize(16 /*number of registers*/ + 1);
         FreeRegisters[X86::NoRegister /*0*/] = false;
         // Caller saved registers
@@ -83,7 +122,7 @@ public:
         FreeRegisters[X86::R15 /*16*/] = true;
     }
 
-    std::string convertRegisterToString(uint32_t Reg) {
+    std::string convertRegisterToString(uint32_t Reg) const override {
         switch (Reg) {
         case X86::RAX: return "%rax";
         case X86::RBX: return "%rbx";

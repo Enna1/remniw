@@ -70,19 +70,4 @@ public:
     }
 };
 
-class RegisterInfo {
-public:
-    virtual bool isCallerSavedRegister(uint32_t Reg) = 0;
-    virtual bool isCalleeSavedRegister(uint32_t Reg) = 0;
-    virtual bool isArgRegister(uint32_t Reg) = 0;
-
-    virtual unsigned getNumArgRegisters() = 0;
-    virtual uint32_t getStackPointerRegister() = 0;
-    virtual uint32_t getFramePointerRegister() = 0;
-    virtual void
-    getFreeRegistersForRegisterAllocator(llvm::SmallVector<bool, 32> &FreeRegisters) = 0;
-
-    virtual std::string convertRegisterToString(uint32_t Reg) = 0;
-};
-
 }  // namespace remniw

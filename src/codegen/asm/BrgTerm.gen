@@ -14,3 +14,4 @@
 #define HANDLE_INST(N, OPC, CLASS) \
   %term BRG_##OPC
 #include "llvm/IR/Instruction.def"
+#undef HANDLE_INST

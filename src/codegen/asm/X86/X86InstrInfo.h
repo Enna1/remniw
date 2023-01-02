@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codegen/asm/AsmInstruction.h"
+#include "codegen/asm/TargetInfo.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace remniw {
@@ -33,9 +34,9 @@ enum {
 
 }  // namespace X86
 
-class X86InstrInfo {
+class X86InstrInfo: public TargetInstrInfo {
 public:
-    void print(AsmInstruction &I, llvm::raw_ostream &OS) const {
+    void print(AsmInstruction &I, llvm::raw_ostream &OS) const override {
         switch (I.getOpcode()) {
         case X86::MOV: {
             OS << "\tmovq\t";

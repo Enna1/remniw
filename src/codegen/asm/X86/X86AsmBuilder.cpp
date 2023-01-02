@@ -470,6 +470,7 @@ AsmInstruction *X86AsmBuilder::createCALLInst(AsmOperand Callee, bool DirectCall
     updateAsmOperandLiveRanges(Callee);
     auto *I = AsmInstruction::create(X86::CALL, getCurrentFunction());
     I->addOperand(Callee);
+    I->addOperand(AsmOperand::createImm(NumArgs));
     LLVM_DEBUG({
         llvm::outs() << getCurrentFunction()->size() << ": ";
         I->print(llvm::outs());
