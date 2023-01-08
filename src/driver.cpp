@@ -1,13 +1,13 @@
-#include "AST.h"
-#include "ASTPrinter.h"
-#include "AsmCodeGenetator.h"
-#include "FrontEnd.h"
-#include "IRCodeGenerator.h"
-#include "SymbolTable.h"
-#include "Type.h"
-#include "TypeAnalysis.h"
 #include "antlr4-runtime.h"
+#include "codegen/asm/AsmCodeGenetator.h"
+#include "codegen/asm/TargetInfo.h"
+#include "codegen/ir/IRCodeGenerator.h"
 #include "config.h"
+#include "frontend/AST.h"
+#include "frontend/ASTPrinter.h"
+#include "frontend/FrontEnd.h"
+#include "semantic/SymbolTable.h"
+#include "semantic/TypeAnalysis.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -16,8 +16,7 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/raw_ostream.h"
-#include <iostream>
-#include <unistd.h>
+// #include <unistd.h>
 
 using namespace antlr4;
 using namespace remniw;
@@ -40,15 +39,10 @@ static llvm::cl::opt<std::string>
                    llvm::cl::init("a.out"), llvm::cl::value_desc("filename"),
                    llvm::cl::cat(RemniwCat));
 
-enum Target {
-    x86,
-    riscv
-};
-static llvm::cl::opt<Target>
-    CodegenTarget(llvm::cl::desc("Choose codegen target:"), llvm::cl::cat(RemniwCat),
-                  llvm::cl::values(clEnumVal(x86, "X86 assembly"),
-                                   clEnumVal(riscv, "RISCV assembly")),
-                  llvm::cl::init(x86));
+static llvm::cl::opt<Target> CodegenTarget(
+    llvm::cl::desc("Choose codegen target:"), llvm::cl::cat(RemniwCat),
+    llvm::cl::values(clEnumVal(x86, "X86 assembly"), clEnumVal(riscv, "RISCV assembly")),
+    llvm::cl::init(x86));
 
 int main(int argc, char* argv[]) {
     llvm::cl::HideUnrelatedOptions(RemniwCat);
@@ -114,13 +108,11 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     llvm::raw_fd_ostream TmpOut(FD, /*shouldClose=*/true);
-    if (CodegenTarget == x86) {
-        // auto AsmBuilder = std::make_unique<X86AsmBuilder>();
-        // AsmCodeGenerator CG(*AsmBuilder.get(), M.get(), TmpOut);
-    }
+    AsmCodeGenerator ASMCG(CodegenTarget);
+    ASMCG.compile(M.get(), TmpOut);
     TmpOut.close();
 
-    // Invoke /usr/bin/g++ to compile and link assembly code to executable file.
+    // Invoke clang to compile and link assembly code to executable file.
     llvm::SmallVector<llvm::StringRef> CCParams;
     {
         CCParams.push_back("clang");

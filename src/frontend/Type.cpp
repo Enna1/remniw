@@ -1,4 +1,4 @@
-#include "Type.h"
+#include "frontend/Type.h"
 #include "llvm/Support/Casting.h"
 
 namespace remniw {

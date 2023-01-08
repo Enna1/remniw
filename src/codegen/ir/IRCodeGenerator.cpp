@@ -1,4 +1,4 @@
-#include "IRCodeGenerator.h"
+#include "codegen/ir/IRCodeGenerator.h"
 #include "llvm/IR/Module.h"
 
 namespace remniw {

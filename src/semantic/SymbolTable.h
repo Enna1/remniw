@@ -1,7 +1,7 @@
 #pragma once
 
-#include "AST.h"
-#include "RecursiveASTVisitor.h"
+#include "frontend/AST.h"
+#include "frontend/RecursiveASTVisitor.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
 

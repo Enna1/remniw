@@ -316,16 +316,18 @@ private:
     llvm::DenseMap<llvm::ConstantInt *, BrgTreeNode *> ConstantIntToNodeMap;
     llvm::DenseMap<uint64_t, BrgTreeNode *> ImmToNodeMap;
     const llvm::DataLayout &DL;
-    const TargetRegisterInfo &TRI;
+    const TargetInfo &TI;
     AsmContext &AsmCtx;
     BrgFunction *CurrentFunction;
     int64_t CurrentFunctionStackSize;
-    int64_t ExtraStackSizeForCallArgs
+    int64_t ExtraStackSizeForCallArgs;
+
 public:
-    BrgTreeBuilder(const llvm::DataLayout &DL, const TargetRegisterInfo &TRI,
+    BrgTreeBuilder(const llvm::DataLayout &DL, const TargetInfo &TI,
                    AsmContext &AsmCtx):
         DL(DL),
-        TRI(TRI), AsmCtx(AsmCtx), CurrentFunction(nullptr), CurrentFunctionStackSize(0), ExtraStackSizeForCallArgs(0) {}
+        TI(TI), AsmCtx(AsmCtx), CurrentFunction(nullptr), CurrentFunctionStackSize(0),
+        ExtraStackSizeForCallArgs(0) {}
 
     ~BrgTreeBuilder() {
         for (auto *F : Functions)
@@ -382,15 +384,16 @@ public:
         CurrentFunctionStackSize = 0;
         ExtraStackSizeForCallArgs = 0;
 
-        // Note: assuming stack frame layout, pushed ret addr on stack and pushed frame pointer on stack.
-        // See AsmRewriter::insertPrologue() and AsmRewriter::insertEpilogue().
-        int64_t FuncArgOffsetFromFramePointer = TRI.getRegisterSize() * 2;
+        // Note: assuming stack frame layout, pushed ret addr on stack and pushed frame
+        // pointer on stack. See AsmRewriter::insertPrologue() and
+        // AsmRewriter::insertEpilogue().
+        int64_t FuncArgOffsetFromFramePointer = TI.getRegisterSize() * 2;
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
-            // TODO: assert Arugment Type, int type or pointer type
+            // TODO: assert Arugment Type: shoulde be int type or pointer type
             BrgTreeNode *ArgNode;
-            unsigned NumArgRegs = TRI.getNumArgRegisters();
-            llvm::ArrayRef<uint32_t> ArgRegs = TRI.getArgRegisters();
+            unsigned NumArgRegs = TI.getNumArgRegisters();
+            llvm::ArrayRef<uint32_t> ArgRegs = TI.getArgRegisters();
             if (i < NumArgRegs) {
                 ArgNode = BrgTreeNode::createRegNode(ArgRegs[i]);
             } else {
@@ -399,7 +402,7 @@ public:
                     F.getParent()->getDataLayout().getTypeAllocSize(Ty);
                 FuncArgOffsetFromFramePointer += SizeInBytes;
                 ArgNode = BrgTreeNode::createMemNode(FuncArgOffsetFromFramePointer,
-                                                     TRI.getFramePointerRegister(),
+                                                     TI.getFramePointerRegister(),
                                                      Register::NoRegister, 1);
             }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
@@ -413,7 +416,8 @@ public:
             }
         }
 
-        CurrentFunction->StackSizeInBytes = CurrentFunctionStackSize + ExtraStackSizeForCallArgs;
+        CurrentFunction->StackSizeInBytes =
+            CurrentFunctionStackSize + ExtraStackSizeForCallArgs;
     }
 
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
@@ -421,7 +425,7 @@ public:
         CurrentFunctionStackSize += AllocaSizeInBytes;
         int64_t OffsetFromFramePointer = 0 - CurrentFunctionStackSize;
         auto *InstNode = BrgTreeNode::createMemNode(OffsetFromFramePointer,
-                                                    TRI.getFramePointerRegister(),
+                                                    TI.getFramePointerRegister(),
                                                     remniw::Register::NoRegister, 1);
         CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
@@ -472,7 +476,7 @@ public:
             CurrentFunction->TmpArgNode.push_back(ArgsTmp);
             CurrentNode->setKids({getBrgNodeForValue(CI.getArgOperand(i)), ArgsTmp});
             CurrentNode = ArgsTmp;
-            if (i >= TRI.getNumArgRegisters())  // push arg on stack
+            if (i >= TI.getNumArgRegisters())  // push arg on stack
             {
                 llvm::Type *Ty = CI.getArgOperand(i)->getType();
                 uint64_t SizeInBytes =
@@ -480,7 +484,8 @@ public:
                 NeededStackSizeForCallArgs += SizeInBytes;
             }
         }
-        ExtraStackSizeForCallArgs = max(ExtraStackSizeForCallArgs, NeededStackSizeForCallArgs);
+        if (NeededStackSizeForCallArgs > ExtraStackSizeForCallArgs)
+            ExtraStackSizeForCallArgs = NeededStackSizeForCallArgs;
         BrgTreeNode *InstNode;
         if (auto *Callee = CI.getCalledFunction()) {
             // direct call

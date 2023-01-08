@@ -1,5 +1,6 @@
 #pragma once
 
+#include "codegen/asm/AsmOperand.h"
 #include "codegen/asm/Register.h"
 #include "codegen/asm/TargetInfo.h"
 
@@ -56,9 +57,33 @@ static constexpr unsigned NumCalleeSavedRegs =
 
 static constexpr unsigned NumArgRegs = sizeof(ArgRegs) / sizeof(ArgRegs[0]);
 
+enum {
+    INSTRUCTION_LIST_BEGIN = 0,
+    MOV,
+    LEA,
+    CMP,
+    JMP,
+    JE,
+    JNE,
+    JG,
+    JLE,
+    ADD,
+    SUB,
+    IMUL,
+    IDIV,
+    CQTO,
+    CALL,
+    XOR,
+    PUSH,
+    POP,
+    RET,
+    LABEL,
+    INSTRUCTION_LIST_END
+};
+
 }  // namespace X86
 
-class X86RegisterInfo: public TargetRegisterInfo {
+class X86TargetInfo: public TargetInfo {
 public:
     unsigned getRegisterSize() const { return 8 /*bytes*/; }
 
@@ -147,6 +172,163 @@ public:
             return std::string("%stackslot") +
                    std::to_string(Register::stackSlot2Index(Reg));
         llvm_unreachable("Invalid Register\n");
+    }
+
+    void print(AsmInstruction &I, llvm::raw_ostream &OS) const override {
+        switch (I.getOpcode()) {
+        case X86::MOV: {
+            OS << "\tmovq\t";
+            print(I.getOperand(0), OS);
+            OS << ", ";
+            print(I.getOperand(1), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::LEA: {
+            OS << "\tleaq\t";
+            print(I.getOperand(0), OS);
+            if (I.getOperand(0).isLabel() &&
+                (I.getOperand(0).getLabel()->isFunction() ||
+                 I.getOperand(0).getLabel()->isGlobalVariable())) {
+                OS << "(%rip)";  // rip relative addressing
+            }
+            OS << ", ";
+            print(I.getOperand(1), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::CMP: {
+            OS << "\tcmpq\t";
+            print(I.getOperand(0), OS);
+            OS << ", ";
+            print(I.getOperand(1), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::JMP: {
+            OS << "\tjmp\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::JE: {
+            OS << "\tje\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::JNE: {
+            OS << "\tjne\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::JG: {
+            OS << "\tjg\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::JLE: {
+            OS << "\tjle\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::ADD: {
+            OS << "\taddq\t";
+            print(I.getOperand(0), OS);
+            OS << ", ";
+            print(I.getOperand(1), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::SUB: {
+            OS << "\tsubq\t";
+            print(I.getOperand(0), OS);
+            OS << ", ";
+            print(I.getOperand(1), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::IMUL: {
+            OS << "\timulq\t";
+            print(I.getOperand(0), OS);
+            OS << ", ";
+            print(I.getOperand(1), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::IDIV: {
+            OS << "\tidivq\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::CQTO: {
+            OS << "\tcqto\n";
+            break;
+        }
+        case X86::CALL: {
+            OS << "\tcallq\t";
+            if (!I.getOperand(0).isLabel())  // Indirect call
+                OS << "*";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::XOR: {
+            OS << "\txorq\t";
+            print(I.getOperand(0), OS);
+            OS << ", ";
+            print(I.getOperand(1), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::PUSH: {
+            OS << "\tpushq\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::POP: {
+            OS << "\tpopq\t";
+            print(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case X86::RET: {
+            OS << "\tretq\n";
+            break;
+        }
+        case X86::LABEL: {
+            print(I.getOperand(0), OS);
+            OS << ":\n";
+            break;
+        }
+        default: llvm_unreachable("Invalid AsmInstruction");
+        }
+    }
+
+    void print(AsmOperand &Op, llvm::raw_ostream &OS) const override {
+        switch (Op.Kind) {
+        case AsmOperand::Register: OS << convertRegisterToString(Op.Reg.RegNo); break;
+        case AsmOperand::Immediate: OS << "$" << Op.Imm.Val; break;
+        case AsmOperand::Memory:
+            if (Op.Mem.Disp != 0)
+                OS << Op.Mem.Disp;
+            OS << "(";
+            if (Op.Mem.BaseReg)
+                OS << convertRegisterToString(Op.Mem.BaseReg);
+            if (Op.Mem.IndexReg) {
+                OS << ", " << convertRegisterToString(Op.Mem.IndexReg);
+                OS << ", " << Op.Mem.Scale;
+            }
+            OS << ")";
+            break;
+        case AsmOperand::Label: Op.Lbl.Symbol->print(OS); break;
+        default: llvm_unreachable("Invalid AsmOperand");
+        }
     }
 };
 

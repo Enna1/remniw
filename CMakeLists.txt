@@ -46,6 +46,7 @@ add_definitions(${LLVM_DEFINITIONS})
 llvm_map_components_to_libnames(llvm_libs Core ExecutionEngine Passes native Support)
 
 ######## Build remniw ###########
+include_directories(src)
 add_subdirectory(thirdparty/olive)
 add_subdirectory(src)
 add_subdirectory(test)

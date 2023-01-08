@@ -1,9 +1,9 @@
-#include "FrontEnd.h"
-#include "ASTBuilder.h"
+#include "frontend/FrontEnd.h"
 #include "RemniwLexer.h"
 #include "RemniwParser.h"
-#include "llvm/Support/Debug.h"
 #include "antlr4-runtime.h"
+#include "frontend/ASTBuilder.h"
+#include "llvm/Support/Debug.h"
 
 using namespace antlr4;
 

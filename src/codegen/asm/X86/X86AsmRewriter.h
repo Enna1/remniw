@@ -1,14 +1,13 @@
 #pragma once
 
-#include "X86InstrInfo.h"
-#include "X86RegisterInfo.h"
+#include "codegen/asm/X86/X86TargetInfo.h"
 #include "codegen/asm/AsmRewriter.h"
 
 namespace remniw {
 
 class X86AsmRewriter: public AsmRewriter {
 public:
-    X86AsmRewriter(const TargetRegisterInfo &RI): AsmRewriter(RI) {}
+    X86AsmRewriter(const TargetInfo &TI): AsmRewriter(TI) {}
 
 private:
     void rewriteAsmInstVirtRegToPhysReg(

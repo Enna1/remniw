@@ -1,9 +1,9 @@
 #pragma once
 
-#include "AST.h"
 #include "RemniwBaseVisitor.h"
-#include "Type.h"
 #include "antlr4-runtime.h"
+#include "frontend/AST.h"
+#include "frontend/Type.h"
 #include <memory>
 
 namespace remniw {

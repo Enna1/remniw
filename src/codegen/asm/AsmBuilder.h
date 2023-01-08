@@ -44,8 +44,7 @@ public:
             delete F;
     }
 
-    virtual const TargetRegisterInfo &getTargetRegisterInfo() const = 0;
-    virtual const TargetInstrInfo &getTargetInstrInfo() const = 0;
+    virtual const TargetInfo &getTargetInfo() const = 0;
 
     void buildAsmFunction(const BrgFunction *);
 

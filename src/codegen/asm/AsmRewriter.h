@@ -1,7 +1,8 @@
 #pragma once
 
-#include "AsmFunction.h"
-#include "RegisterAllocator.h"
+#include "codegen/asm/AsmFunction.h"
+#include "codegen/asm/RegisterAllocator.h"
+#include "codegen/asm/TargetInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Alignment.h"
 
@@ -9,17 +10,17 @@ namespace remniw {
 
 class AsmRewriter {
 private:
-    const TargetRegisterInfo &RI;
+    const TargetInfo &TI;
     LinearScanRegisterAllocator LSRA;
     AsmFunction *CurrentFunction;
 
-public: // FIXME
+public:  // FIXME
     uint32_t NumSpilledReg;
     uint32_t NumReversedStackSlotForReg;
     uint32_t MaxNumReversedStackSlotForReg;
 
 public:
-    AsmRewriter(const TargetRegisterInfo &RI): RI(RI), LSRA(RI) {}
+    AsmRewriter(const TargetInfo &TI): TI(TI), LSRA(TI) {}
 
     void rewrite(llvm::SmallVector<AsmFunction *> &AsmFunctions) {
         for (auto *F : AsmFunctions) {
@@ -51,7 +52,7 @@ public:
             // Insert prologue and epilogue.
             llvm::SmallVector<uint32_t, 8> UsedCalleeSavedRegs;
             for (auto p : VirtToAllocRegMap) {
-                if (RI.isCalleeSavedRegister(p.second))
+                if (TI.isCalleeSavedRegister(p.second))
                     UsedCalleeSavedRegs.push_back(p.second);
             }
             insertPrologue(F, UsedCalleeSavedRegs);

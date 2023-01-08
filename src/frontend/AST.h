@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Type.h"
+#include "frontend/Type.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"

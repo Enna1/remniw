@@ -1,7 +1,6 @@
 #pragma once
 
-#include "X86InstrInfo.h"
-#include "X86RegisterInfo.h"
+#include "codegen/asm/X86/X86TargetInfo.h"
 #include "codegen/asm/AsmBuilder.h"
 #include "codegen/asm/AsmInstruction.h"
 #include "codegen/asm/AsmOperand.h"
@@ -10,12 +9,10 @@ namespace remniw {
 
 class X86AsmBuilder: public AsmBuilder {
 private:
-    X86RegisterInfo RI;
-    X86InstrInfo II;
+    X86TargetInfo TI;
 
 public:
-    const TargetRegisterInfo &getTargetRegisterInfo() const override { return RI; }
-    const TargetInstrInfo &getTargetInstrInfo() const override { return II; }
+    const TargetInfo &getTargetInfo() const override { return TI; }
 
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) override;
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) override;

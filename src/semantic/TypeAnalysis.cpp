@@ -1,4 +1,4 @@
-#include "TypeAnalysis.h"
+#include "semantic/TypeAnalysis.h"
 
 namespace remniw {
 

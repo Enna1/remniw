@@ -1,6 +1,5 @@
-#include "X86AsmBuilder.h"
-#include "X86InstrInfo.h"
-#include "X86RegisterInfo.h"
+#include "codegen/asm/X86/X86AsmBuilder.h"
+#include "codegen/asm/X86/X86TargetInfo.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define DEBUG_TYPE "remniw-X86AsmBuilder"
@@ -306,37 +305,44 @@ AsmOperand::RegOp X86AsmBuilder::handleCALL(llvm::Instruction *I, AsmOperand::Me
 }
 
 void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::RegOp Reg) {
-    if (ArgNo < 6) {
+    if (ArgNo < X86::NumArgRegs) {
         createMOVInst(Reg, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
-        createMOVInst(Reg, AsmOperand::createMem(8 * (ArgNo - 6), X86::RSP));
+        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
+        createMOVInst(Reg,
+                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
     }
 }
 
 void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::ImmOp Imm) {
-    if (ArgNo < 6) {
+    if (ArgNo < X86::NumArgRegs) {
         createMOVInst(Imm, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
-        createMOVInst(Imm, AsmOperand::createMem(8 * (ArgNo - 6), X86::RSP));
+        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
+        createMOVInst(Imm,
+                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
     }
 }
 
 void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::MemOp Mem) {
-    if (ArgNo < 6) {
+    if (ArgNo < X86::NumArgRegs) {
         createLEAInst(Mem, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
         uint32_t VirtReg = Register::createVirtReg();
         createMOVInst(Mem, AsmOperand::createReg(VirtReg));
+        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
         createMOVInst(AsmOperand::createReg(VirtReg),
-                      AsmOperand::createMem(8 * (ArgNo - 6), X86::RSP));
+                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
     }
 }
 
 void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::LabelOp Label) {
-    if (ArgNo < 6) {
+    if (ArgNo < X86::NumArgRegs) {
         createLEAInst(Label, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
-        createLEAInst(Label, AsmOperand::createMem(8 * (ArgNo - 6), X86::RSP));
+        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
+        createLEAInst(Label,
+                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
     }
 }
 

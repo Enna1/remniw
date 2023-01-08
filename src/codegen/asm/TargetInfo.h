@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AsmInstruction.h"
+#include "codegen/asm/AsmInstruction.h"
 #include "llvm/ADT/ArrayRef.h"
 #include <cstdint>
 
@@ -11,7 +11,7 @@ enum Target {
     riscv
 };
 
-class TargetRegisterInfo {
+class TargetInfo {
 public:
     virtual unsigned getRegisterSize() const = 0;
 
@@ -34,11 +34,10 @@ public:
         llvm::SmallVector<bool> &FreeRegisters) const = 0;
 
     virtual std::string convertRegisterToString(uint32_t Reg) const = 0;
-};
 
-class TargetInstrInfo {
-public:
     virtual void print(AsmInstruction &I, llvm::raw_ostream &OS) const = 0;
+
+    virtual void print(AsmOperand &Op, llvm::raw_ostream &OS) const = 0;
 };
 
 }  // namespace remniw

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "AST.h"
-#include "IRCodeGeneratorImpl.h"
+#include "codegen/ir/IRCodeGeneratorImpl.h"
+#include "frontend/AST.h"
 #include "llvm/IR/LLVMContext.h"
 
 namespace remniw {

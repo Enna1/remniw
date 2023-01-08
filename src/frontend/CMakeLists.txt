@@ -17,5 +17,4 @@ target_sources(frontend PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Type.h
                                 ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd.cpp
                                 ${ANTLR_RemniwGrammar_CXX_OUTPUTS}
 )
-target_include_directories(frontend PRIVATE ${ANTLR_RemniwGrammar_OUTPUT_DIR})
 target_link_libraries(frontend PRIVATE antlr4_static)

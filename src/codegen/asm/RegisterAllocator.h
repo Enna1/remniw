@@ -30,7 +30,7 @@ struct LiveIntervalEndPointIncreasingOrderCompare
 
 class LinearScanRegisterAllocator {
 private:
-    const TargetRegisterInfo &RI;
+    const TargetInfo &TI;
     std::vector<LiveInterval *> LiveIntervals;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
                         LiveIntervalStartPointIncreasingOrderCompare>
@@ -43,8 +43,8 @@ private:
     uint32_t StackSlotIndex;
 
 public:
-    LinearScanRegisterAllocator(const TargetRegisterInfo &RI): RI(RI) {
-        RI.getFreeRegistersForRegisterAllocator(FreeRegisters);
+    LinearScanRegisterAllocator(const TargetInfo &TI): TI(TI) {
+        TI.getFreeRegistersForRegisterAllocator(FreeRegisters);
     }
 
     ~LinearScanRegisterAllocator() {
@@ -92,11 +92,11 @@ public:
     void dumpRegAllocResults() {
         for (auto p : VirtRegToAllocatedRegMap) {
             llvm::outs() << "Virtual Register: " << p.first << " assigned "
-                         << RI.convertRegisterToString(p.second) << "\n";
+                         << TI.convertRegisterToString(p.second) << "\n";
         }
         for (auto LI : Fixed) {
             llvm::outs() << "Fixed Physical Register: "
-                         << RI.convertRegisterToString(LI->Reg) << ", [" << LI->StartPoint
+                         << TI.convertRegisterToString(LI->Reg) << ", [" << LI->StartPoint
                          << "," << LI->EndPoint << ")"
                          << "\n";
         }
@@ -152,9 +152,9 @@ private:
             if (ConflictWithFixed)
                 continue;
 
-            if (LI->UsedAcrossCall && !RI.isCalleeSavedRegister(Reg))
+            if (LI->UsedAcrossCall && !TI.isCalleeSavedRegister(Reg))
                 continue;
-            if (!LI->UsedAcrossCall && !RI.isCallerSavedRegister(Reg))
+            if (!LI->UsedAcrossCall && !TI.isCallerSavedRegister(Reg))
                 continue;
 
             // Find an available PhysReg
