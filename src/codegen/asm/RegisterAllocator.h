@@ -92,11 +92,11 @@ public:
     void dumpRegAllocResults() {
         for (auto p : VirtRegToAllocatedRegMap) {
             llvm::outs() << "Virtual Register: " << p.first << " assigned "
-                         << TI.convertRegisterToString(p.second) << "\n";
+                         << p.second << "\n";
         }
         for (auto LI : Fixed) {
             llvm::outs() << "Fixed Physical Register: "
-                         << TI.convertRegisterToString(LI->Reg) << ", [" << LI->StartPoint
+                         << LI->Reg << ", [" << LI->StartPoint
                          << "," << LI->EndPoint << ")"
                          << "\n";
         }

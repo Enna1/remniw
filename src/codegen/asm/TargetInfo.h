@@ -32,12 +32,6 @@ public:
 
     virtual void getFreeRegistersForRegisterAllocator(
         llvm::SmallVector<bool> &FreeRegisters) const = 0;
-
-    virtual std::string convertRegisterToString(uint32_t Reg) const = 0;
-
-    virtual void print(AsmInstruction &I, llvm::raw_ostream &OS) const = 0;
-
-    virtual void print(AsmOperand &Op, llvm::raw_ostream &OS) const = 0;
 };
 
 }  // namespace remniw

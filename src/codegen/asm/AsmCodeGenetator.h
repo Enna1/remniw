@@ -8,6 +8,7 @@
 #include "codegen/asm/TargetInfo.h"
 #include "codegen/asm/X86/X86AsmBuilder.h"
 #include "codegen/asm/X86/X86AsmRewriter.h"
+#include "codegen/asm/X86/X86AsmPrinter.h"
 
 namespace remniw {
 
@@ -26,7 +27,7 @@ public:
             X86AsmRewriter Rewriter(AB.getTargetInfo());
             Rewriter.rewrite(AsmFunctions);
 
-            AsmPrinter Printer(AB.getTargetInfo(), OS, AsmFunctions,
+            X86AsmPrinter Printer(AB.getTargetInfo(), OS, AsmFunctions,
                                BB.getConstantStrings(), BB.getGlobalCtors());
             Printer.print();
         }
@@ -34,14 +35,14 @@ public:
 
 private:
     void initializeTarget() {
-        if (TheTarget == Target::x86) {
-            AB = std::make_unique<X86AsmBuilder>();
-            AR = std::make_unique<X86AsmRewriter>(AB->getTargetRegisterInfo());
-            // AP = std::make_unique<AsmPrinter>();
-        }
-        else if (TheTarget == Target::riscv) {
+        // if (TheTarget == Target::x86) {
+        //     AB = std::make_unique<X86AsmBuilder>();
+        //     AR = std::make_unique<X86AsmRewriter>(AB->getTargetRegisterInfo());
+        //     // AP = std::make_unique<AsmPrinter>();
+        // }
+        // else if (TheTarget == Target::riscv) {
 
-        }
+        // }
     }
 
 private:

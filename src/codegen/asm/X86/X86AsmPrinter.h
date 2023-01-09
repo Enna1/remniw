@@ -1,18 +1,18 @@
 #pragma once
 
-#include "codegen/asm/X86TargetInfo.h"
 #include "codegen/asm/AsmFunction.h"
+#include "codegen/asm/X86/X86TargetInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Function.h"
 
 namespace remniw {
 
-class X86AsmPrinter :public AsmPrinter {
+class X86AsmPrinter: public AsmPrinter {
 public:
     X86AsmPrinter(const TargetInfo &TI, llvm::raw_ostream &OS,
-               llvm::SmallVector<AsmFunction *> &AsmFunctions,
-               llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs,
-               llvm::SmallVector<llvm::Function *> GlobalCtors):
+                  llvm::SmallVector<AsmFunction *> &AsmFunctions,
+                  llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs,
+                  llvm::SmallVector<llvm::Function *> GlobalCtors):
         AsmPrinter(TI, OS, AsmFunctions, GVs, GlobalCtors) {}
 
     void EmitFunctionDeclaration(AsmFunction *F) override {
@@ -24,7 +24,7 @@ public:
 
     void EmitFunctionBody(AsmFunction *F) override {
         for (auto &AsmInst : *F) {
-            TI.print(AsmInst, OS);
+            PrintAsmInstruction(AsmInst, OS);
         }
     }
 
@@ -47,7 +47,8 @@ public:
         }
     }
 
-    void PrintAsmInstruction(const AsmInstruction &I, llvm::raw_ostream &OS) const override {
+    void PrintAsmInstruction(const AsmInstruction &I,
+                             llvm::raw_ostream &OS) const override {
         switch (I.getOpcode()) {
         case X86::MOV: {
             OS << "\tmovq\t";
@@ -192,9 +193,10 @@ public:
                 OS << Op.Mem.Disp;
             OS << "(";
             if (Op.Mem.BaseReg)
-                OS << PrintRegister(Op.Mem.BaseReg, OS);
+                PrintRegister(Op.Mem.BaseReg, OS);
             if (Op.Mem.IndexReg) {
-                OS << ", " << PrintRegister(Op.Mem.IndexReg, OS);
+                OS << ", ";
+                PrintRegister(Op.Mem.IndexReg, OS);
                 OS << ", " << Op.Mem.Scale;
             }
             OS << ")";
@@ -204,29 +206,27 @@ public:
         }
     }
 
-
     void PrintRegister(uint32_t Reg, llvm::raw_ostream &OS) const override {
         switch (Reg) {
         case X86::RAX: OS << "%rax"; break;
         case X86::RBX: OS << "%rbx"; break;
         case X86::RCX: OS << "%rcx"; break;
-        case X86::RDX: OS <<  "%rdx"; break;
-        case X86::RSP: OS <<  "%rsp"; break;
-        case X86::RBP: OS <<  "%rbp"; break;
-        case X86::RDI: OS <<  "%rdi"; break;
-        case X86::RSI: OS <<  "%rsi"; break;
-        case X86::R8: OS <<  "%r8"; break;
-        case X86::R9: OS <<  "%r9"; break;
-        case X86::R10: OS <<  "%r10"; break;
-        case X86::R11: OS <<  "%r11"; break;
-        case X86::R12: OS <<  "%r12"; break;
-        case X86::R13: OS <<  "%r13"; break;
-        case X86::R14: OS <<  "%r14"; break;
-        case X86::R15: OS <<  "%r15"; break;
+        case X86::RDX: OS << "%rdx"; break;
+        case X86::RSP: OS << "%rsp"; break;
+        case X86::RBP: OS << "%rbp"; break;
+        case X86::RDI: OS << "%rdi"; break;
+        case X86::RSI: OS << "%rsi"; break;
+        case X86::R8: OS << "%r8"; break;
+        case X86::R9: OS << "%r9"; break;
+        case X86::R10: OS << "%r10"; break;
+        case X86::R11: OS << "%r11"; break;
+        case X86::R12: OS << "%r12"; break;
+        case X86::R13: OS << "%r13"; break;
+        case X86::R14: OS << "%r14"; break;
+        case X86::R15: OS << "%r15"; break;
         default: llvm_unreachable("Invalid Register\n");
         };
     }
-
 };
 
 }  // namespace remniw

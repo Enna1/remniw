@@ -309,7 +309,7 @@ reg: BRG_SUB(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $action[2](Builder);
     $action[3](Builder);
     remniw::AsmOperand::RegOp Reg = Builder->handleSUB(
-        $1->getInstruction(), $2->getAsAsmOperandImm(), $3->getAsAsmOperandReg());
+        $1->getInstruction(), $2->getAsAsmOperandReg(), $3->getAsAsmOperandReg());
     $0->setReg(Reg);
 };
 

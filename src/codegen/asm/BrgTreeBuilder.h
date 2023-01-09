@@ -351,7 +351,6 @@ public:
 
     void build(llvm::Module &M) { visit(M); }
 
-private:
     template<class Iterator>
     void visit(Iterator Start, Iterator End) {
         while (Start != End) {
@@ -402,10 +401,10 @@ private:
                 llvm::Type *Ty = F.getArg(i)->getType();
                 uint64_t SizeInBytes =
                     F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                FuncArgOffsetFromFramePointer += SizeInBytes;
                 ArgNode = BrgTreeNode::createMemNode(FuncArgOffsetFromFramePointer,
                                                      TI.getFramePointerRegister(),
                                                      Register::NoRegister, 1);
+                FuncArgOffsetFromFramePointer += SizeInBytes;
             }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
@@ -550,6 +549,7 @@ private:
         return InstNode;
     }
 
+private:
     BrgTreeNode *getBrgNodeForImm(uint64_t V) {
         if (!ImmToNodeMap.count(V))
             ImmToNodeMap[V] = BrgTreeNode::createImmNode(V);

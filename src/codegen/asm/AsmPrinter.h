@@ -7,7 +7,8 @@
 namespace remniw {
 
 class AsmPrinter {
-private:
+protected:
+    // friend class X86AsmPrinter;
     const TargetInfo &TI;
     llvm::raw_ostream &OS;
     llvm::SmallVector<AsmFunction *> &AsmFunctions;
@@ -32,13 +33,22 @@ public:
         EmitInitArray();
     }
 
-    virtual void EmitFunctionDeclaration(AsmFunction *F) {}
+    llvm::raw_ostream &GetOutputFileOstream() { return OS; };
 
-    virtual void EmitFunctionBody(AsmFunction *F) {}
+    virtual void EmitFunctionDeclaration(AsmFunction *F) = 0;
 
-    virtual void EmitGlobalVariables() {}
+    virtual void EmitFunctionBody(AsmFunction *F) = 0;
 
-    void EmitInitArray() {}
+    virtual void EmitGlobalVariables() = 0;
+
+    virtual void EmitInitArray() = 0;
+
+    virtual void PrintAsmInstruction(const AsmInstruction &I,
+                                     llvm::raw_ostream &OS) const = 0;
+
+    virtual void PrintAsmOperand(const AsmOperand &Op, llvm::raw_ostream &OS) const = 0;
+
+    virtual void PrintRegister(uint32_t Reg, llvm::raw_ostream &OS) const = 0;
 };
 
 }  // namespace remniw
