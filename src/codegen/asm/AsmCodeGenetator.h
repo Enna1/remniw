@@ -1,11 +1,11 @@
 #pragma once
 
-#include "AsmBuilder.h"
-#include "AsmContext.h"
-#include "AsmPrinter.h"
-#include "AsmRewriter.h"
-#include "BrgTreeBuilder.h"
-#include "TargetInfo.h"
+#include "codegen/asm/AsmBuilder.h"
+#include "codegen/asm/AsmContext.h"
+#include "codegen/asm/AsmPrinter.h"
+#include "codegen/asm/AsmRewriter.h"
+#include "codegen/asm/BrgTreeBuilder.h"
+#include "codegen/asm/TargetInfo.h"
 #include "codegen/asm/X86/X86AsmBuilder.h"
 #include "codegen/asm/X86/X86AsmRewriter.h"
 
@@ -33,8 +33,23 @@ public:
     }
 
 private:
+    void initializeTarget() {
+        if (TheTarget == Target::x86) {
+            AB = std::make_unique<X86AsmBuilder>();
+            AR = std::make_unique<X86AsmRewriter>(AB->getTargetRegisterInfo());
+            // AP = std::make_unique<AsmPrinter>();
+        }
+        else if (TheTarget == Target::riscv) {
+
+        }
+    }
+
+private:
     Target TheTarget;
     AsmContext AsmCtx;
+    std::unique_ptr<AsmBuilder> AB;
+    std::unique_ptr<AsmRewriter> AR;
+    // std::unique_ptr<AsmPrinter> AP;
 };
 
 }  // namespace remniw

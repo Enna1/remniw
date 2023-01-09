@@ -1,8 +1,8 @@
 #pragma once
 
-#include "LiveInterval.h"
-#include "Register.h"
-#include "TargetInfo.h"
+#include "codegen/asm/LiveInterval.h"
+#include "codegen/asm/Register.h"
+#include "codegen/asm/TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Debug.h"
 #include <algorithm>

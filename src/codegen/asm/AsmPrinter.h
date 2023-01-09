@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AsmFunction.h"
+#include "codegen/asm/AsmFunction.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Function.h"
 
@@ -32,38 +32,13 @@ public:
         EmitInitArray();
     }
 
-    void EmitFunctionDeclaration(AsmFunction *F) {
-        // FIXME
-        OS << ".text\n"
-           << ".globl " << F->FuncName << "\n"
-           << ".type " << F->FuncName << ", @function\n"
-           << F->FuncName << ":\n";
-    }
+    virtual void EmitFunctionDeclaration(AsmFunction *F) {}
 
-    void EmitFunctionBody(AsmFunction *F) {
-        for (auto &AsmInst : *F) {
-            TI.print(AsmInst, OS);
-        }
-    }
+    virtual void EmitFunctionBody(AsmFunction *F) {}
 
-    void EmitGlobalVariables() {
-        for (auto p : GlobalVariables) {
-            p.first->print(OS);
-            OS << ":\n";
-            OS << "\t.asciz ";
-            OS << "\"";
-            OS.write_escaped(p.second);
-            OS << "\"\n";
-        }
-    }
+    virtual void EmitGlobalVariables() {}
 
-    void EmitInitArray() {
-        for (auto *F : GlobalCtors) {
-            OS << ".section\t.init_array,\"aw\",@init_array\n";
-            OS << ".p2align\t3\n";
-            OS << ".quad\t" << F->getName() << "\n";
-        }
-    }
+    void EmitInitArray() {}
 };
 
 }  // namespace remniw

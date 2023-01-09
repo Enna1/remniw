@@ -1,5 +1,5 @@
 %{
-#include "AsmBuilder.h"
+#include "codegen/asm/AsmBuilder.h"
 #define DEBUG_TYPE "remniw-AsmBuilderHelper"
 %}
 

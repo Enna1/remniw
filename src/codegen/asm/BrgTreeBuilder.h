@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "AsmOperand.h"
-#include "AsmSymbol.h"
-#include "Register.h"
-#include "TargetInfo.h"
+#include "codegen/asm/AsmOperand.h"
+#include "codegen/asm/AsmSymbol.h"
+#include "codegen/asm/Register.h"
+#include "codegen/asm/TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -113,7 +113,6 @@ public:
     static BrgTreeNode *createInstNode(llvm::Instruction *I,
                                        std::vector<BrgTreeNode *> Kids) {
         switch (I->getOpcode()) {
-            // Build the switch statement using the Instruction.def file...
 #define HANDLE_INST(NUM, OPCODE, CLASS)                                                  \
     case llvm::Instruction::OPCODE: {                                                    \
         auto *Ret = new BrgTreeNode(KindTy::InstNode, BrgTerm::OPCODE, Kids);            \
@@ -350,6 +349,9 @@ public:
 
     llvm::SmallVector<llvm::Function *> getGlobalCtors() { return GlobalCtors; }
 
+    void build(llvm::Module &M) { visit(M); }
+
+private:
     template<class Iterator>
     void visit(Iterator Start, Iterator End) {
         while (Start != End) {
@@ -548,7 +550,6 @@ public:
         return InstNode;
     }
 
-private:
     BrgTreeNode *getBrgNodeForImm(uint64_t V) {
         if (!ImmToNodeMap.count(V))
             ImmToNodeMap[V] = BrgTreeNode::createImmNode(V);

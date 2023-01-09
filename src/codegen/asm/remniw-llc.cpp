@@ -1,5 +1,5 @@
-#include "AsmCodeGenetator.h"
-#include "TargetInfo.h"
+#include "codegen/asm/AsmCodeGenetator.h"
+#include "codegen/asm/TargetInfo.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
