@@ -138,10 +138,14 @@ public:
     virtual AsmOperand::RegOp handleCALL(llvm::Instruction *I, AsmOperand::RegOp Reg) = 0;
     virtual AsmOperand::RegOp handleCALL(llvm::Instruction *I, AsmOperand::MemOp Mem) = 0;
 
-    virtual void handleARG(unsigned ArgNo, AsmOperand::RegOp Reg) = 0;
-    virtual void handleARG(unsigned ArgNo, AsmOperand::ImmOp Imm) = 0;
-    virtual void handleARG(unsigned ArgNo, AsmOperand::MemOp Mem) = 0;
-    virtual void handleARG(unsigned ArgNo, AsmOperand::LabelOp Label) = 0;
+    virtual void handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                           AsmOperand::RegOp Reg) = 0;
+    virtual void handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                           AsmOperand::ImmOp Imm) = 0;
+    virtual void handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                           AsmOperand::MemOp Mem) = 0;
+    virtual void handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                           AsmOperand::LabelOp Label) = 0;
 
     virtual void handleLABEL(AsmOperand::LabelOp Label) = 0;
 
@@ -229,9 +233,9 @@ public:
         }
         if (Op.isMem()) {
             uint32_t MemBaseReg = Op.getMemBaseReg();
-            // FIXME
-            // if (MemBaseReg != Register::RBP)
-            updateRegLiveRanges(MemBaseReg);
+            if (MemBaseReg != Register::NoRegister) {
+                updateRegLiveRanges(MemBaseReg);
+            }
             uint32_t MemIndexReg = Op.getMemIndexReg();
             if (MemIndexReg != Register::NoRegister) {
                 updateRegLiveRanges(MemIndexReg);
@@ -253,7 +257,7 @@ public:
 };
 
 using AsmBuilderPtr = AsmBuilder *;
-
+using LLVMInstructionPtr = llvm::Instruction *;
 }  // namespace remniw
 
 #undef DEBUG_TYPE

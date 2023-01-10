@@ -322,11 +322,9 @@ private:
     int64_t ExtraStackSizeForCallArgs;
 
 public:
-    BrgTreeBuilder(const llvm::DataLayout &DL, const TargetInfo &TI,
-                   AsmContext &AsmCtx):
-        DL(DL),
-        TI(TI), AsmCtx(AsmCtx), CurrentFunction(nullptr), CurrentFunctionStackSize(0),
-        ExtraStackSizeForCallArgs(0) {}
+    BrgTreeBuilder(const llvm::DataLayout &DL, const TargetInfo &TI, AsmContext &AsmCtx):
+        DL(DL), TI(TI), AsmCtx(AsmCtx), CurrentFunction(nullptr),
+        CurrentFunctionStackSize(0), ExtraStackSizeForCallArgs(0) {}
 
     ~BrgTreeBuilder() {
         for (auto *F : Functions)
@@ -391,16 +389,18 @@ public:
         int64_t FuncArgOffsetFromFramePointer = TI.getRegisterSize() * 2;
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
-            // TODO: assert Arugment Type: shoulde be int type or pointer type
+            llvm::Type *Ty = F.getArg(i)->getType();
+            uint64_t SizeInBytes = F.getParent()->getDataLayout().getTypeAllocSize(Ty);
+            assert(Ty->isIntOrPtrTy() &&
+                   "Funtion argument must be integerType or PointerType as ");
+            assert(SizeInBytes <= TI.getRegisterSize() &&
+                   "Size of function argument must be less or equal than register size");
             BrgTreeNode *ArgNode;
             unsigned NumArgRegs = TI.getNumArgRegisters();
             llvm::ArrayRef<uint32_t> ArgRegs = TI.getArgRegisters();
             if (i < NumArgRegs) {
                 ArgNode = BrgTreeNode::createRegNode(ArgRegs[i]);
             } else {
-                llvm::Type *Ty = F.getArg(i)->getType();
-                uint64_t SizeInBytes =
-                    F.getParent()->getDataLayout().getTypeAllocSize(Ty);
                 ArgNode = BrgTreeNode::createMemNode(FuncArgOffsetFromFramePointer,
                                                      TI.getFramePointerRegister(),
                                                      Register::NoRegister, 1);

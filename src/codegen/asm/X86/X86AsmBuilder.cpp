@@ -277,6 +277,7 @@ AsmOperand::RegOp X86AsmBuilder::handleSDIV(llvm::Instruction *I, AsmOperand::Im
 
 AsmOperand::RegOp X86AsmBuilder::handleCALL(llvm::Instruction *I,
                                             AsmOperand::LabelOp Label) {
+    CallArgOffsetFromStackPointer = 0;
     auto *CB = llvm::cast<llvm::CallBase>(I);
     std::string CalleeName = Label.Symbol->getName();
     if (CalleeName == "printf" || CalleeName == "scanf") {
@@ -289,6 +290,7 @@ AsmOperand::RegOp X86AsmBuilder::handleCALL(llvm::Instruction *I,
 }
 
 AsmOperand::RegOp X86AsmBuilder::handleCALL(llvm::Instruction *I, AsmOperand::RegOp Reg) {
+    CallArgOffsetFromStackPointer = 0;
     auto *CB = llvm::cast<llvm::CallBase>(I);
     createCALLInst(Reg, /*DirectCall*/ false, CB->arg_size());
     uint32_t VirtReg = Register::createVirtReg();
@@ -297,6 +299,7 @@ AsmOperand::RegOp X86AsmBuilder::handleCALL(llvm::Instruction *I, AsmOperand::Re
 }
 
 AsmOperand::RegOp X86AsmBuilder::handleCALL(llvm::Instruction *I, AsmOperand::MemOp Mem) {
+    CallArgOffsetFromStackPointer = 0;
     auto *CB = llvm::cast<llvm::CallBase>(I);
     createCALLInst(Mem, /*DirectCall*/ false, CB->arg_size());
     uint32_t VirtReg = Register::createVirtReg();
@@ -304,45 +307,61 @@ AsmOperand::RegOp X86AsmBuilder::handleCALL(llvm::Instruction *I, AsmOperand::Me
     return {VirtReg};
 }
 
-void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::RegOp Reg) {
+void X86AsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                              AsmOperand::RegOp Reg) {
     if (ArgNo < X86::NumArgRegs) {
         createMOVInst(Reg, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
-        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
+        auto *CB = llvm::cast<llvm::CallBase>(CI);
+        llvm::Type *Ty = CB->getArgOperand(ArgNo)->getType();
+        uint64_t SizeInBytes = CB->getModule()->getDataLayout().getTypeAllocSize(Ty);
         createMOVInst(Reg,
-                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
+                      AsmOperand::createMem(CallArgOffsetFromStackPointer, X86::RSP));
+        CallArgOffsetFromStackPointer += SizeInBytes;
     }
 }
 
-void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::ImmOp Imm) {
+void X86AsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                              AsmOperand::ImmOp Imm) {
     if (ArgNo < X86::NumArgRegs) {
         createMOVInst(Imm, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
-        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
+        auto *CB = llvm::cast<llvm::CallBase>(CI);
+        llvm::Type *Ty = CB->getArgOperand(ArgNo)->getType();
+        uint64_t SizeInBytes = CB->getModule()->getDataLayout().getTypeAllocSize(Ty);
         createMOVInst(Imm,
-                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
+                      AsmOperand::createMem(CallArgOffsetFromStackPointer, X86::RSP));
+        CallArgOffsetFromStackPointer += SizeInBytes;
     }
 }
 
-void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::MemOp Mem) {
+void X86AsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                              AsmOperand::MemOp Mem) {
     if (ArgNo < X86::NumArgRegs) {
         createLEAInst(Mem, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
+        auto *CB = llvm::cast<llvm::CallBase>(CI);
+        llvm::Type *Ty = CB->getArgOperand(ArgNo)->getType();
+        uint64_t SizeInBytes = CB->getModule()->getDataLayout().getTypeAllocSize(Ty);
         uint32_t VirtReg = Register::createVirtReg();
         createMOVInst(Mem, AsmOperand::createReg(VirtReg));
-        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
         createMOVInst(AsmOperand::createReg(VirtReg),
-                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
+                      AsmOperand::createMem(CallArgOffsetFromStackPointer, X86::RSP));
+        CallArgOffsetFromStackPointer += SizeInBytes;
     }
 }
 
-void X86AsmBuilder::handleARG(unsigned ArgNo, AsmOperand::LabelOp Label) {
+void X86AsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                              AsmOperand::LabelOp Label) {
     if (ArgNo < X86::NumArgRegs) {
         createLEAInst(Label, AsmOperand::createReg(X86::ArgRegs[ArgNo]));
     } else {
-        // FIXME: 8 * (ArgNo - X86::NumArgRegs)
+        auto *CB = llvm::cast<llvm::CallBase>(CI);
+        llvm::Type *Ty = CB->getArgOperand(ArgNo)->getType();
+        uint64_t SizeInBytes = CB->getModule()->getDataLayout().getTypeAllocSize(Ty);
         createLEAInst(Label,
-                      AsmOperand::createMem(8 * (ArgNo - X86::NumArgRegs), X86::RSP));
+                      AsmOperand::createMem(CallArgOffsetFromStackPointer, X86::RSP));
+        CallArgOffsetFromStackPointer += SizeInBytes;
     }
 }
 

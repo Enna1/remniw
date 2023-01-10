@@ -14,7 +14,7 @@ private:
     LinearScanRegisterAllocator LSRA;
     AsmFunction *CurrentFunction;
 
-public:  // FIXME
+protected:
     uint32_t NumSpilledReg;
     uint32_t NumReversedStackSlotForReg;
     uint32_t MaxNumReversedStackSlotForReg;

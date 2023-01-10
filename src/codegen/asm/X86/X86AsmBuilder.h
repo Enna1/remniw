@@ -1,15 +1,16 @@
 #pragma once
 
-#include "codegen/asm/X86/X86TargetInfo.h"
 #include "codegen/asm/AsmBuilder.h"
 #include "codegen/asm/AsmInstruction.h"
 #include "codegen/asm/AsmOperand.h"
+#include "codegen/asm/X86/X86TargetInfo.h"
 
 namespace remniw {
 
 class X86AsmBuilder: public AsmBuilder {
 private:
     X86TargetInfo TI;
+    int64_t CallArgOffsetFromStackPointer {0};
 
 public:
     const TargetInfo &getTargetInfo() const override { return TI; }
@@ -94,10 +95,11 @@ public:
     AsmOperand::RegOp handleCALL(llvm::Instruction *I, AsmOperand::RegOp Reg) override;
     AsmOperand::RegOp handleCALL(llvm::Instruction *I, AsmOperand::MemOp Mem) override;
 
-    void handleARG(unsigned ArgNo, AsmOperand::RegOp Reg) override;
-    void handleARG(unsigned ArgNo, AsmOperand::ImmOp Imm) override;
-    void handleARG(unsigned ArgNo, AsmOperand::MemOp Mem) override;
-    void handleARG(unsigned ArgNo, AsmOperand::LabelOp Label) override;
+    void handleARG(llvm::Instruction *CI, unsigned ArgNo, AsmOperand::RegOp Reg) override;
+    void handleARG(llvm::Instruction *CI, unsigned ArgNo, AsmOperand::ImmOp Imm) override;
+    void handleARG(llvm::Instruction *CI, unsigned ArgNo, AsmOperand::MemOp Mem) override;
+    void handleARG(llvm::Instruction *CI, unsigned ArgNo,
+                   AsmOperand::LabelOp Label) override;
 
     void handleLABEL(AsmOperand::LabelOp Label) override;
 

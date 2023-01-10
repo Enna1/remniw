@@ -8,7 +8,6 @@ namespace remniw {
 
 class AsmPrinter {
 protected:
-    // friend class X86AsmPrinter;
     const TargetInfo &TI;
     llvm::raw_ostream &OS;
     llvm::SmallVector<AsmFunction *> &AsmFunctions;
@@ -32,8 +31,6 @@ public:
         EmitGlobalVariables();
         EmitInitArray();
     }
-
-    llvm::raw_ostream &GetOutputFileOstream() { return OS; };
 
     virtual void EmitFunctionDeclaration(AsmFunction *F) = 0;
 
