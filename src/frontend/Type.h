@@ -4,6 +4,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
 #include <vector>
 
@@ -222,24 +223,11 @@ struct FunctionTypeKeyInfo {
 class TypeContext {
 public:
     TypeContext(): IntTy(*this) {}
-    ~TypeContext() {
-        for (auto p : PointerTypes) {
-            delete p.second;
-        }
-        for (auto p : ArrayTypes) {
-            delete p.second;
-        }
-        for (auto *FT : FunctionTypes) {
-            delete FT;
-        }
-        for (auto *VarTy : VarTypes) {
-            delete VarTy;
-        }
-    }
 
+    llvm::BumpPtrAllocator Alloc;
     IntType IntTy;
-    llvm::DenseMap<Type *, PointerType *> PointerTypes;
-    llvm::DenseMap<std::pair<Type *, uint64_t>, ArrayType *> ArrayTypes;
+    llvm::DenseMap<Type *, PointerType*> PointerTypes;
+    llvm::DenseMap<std::pair<Type *, uint64_t>, ArrayType*> ArrayTypes;
     using FunctionTypeSet = llvm::DenseSet<FunctionType *, FunctionTypeKeyInfo>;
     FunctionTypeSet FunctionTypes;
     using VarTypeSet = llvm::DenseSet<VarType *, VarTypeKeyInfo>;
