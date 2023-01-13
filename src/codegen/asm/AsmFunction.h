@@ -30,6 +30,17 @@ public:
         return RegLiveRangesMap;
     }
 
+    void print(llvm::raw_ostream &OS) const {
+        OS << "AsmFunction: " << FuncName << "\n";
+        unsigned Idx = 0;
+        for (auto &I : InstList) {
+            OS << Idx++ << ": ";
+            I.print(OS);
+            OS << "\n";
+        }
+        OS << "\n";
+    }
+
     // Required by llvm::ilist_node_with_parent
     // Returns a pointer to a member of the instruction list.
     static InstListType AsmFunction::*getSublistAccess(AsmInstruction *) {

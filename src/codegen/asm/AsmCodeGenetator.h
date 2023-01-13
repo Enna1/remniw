@@ -7,8 +7,8 @@
 #include "codegen/asm/BrgTreeBuilder.h"
 #include "codegen/asm/TargetInfo.h"
 #include "codegen/asm/X86/X86AsmBuilder.h"
-#include "codegen/asm/X86/X86AsmRewriter.h"
 #include "codegen/asm/X86/X86AsmPrinter.h"
+#include "codegen/asm/X86/X86AsmRewriter.h"
 
 namespace remniw {
 
@@ -28,8 +28,8 @@ public:
             Rewriter.rewrite(AsmFunctions);
 
             X86AsmPrinter Printer(AB.getTargetInfo(), OS, AsmFunctions,
-                               BB.getConstantStrings(), BB.getGlobalCtors());
-            Printer.print();
+                                  BB.getConstantStrings(), BB.getGlobalCtors());
+            Printer.emitToStreamer();
         }
     }
 

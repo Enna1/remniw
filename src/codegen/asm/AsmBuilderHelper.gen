@@ -297,7 +297,7 @@ reg: BRG_ADD(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    llvm_unreachable("Unexpected action: reg: BRG_ADD(imm, imm)!\n");
+    llvm_unreachable("Unexpected action: reg: BRG_ADD(imm, imm)");
 };
 
 reg: BRG_SUB(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -347,7 +347,7 @@ reg: BRG_SUB(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    llvm_unreachable("Unexpected action reg: BRG_SUB(imm, imm)\n");
+    llvm_unreachable("Unexpected action reg: BRG_SUB(imm, imm)");
 };
 
 reg: BRG_MUL(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -397,7 +397,7 @@ reg: BRG_MUL(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    llvm_unreachable("Unexpected action reg: BRG_MUL(imm, imm)\n");
+    llvm_unreachable("Unexpected action reg: BRG_MUL(imm, imm)");
 };
 
 reg: BRG_SDIV(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
@@ -447,7 +447,7 @@ reg: BRG_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
     $0->setActionExecuted();
     $action[2](Builder);
     $action[3](Builder);
-    llvm_unreachable("Unexpected action reg: BRG_SDIV(imm, imm)!\n");
+    llvm_unreachable("Unexpected action reg: BRG_SDIV(imm, imm)");
 };
 
 arg: reg { $cost[0].cost = $cost[1].cost + 1; }

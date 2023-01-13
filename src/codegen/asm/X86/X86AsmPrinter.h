@@ -15,20 +15,20 @@ public:
                   llvm::SmallVector<llvm::Function *> GlobalCtors):
         AsmPrinter(TI, OS, AsmFunctions, GVs, GlobalCtors) {}
 
-    void EmitFunctionDeclaration(AsmFunction *F) override {
+    void emitFunctionDeclaration(AsmFunction *F) override {
         OS << ".text\n"
            << ".globl " << F->FuncName << "\n"
            << ".type " << F->FuncName << ", @function\n"
            << F->FuncName << ":\n";
     }
 
-    void EmitFunctionBody(AsmFunction *F) override {
+    void emitFunctionBody(AsmFunction *F) override {
         for (auto &AsmInst : *F) {
             PrintAsmInstruction(AsmInst, OS);
         }
     }
 
-    void EmitGlobalVariables() override {
+    void emitGlobalVariables() override {
         for (auto p : GlobalVariables) {
             p.first->print(OS);
             OS << ":\n";
@@ -39,7 +39,7 @@ public:
         }
     }
 
-    void EmitInitArray() override {
+    void emitInitArray() override {
         for (auto *F : GlobalCtors) {
             OS << ".section\t.init_array,\"aw\",@init_array\n";
             OS << ".p2align\t3\n";

@@ -375,11 +375,6 @@ AsmInstruction *X86AsmBuilder::createMOVInst(AsmOperand Src, AsmOperand Dst) {
     auto *I = AsmInstruction::create(X86::MOV, getCurrentFunction());
     I->addOperand(Src);
     I->addOperand(Dst);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -389,11 +384,6 @@ AsmInstruction *X86AsmBuilder::createLEAInst(AsmOperand Src, AsmOperand Dst) {
     auto *I = AsmInstruction::create(X86::LEA, getCurrentFunction());
     I->addOperand(Src);
     I->addOperand(Dst);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -403,11 +393,6 @@ AsmInstruction *X86AsmBuilder::createCMPInst(AsmOperand Src, AsmOperand Dst) {
     auto *I = AsmInstruction::create(X86::CMP, getCurrentFunction());
     I->addOperand(Src);
     I->addOperand(Dst);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -415,11 +400,6 @@ AsmInstruction *X86AsmBuilder::createJMPInst(unsigned JmpOpcode, AsmOperand Op) 
     updateAsmOperandLiveRanges(Op);
     auto *I = AsmInstruction::create(JmpOpcode, getCurrentFunction());
     I->addOperand(Op);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -429,11 +409,6 @@ AsmInstruction *X86AsmBuilder::createADDInst(AsmOperand Src, AsmOperand Dst) {
     auto *I = AsmInstruction::create(X86::ADD, getCurrentFunction());
     I->addOperand(Src);
     I->addOperand(Dst);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -443,11 +418,6 @@ AsmInstruction *X86AsmBuilder::createSUBInst(AsmOperand Src, AsmOperand Dst) {
     auto *I = AsmInstruction::create(X86::SUB, getCurrentFunction());
     I->addOperand(Src);
     I->addOperand(Dst);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -457,11 +427,6 @@ AsmInstruction *X86AsmBuilder::createIMULInst(AsmOperand Src, AsmOperand Dst) {
     auto *I = AsmInstruction::create(X86::IMUL, getCurrentFunction());
     I->addOperand(Src);
     I->addOperand(Dst);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -471,22 +436,13 @@ AsmInstruction *X86AsmBuilder::createIDIVInst(AsmOperand Op) {
     updateRegLiveRanges(X86::RDX);
     auto *I = AsmInstruction::create(X86::IDIV, getCurrentFunction());
     I->addOperand(Op);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
+    return I;
 }
 
 AsmInstruction *X86AsmBuilder::createCQTOInst() {
     updateRegLiveRanges(X86::RAX);
     updateRegLiveRanges(X86::RDX);
     auto *I = AsmInstruction::create(X86::CQTO, getCurrentFunction());
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     return I;
 }
 
@@ -496,11 +452,6 @@ AsmInstruction *X86AsmBuilder::createCALLInst(AsmOperand Callee, bool DirectCall
     auto *I = AsmInstruction::create(X86::CALL, getCurrentFunction());
     I->addOperand(Callee);
     I->addOperand(AsmOperand::createImm(NumArgs));
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
     getCurrentCallInstIndexes().push_back(getCurrentFunction()->size());
     return I;
 }
@@ -511,21 +462,13 @@ AsmInstruction *X86AsmBuilder::createXORInst(AsmOperand Src, AsmOperand Dst) {
     auto *I = AsmInstruction::create(X86::XOR, getCurrentFunction());
     I->addOperand(Src);
     I->addOperand(Dst);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
+    return I;
 }
 
 AsmInstruction *X86AsmBuilder::createLABELInst(AsmOperand LabelOp) {
     auto *I = AsmInstruction::create(X86::LABEL, getCurrentFunction());
     I->addOperand(LabelOp);
-    LLVM_DEBUG({
-        llvm::outs() << getCurrentFunction()->size() << ": ";
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-    });
+    return I;
 }
 
 }  // namespace remniw

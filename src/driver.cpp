@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
             Constraint.print(llvm::outs());
     });
 
-    LLVM_DEBUG(llvm::outs() << "===== Code Generator ===== \n");
+    LLVM_DEBUG(llvm::outs() << "===== IR Code Generator ===== \n");
     IRCodeGenerator IRCG(&TheLLVMContext);
     std::unique_ptr<llvm::Module> M = IRCG.emit(AST.get());
 

@@ -37,6 +37,10 @@ public:
             CurrentCallInstIndexes.clear();
             buildAsmFunction(BrgFunc);
         }
+        LLVM_DEBUG({
+            for (auto *F : AsmFunctions)
+                F->print(llvm::outs());
+        });
     }
 
     ~AsmBuilder() {
@@ -176,13 +180,13 @@ public:
                              }) != CurrentCallInstIndexes.end())
                 CurrentRegLiveRangesMap[Reg].Ranges.back().UsedAcrossCall = true;
 
-            for (const auto &Range : CurrentRegLiveRangesMap[Reg].Ranges) {
-                LLVM_DEBUG({
-                    llvm::outs() << "VirtualRegister " << Reg << " LiveRange: ";
+            LLVM_DEBUG({
+                for (const auto &Range : CurrentRegLiveRangesMap[Reg].Ranges) {
+                    llvm::outs() << "VirtualRegister: " << Reg << ", LiveRange: ";
                     Range.print(llvm::outs());
                     llvm::outs() << "\n";
-                });
-            }
+                }
+            });
         }
         // For physical register, we consider lifetime holes.
         // For the segment of the program that starts where the physical register
@@ -215,19 +219,17 @@ public:
                                  return StartPoint <= Index && Index < EndPoint;
                              }) != CurrentCallInstIndexes.end())
                 CurrentRegLiveRangesMap[Reg].Ranges.back().UsedAcrossCall = true;
-
-            for (const auto &Range : CurrentRegLiveRangesMap[Reg].Ranges) {
-                LLVM_DEBUG({
-                    llvm::outs() << "PhysicalRegiste " << Reg << " LiveRange: ";
+            LLVM_DEBUG({
+                for (const auto &Range : CurrentRegLiveRangesMap[Reg].Ranges) {
+                    llvm::outs() << "PhysicalRegister: " << Reg << ", LiveRange: ";
                     Range.print(llvm::outs());
                     llvm::outs() << "\n";
-                });
-            }
+                }
+            });
         }
     }
 
     void updateAsmOperandLiveRanges(const AsmOperand &Op) {
-        LLVM_DEBUG(llvm::outs() << "updateAsmOperandLiveRanges " << &Op << "\n";);
         if (Op.isReg()) {
             updateRegLiveRanges(Op.getReg());
         }
@@ -244,12 +246,10 @@ public:
     }
 
     void updateAsmOperandLiveRanges(const AsmOperand::RegOp &Reg) {
-        LLVM_DEBUG(llvm::outs() << "updateAsmOperandLiveRanges " << &Reg << "\n";);
         updateRegLiveRanges(Reg.RegNo);
     }
 
     void updateAsmOperandLiveRanges(const AsmOperand::MemOp &Mem) {
-        LLVM_DEBUG(llvm::outs() << "updateAsmOperandLiveRanges " << &Mem << "\n";);
         updateRegLiveRanges(Mem.BaseReg);
         if (Mem.IndexReg != Register::NoRegister)
             updateRegLiveRanges(Mem.IndexReg);

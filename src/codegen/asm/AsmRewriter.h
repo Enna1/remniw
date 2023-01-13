@@ -34,7 +34,7 @@ public:
 
             // Register allocation, assign physical registers or spilled stack slots to
             // virtual registers.
-            LSRA.LinearScan(CurrentFunction->RegLiveRangesMap);
+            LSRA.doRegAlloc(CurrentFunction->RegLiveRangesMap);
             const llvm::DenseMap<uint32_t, uint32_t> &VirtToAllocRegMap =
                 LSRA.getVirtRegToAllocatedRegMap();
             NumSpilledReg = LSRA.getSpilledRegCount();

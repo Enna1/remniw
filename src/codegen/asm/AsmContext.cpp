@@ -6,7 +6,7 @@ namespace remniw {
 
 AsmSymbol* AsmContext::getOrCreateSymbol(llvm::Value* V) {
     if (SymbolTable.count(V))
-        return SymbolTable[V];
+        return SymbolTable[V].get();
 
     llvm::StringRef Name = V->getName();
     if (Name.empty()) {
@@ -20,15 +20,19 @@ AsmSymbol* AsmContext::getOrCreateSymbol(llvm::Value* V) {
         UsedNames.insert(std::make_pair(Name, true));
     }
 
-    AsmSymbol* Symbol = nullptr;
-    if (auto* BB = llvm::dyn_cast<llvm::BasicBlock>(V))
-        Symbol = new AsmSymbol(AsmSymbol::SymbolKindBasicBlock, NewName);
-    if (auto* F = llvm::dyn_cast<llvm::Function>(V))
-        Symbol = new AsmSymbol(AsmSymbol::SymbolKindFunction, NewName);
-    if (auto* GV = llvm::dyn_cast<llvm::GlobalVariable>(V))
-        Symbol = new AsmSymbol(AsmSymbol::SymbolKindGlobalVariable, NewName);
-    SymbolTable[V] = Symbol;
-    return Symbol;
+    if (auto* BB = llvm::dyn_cast<llvm::BasicBlock>(V)) {
+        SymbolTable[V] =
+            std::make_unique<AsmSymbol>(AsmSymbol::SymbolKindBasicBlock, NewName);
+    } else if (auto* F = llvm::dyn_cast<llvm::Function>(V)) {
+        SymbolTable[V] =
+            std::make_unique<AsmSymbol>(AsmSymbol::SymbolKindFunction, NewName);
+    } else if (auto* GV = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
+        SymbolTable[V] =
+            std::make_unique<AsmSymbol>(AsmSymbol::SymbolKindGlobalVariable, NewName);
+    } else {
+        llvm_unreachable("Unexpected AsmSymbol");
+    }
+    return SymbolTable[V].get();
 }
 
 }  // namespace remniw

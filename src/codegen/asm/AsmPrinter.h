@@ -23,22 +23,22 @@ public:
         OS(OS), AsmFunctions(AsmFunctions), GlobalVariables(GVs),
         GlobalCtors(GlobalCtors) {}
 
-    void print() {
+    void emitToStreamer() {
         for (auto *AsmFunc : AsmFunctions) {
-            EmitFunctionDeclaration(AsmFunc);
-            EmitFunctionBody(AsmFunc);
+            emitFunctionDeclaration(AsmFunc);
+            emitFunctionBody(AsmFunc);
         }
-        EmitGlobalVariables();
-        EmitInitArray();
+        emitGlobalVariables();
+        emitInitArray();
     }
 
-    virtual void EmitFunctionDeclaration(AsmFunction *F) = 0;
+    virtual void emitFunctionDeclaration(AsmFunction *F) = 0;
 
-    virtual void EmitFunctionBody(AsmFunction *F) = 0;
+    virtual void emitFunctionBody(AsmFunction *F) = 0;
 
-    virtual void EmitGlobalVariables() = 0;
+    virtual void emitGlobalVariables() = 0;
 
-    virtual void EmitInitArray() = 0;
+    virtual void emitInitArray() = 0;
 
     virtual void PrintAsmInstruction(const AsmInstruction &I,
                                      llvm::raw_ostream &OS) const = 0;

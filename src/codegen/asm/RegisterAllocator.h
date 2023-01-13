@@ -33,12 +33,12 @@ class LinearScanRegisterAllocator {
 private:
     const TargetInfo &TI;
     llvm::BumpPtrAllocator Alloc;
-    std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
+    std::priority_queue<LiveInterval *, llvm::SmallVector<LiveInterval *>,
                         LiveIntervalStartPointIncreasingOrderCompare>
         Unhandled;
-    std::vector<LiveInterval *> Fixed;
-    std::vector<LiveInterval *> Active;
-    std::vector<LiveInterval *> Spilled;
+    llvm::SmallVector<LiveInterval *> Fixed;
+    llvm::SmallVector<LiveInterval *> Active;
+    llvm::SmallVector<LiveInterval *> Spilled;
     llvm::SmallVector<bool> FreeRegisters;
     llvm::DenseMap<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
     uint32_t StackSlotIndex;
@@ -48,22 +48,13 @@ public:
         TI.getFreeRegistersForRegisterAllocator(FreeRegisters);
     }
 
-    ~LinearScanRegisterAllocator() {
-        // for (auto *LI : Fixed)
-        //     delete LI;
-        // for (auto *LI : Spilled)
-        //     delete LI;
-        // for (auto *LI : Active)
-        //     delete LI;
-    }
-
     void
-    LinearScan(const std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
+    doRegAlloc(const std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
         // Reset the internal states
         Alloc.Reset();
         Fixed.clear();
         Active.clear();
-        Spilled.clear()
+        Spilled.clear();
         VirtRegToAllocatedRegMap.clear();
         StackSlotIndex = 0;
         initIntervalSets(RegLiveRangesMap);
@@ -74,7 +65,7 @@ public:
             Unhandled.pop();
             std::sort(Active.begin(), Active.end(),
                       LiveIntervalEndPointIncreasingOrderCompare());
-            ExpireOldIntervals(LI);
+            expireOldIntervals(LI);
             uint32_t PhysReg = getFreePhysReg(LI);
             if (PhysReg != Register::NoRegister) {
                 FreeRegisters[PhysReg] = false;
@@ -92,15 +83,14 @@ public:
 
     std::size_t getSpilledRegCount() { return Spilled.size(); }
 
-    void dumpRegAllocResults() {
+    void printRegAllocResults() {
         for (auto p : VirtRegToAllocatedRegMap) {
-            llvm::outs() << "Virtual Register: " << p.first << " assigned "
-                         << p.second << "\n";
+            llvm::outs() << "Virtual Register: " << p.first << " assigned " << p.second
+                         << "\n";
         }
         for (auto LI : Fixed) {
-            llvm::outs() << "Fixed Physical Register: "
-                         << LI->Reg << ", [" << LI->StartPoint
-                         << "," << LI->EndPoint << ")"
+            llvm::outs() << "Fixed Physical Register: " << LI->Reg << ", ["
+                         << LI->StartPoint << "," << LI->EndPoint << ")"
                          << "\n";
         }
     }
@@ -110,20 +100,21 @@ private:
     initIntervalSets(const std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
         for (const auto &p : RegLiveRangesMap) {
             if (Register::isVirtualRegister(p.first)) {
-                Unhandled.push(new (Alloc) LiveInterval({p.second.Ranges.back().StartPoint,
-                                                 p.second.Ranges.back().EndPoint, p.first,
-                                                 p.second.Ranges.back().UsedAcrossCall}));
+                Unhandled.push(new (Alloc) LiveInterval(
+                    {p.second.Ranges.back().StartPoint, p.second.Ranges.back().EndPoint,
+                     p.first, p.second.Ranges.back().UsedAcrossCall}));
             }
             if (Register::isPhysicalRegister(p.first)) {
                 for (const auto &Range : p.second.Ranges) {
-                    Fixed.push_back(new (Alloc) LiveInterval({Range.StartPoint, Range.EndPoint,
+                    Fixed.push_back(new (Alloc)
+                                        LiveInterval({Range.StartPoint, Range.EndPoint,
                                                       p.first, Range.UsedAcrossCall}));
                 }
             }
         }
     }
 
-    void ExpireOldIntervals(LiveInterval *LI) {
+    void expireOldIntervals(LiveInterval *LI) {
         for (auto it = Active.begin(); it != Active.end();) {
             LiveInterval *ActiveLI = *it;
             if (ActiveLI->EndPoint > LI->StartPoint) {
@@ -133,7 +124,6 @@ private:
             if (Register::isPhysicalRegister(AllocatedReg)) {
                 FreeRegisters[AllocatedReg] = true;
             }
-            delete ActiveLI;
             it = Active.erase(it);
         }
     }

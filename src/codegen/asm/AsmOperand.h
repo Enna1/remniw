@@ -121,12 +121,12 @@ public:
         return Lbl.Symbol;
     }
 
-    // FIXME
     void print(llvm::raw_ostream& OS) const {
         switch (Kind) {
-        case Register: OS << (Reg.RegNo); break;
-        case Immediate: OS << "$" << Imm.Val; break;
+        case Register: OS << "REG: " << Reg.RegNo; break;
+        case Immediate: OS << "IMM: " << Imm.Val; break;
         case Memory:
+            OS << "MEM: ";
             if (Mem.Disp != 0)
                 OS << Mem.Disp;
             OS << "(";
@@ -138,7 +138,10 @@ public:
             }
             OS << ")";
             break;
-        case Label: Lbl.Symbol->print(OS); break;
+        case Label:
+            OS << "LABEL: ";
+            Lbl.Symbol->print(OS);
+            break;
         default: llvm_unreachable("Invalid AsmOperand");
         }
     }
