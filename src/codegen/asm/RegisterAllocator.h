@@ -4,6 +4,7 @@
 #include "codegen/asm/Register.h"
 #include "codegen/asm/TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/Debug.h"
 #include <algorithm>
 #include <queue>
@@ -31,7 +32,7 @@ struct LiveIntervalEndPointIncreasingOrderCompare
 class LinearScanRegisterAllocator {
 private:
     const TargetInfo &TI;
-    std::vector<LiveInterval *> LiveIntervals;
+    llvm::BumpPtrAllocator Alloc;
     std::priority_queue<LiveInterval *, std::vector<LiveInterval *>,
                         LiveIntervalStartPointIncreasingOrderCompare>
         Unhandled;
@@ -48,21 +49,23 @@ public:
     }
 
     ~LinearScanRegisterAllocator() {
-        for (auto *LI : Fixed)
-            delete LI;
-        for (auto *LI : Spilled)
-            delete LI;
-        for (auto *LI : Active)
-            delete LI;
+        // for (auto *LI : Fixed)
+        //     delete LI;
+        // for (auto *LI : Spilled)
+        //     delete LI;
+        // for (auto *LI : Active)
+        //     delete LI;
     }
 
     void
     LinearScan(const std::unordered_map<uint32_t, remniw::LiveRanges> &RegLiveRangesMap) {
         // Reset the internal states
-        StackSlotIndex = 0;
+        Alloc.Reset();
         Fixed.clear();
         Active.clear();
-        Spilled.clear();
+        Spilled.clear()
+        VirtRegToAllocatedRegMap.clear();
+        StackSlotIndex = 0;
         initIntervalSets(RegLiveRangesMap);
 
         // Do linear scan register allocation
@@ -107,13 +110,13 @@ private:
     initIntervalSets(const std::unordered_map<uint32_t, LiveRanges> &RegLiveRangesMap) {
         for (const auto &p : RegLiveRangesMap) {
             if (Register::isVirtualRegister(p.first)) {
-                Unhandled.push(new LiveInterval({p.second.Ranges.back().StartPoint,
+                Unhandled.push(new (Alloc) LiveInterval({p.second.Ranges.back().StartPoint,
                                                  p.second.Ranges.back().EndPoint, p.first,
                                                  p.second.Ranges.back().UsedAcrossCall}));
             }
             if (Register::isPhysicalRegister(p.first)) {
                 for (const auto &Range : p.second.Ranges) {
-                    Fixed.push_back(new LiveInterval({Range.StartPoint, Range.EndPoint,
+                    Fixed.push_back(new (Alloc) LiveInterval({Range.StartPoint, Range.EndPoint,
                                                       p.first, Range.UsedAcrossCall}));
                 }
             }

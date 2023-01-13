@@ -169,7 +169,7 @@ public:
     Type *getReturnType() const { return RetTy; }
 
 private:
-    std::vector<Type *> ParamTys;
+    llvm::ArrayRef<Type *> ParamTys;
     Type *RetTy;
 };
 

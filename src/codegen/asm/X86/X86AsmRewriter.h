@@ -193,7 +193,7 @@ private:
             // X86::CALL instruction is NumArgs.
             assert(I->getNumOperands() == 2 &&
                    "The #operands of X86::CALL instruction must be 2");
-            for (unsigned i = 0; i < I->getOperand(1).Imm.Val; ++i)
+            for (unsigned i = 0; i < I->getOperand(1).Imm.Val && i < X86::NumArgRegs; ++i)
                 UsedRegs.push_back(X86::ArgRegs[i]);
         }
         for (unsigned i = 0; i < I->getNumOperands(); ++i) {
