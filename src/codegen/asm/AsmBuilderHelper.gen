@@ -565,10 +565,10 @@ static void printDebugTree(BrgTreeNode *p, int indent=0) {
 namespace remniw {
 
 void AsmBuilder::buildAsmFunction(const BrgFunction *BrgFunc) {
-    CurrentFunction = new AsmFunction(BrgFunc->FuncName, BrgFunc->StackSizeInBytes);
-    AsmFunctions.push_back(CurrentFunction);
-
-    for (auto* RootNode: BrgFunc->Insts) {
+    AsmFunctions.push_back(
+        std::make_unique<AsmFunction>(BrgFunc->FuncName, BrgFunc->StackSizeInBytes));
+    CurrentFunction = AsmFunctions.back().get();
+    for (auto *RootNode : BrgFunc->Insts) {
         printDebugTree(RootNode);
         // FIXME: Label Instruction
         if (RootNode->getOp() == BrgTerm::Label)

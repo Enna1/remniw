@@ -23,12 +23,12 @@ public:
     AsmRewriter(const TargetInfo &TI): TI(TI), LSRA(TI) {}
     virtual ~AsmRewriter() = default;
 
-    void rewrite(llvm::SmallVector<AsmFunction *> &AsmFunctions) {
-        for (auto *F : AsmFunctions) {
+    void rewrite(llvm::SmallVector<std::unique_ptr<AsmFunction>> &AsmFunctions) {
+        for (auto &F : AsmFunctions) {
             if (F->empty())
                 continue;
 
-            CurrentFunction = F;
+            CurrentFunction = F.get();
             NumSpilledReg = 0;
             NumReversedStackSlotForReg = 0;
             MaxNumReversedStackSlotForReg = 0;
@@ -56,8 +56,8 @@ public:
                 if (TI.isCalleeSavedRegister(p.second))
                     UsedCalleeSavedRegs.push_back(p.second);
             }
-            insertPrologue(F, UsedCalleeSavedRegs);
-            insertEpilogue(F, UsedCalleeSavedRegs);
+            insertPrologue(CurrentFunction, UsedCalleeSavedRegs);
+            insertEpilogue(CurrentFunction, UsedCalleeSavedRegs);
         }
     }
 

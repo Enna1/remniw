@@ -25,17 +25,12 @@ namespace remniw {
 
 class AsmBuilder {
 private:
-    llvm::SmallVector<AsmFunction *> AsmFunctions;
+    llvm::SmallVector<std::unique_ptr<AsmFunction>> AsmFunctions;
     llvm::SmallVector<uint32_t> CurrentCallInstIndexes;
-    AsmFunction *CurrentFunction;
+    AsmFunction *CurrentFunction {nullptr};
 
 public:
-    AsmBuilder(): CurrentFunction(nullptr) {}
-
-    virtual ~AsmBuilder() {
-        for (auto *F : AsmFunctions)
-            delete F;
-    }
+    virtual ~AsmBuilder() = default;
 
     void build(const llvm::SmallVectorImpl<BrgFunction *> &BrgFunctions) {
         for (auto *BrgFunc : BrgFunctions) {
@@ -43,7 +38,7 @@ public:
             buildAsmFunction(BrgFunc);
         }
         LLVM_DEBUG({
-            for (auto *F : AsmFunctions)
+            for (auto &F : AsmFunctions)
                 F->print(llvm::outs());
         });
     }
@@ -52,7 +47,9 @@ public:
 
     void buildAsmFunction(const BrgFunction *);
 
-    llvm::SmallVector<AsmFunction *> &getAsmFunctions() { return AsmFunctions; }
+    llvm::SmallVector<std::unique_ptr<AsmFunction>> &getAsmFunctions() {
+        return AsmFunctions;
+    }
     llvm::SmallVector<uint32_t> &getCurrentCallInstIndexes() {
         return CurrentCallInstIndexes;
     };

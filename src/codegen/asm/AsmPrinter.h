@@ -17,14 +17,15 @@ public:
 
     llvm::raw_fd_ostream &outStreamer() { return *OS; }
 
-    void emitToStreamer(llvm::raw_fd_ostream &Out,
-                        const llvm::SmallVector<AsmFunction *> &AsmFunctions,
-                        const llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> &GVs,
-                        const llvm::SmallVector<llvm::Function *> &GlobalCtors) {
+    void
+    emitToStreamer(llvm::raw_fd_ostream &Out,
+                   const llvm::SmallVector<std::unique_ptr<AsmFunction>> &AsmFunctions,
+                   const llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> &GVs,
+                   const llvm::SmallVector<llvm::Function *> &GlobalCtors) {
         OS = &Out;
-        for (auto *AsmFunc : AsmFunctions) {
-            emitFunctionDeclaration(AsmFunc);
-            emitFunctionBody(AsmFunc);
+        for (const auto &AsmFunc : AsmFunctions) {
+            emitFunctionDeclaration(AsmFunc.get());
+            emitFunctionBody(AsmFunc.get());
         }
         emitGlobalVariables(GVs);
         emitInitArray(GlobalCtors);

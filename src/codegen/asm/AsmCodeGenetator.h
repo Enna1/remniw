@@ -29,7 +29,8 @@ public:
         AR->rewrite(AsmFunctions);
 
         // Emit assembly to file stream
-        AP->emitToStreamer(OS, AsmFunctions, BB->getConstantStrings(), BB->getGlobalCtors());
+        AP->emitToStreamer(OS, AsmFunctions, BB->getConstantStrings(),
+                           BB->getGlobalCtors());
     }
 
 private:
