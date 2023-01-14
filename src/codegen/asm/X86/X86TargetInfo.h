@@ -39,6 +39,8 @@ static_assert(Register::FirstPhysicalReg <= X86::RAX &&
                   X86::NUM_TARGET_REGS <= Register::FirstStackSlot,
               "Target registers ranges check failed");
 
+static constexpr unsigned RegisterSize = 8 /*bytes*/;
+
 static constexpr uint32_t CallerSavedRegs[] = {X86::RAX, X86::RDI, X86::RSI,
                                                X86::RDX, X86::RCX, X86::R8,
                                                X86::R9,  X86::R10, X86::R11};
@@ -85,7 +87,7 @@ enum {
 
 class X86TargetInfo: public TargetInfo {
 public:
-    unsigned getRegisterSize() const { return 8 /*bytes*/; }
+    unsigned getRegisterSize() const { return X86::RegisterSize; }
 
     bool isCallerSavedRegister(uint32_t Reg) const override {
         return X86::RAX <= Reg && Reg <= X86::R11;

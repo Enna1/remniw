@@ -13,6 +13,8 @@ enum Target {
 
 class TargetInfo {
 public:
+    virtual ~TargetInfo() = default;
+
     virtual unsigned getRegisterSize() const = 0;
 
     virtual bool isCallerSavedRegister(uint32_t Reg) const = 0;

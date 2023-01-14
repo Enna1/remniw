@@ -1,7 +1,7 @@
 #pragma once
 
-#include "codegen/asm/X86/X86TargetInfo.h"
 #include "codegen/asm/AsmRewriter.h"
+#include "codegen/asm/X86/X86TargetInfo.h"
 
 namespace remniw {
 
@@ -143,11 +143,13 @@ private:
 
         // Reserve space on the stack
         int64_t NeededStackSizeInBytes =
-            F->StackSizeInBytes + 8 * NumSpilledReg + 8 * MaxNumReversedStackSlotForReg;
-        int64_t TotalStackFrameSizeInBytes =
-            NeededStackSizeInBytes + 8 /*push $rbp*/ + 8 /*return address*/;
+            F->StackSizeInBytes + X86::RegisterSize * NumSpilledReg +
+            X86::RegisterSize * MaxNumReversedStackSlotForReg;
+        int64_t TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
+                                             X86::RegisterSize /*push $rbp*/ +
+                                             X86::RegisterSize /*return address*/;
         if (F->FuncName != "main")
-            TotalStackFrameSizeInBytes += UsedCalleeSavedRegs.size() * 8;
+            TotalStackFrameSizeInBytes += UsedCalleeSavedRegs.size() * X86::RegisterSize;
         // x86-64 / AMD64 System V ABI requires 16-byte stack alignment
         if (TotalStackFrameSizeInBytes % 16)
             NeededStackSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;

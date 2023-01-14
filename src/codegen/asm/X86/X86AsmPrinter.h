@@ -9,27 +9,27 @@ namespace remniw {
 
 class X86AsmPrinter: public AsmPrinter {
 public:
-    X86AsmPrinter(const TargetInfo &TI, llvm::raw_ostream &OS,
-                  llvm::SmallVector<AsmFunction *> &AsmFunctions,
-                  llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs,
-                  llvm::SmallVector<llvm::Function *> GlobalCtors):
-        AsmPrinter(TI, OS, AsmFunctions, GVs, GlobalCtors) {}
+    X86AsmPrinter(const TargetInfo &TI): AsmPrinter(TI) {}
 
-    void emitFunctionDeclaration(AsmFunction *F) override {
+    void emitFunctionDeclaration(const AsmFunction *F) override {
+        auto &OS = outStreamer();
         OS << ".text\n"
            << ".globl " << F->FuncName << "\n"
            << ".type " << F->FuncName << ", @function\n"
            << F->FuncName << ":\n";
     }
 
-    void emitFunctionBody(AsmFunction *F) override {
+    void emitFunctionBody(const AsmFunction *F) override {
+        auto &OS = outStreamer();
         for (auto &AsmInst : *F) {
             PrintAsmInstruction(AsmInst, OS);
         }
     }
 
-    void emitGlobalVariables() override {
-        for (auto p : GlobalVariables) {
+    void emitGlobalVariables(
+        const llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> &GVs) override {
+        auto &OS = outStreamer();
+        for (auto p : GVs) {
             p.first->print(OS);
             OS << ":\n";
             OS << "\t.asciz ";
@@ -39,7 +39,8 @@ public:
         }
     }
 
-    void emitInitArray() override {
+    void emitInitArray(const llvm::SmallVector<llvm::Function *> &GlobalCtors) override {
+        auto &OS = outStreamer();
         for (auto *F : GlobalCtors) {
             OS << ".section\t.init_array,\"aw\",@init_array\n";
             OS << ".p2align\t3\n";

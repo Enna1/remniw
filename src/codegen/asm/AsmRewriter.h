@@ -21,6 +21,7 @@ protected:
 
 public:
     AsmRewriter(const TargetInfo &TI): TI(TI), LSRA(TI) {}
+    virtual ~AsmRewriter() = default;
 
     void rewrite(llvm::SmallVector<AsmFunction *> &AsmFunctions) {
         for (auto *F : AsmFunctions) {
@@ -50,7 +51,7 @@ public:
                 rewriteAsmInstSpilledRegToStackSlot(&AsmInst, VirtToAllocRegMap);
 
             // Insert prologue and epilogue.
-            llvm::SmallVector<uint32_t, 8> UsedCalleeSavedRegs;
+            llvm::SmallVector<uint32_t> UsedCalleeSavedRegs;
             for (auto p : VirtToAllocRegMap) {
                 if (TI.isCalleeSavedRegister(p.second))
                     UsedCalleeSavedRegs.push_back(p.second);
@@ -90,13 +91,15 @@ public:
     int64_t getStackSlotOffsetForSpilledReg(uint32_t RegNo) {
         assert(Register::isStackSlot(RegNo) && "Must be StackSlot");
         uint32_t StackSlotIndex = Register::stackSlot2Index(RegNo);
-        return -(CurrentFunction->StackSizeInBytes + 8 * (StackSlotIndex + 1));
+        return -(CurrentFunction->StackSizeInBytes +
+                 TI.getRegisterSize() * (StackSlotIndex + 1));
     }
 
     int64_t getReservedStackSlotOffsetForReg() {
         NumReversedStackSlotForReg++;
-        int64_t Offset = -(CurrentFunction->StackSizeInBytes + 8 * NumSpilledReg +
-                           8 * NumReversedStackSlotForReg);
+        int64_t Offset =
+            -(CurrentFunction->StackSizeInBytes + TI.getRegisterSize() * NumSpilledReg +
+              TI.getRegisterSize() * NumReversedStackSlotForReg);
         return Offset;
     }
 

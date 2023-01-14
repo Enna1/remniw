@@ -314,7 +314,6 @@ private:
     llvm::DenseMap<llvm::Function *, BrgTreeNode *> FunctionToNodeMap;
     llvm::DenseMap<llvm::ConstantInt *, BrgTreeNode *> ConstantIntToNodeMap;
     llvm::DenseMap<uint64_t, BrgTreeNode *> ImmToNodeMap;
-    const llvm::DataLayout &DL;
     const TargetInfo &TI;
     AsmContext &AsmCtx;
     BrgFunction *CurrentFunction;
@@ -322,9 +321,9 @@ private:
     int64_t ExtraStackSizeForCallArgs;
 
 public:
-    BrgTreeBuilder(const llvm::DataLayout &DL, const TargetInfo &TI, AsmContext &AsmCtx):
-        DL(DL), TI(TI), AsmCtx(AsmCtx), CurrentFunction(nullptr),
-        CurrentFunctionStackSize(0), ExtraStackSizeForCallArgs(0) {}
+    BrgTreeBuilder(const TargetInfo &TI, AsmContext &AsmCtx):
+        TI(TI), AsmCtx(AsmCtx), CurrentFunction(nullptr), CurrentFunctionStackSize(0),
+        ExtraStackSizeForCallArgs(0) {}
 
     ~BrgTreeBuilder() {
         for (auto *F : Functions)
@@ -343,7 +342,7 @@ public:
         return ConstantStrings;
     }
 
-    llvm::SmallVector<BrgFunction *> getFunctions() { return Functions; }
+    const llvm::SmallVector<BrgFunction *> &getFunctions() { return Functions; }
 
     llvm::SmallVector<llvm::Function *> getGlobalCtors() { return GlobalCtors; }
 

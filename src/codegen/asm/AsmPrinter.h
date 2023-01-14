@@ -7,38 +7,38 @@
 namespace remniw {
 
 class AsmPrinter {
-protected:
+private:
     const TargetInfo &TI;
-    llvm::raw_ostream &OS;
-    llvm::SmallVector<AsmFunction *> &AsmFunctions;
-    llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GlobalVariables;
-    llvm::SmallVector<llvm::Function *> GlobalCtors;
+    llvm::raw_fd_ostream *OS;
 
 public:
-    AsmPrinter(const TargetInfo &TI, llvm::raw_ostream &OS,
-               llvm::SmallVector<AsmFunction *> &AsmFunctions,
-               llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs,
-               llvm::SmallVector<llvm::Function *> GlobalCtors):
-        TI(TI),
-        OS(OS), AsmFunctions(AsmFunctions), GlobalVariables(GVs),
-        GlobalCtors(GlobalCtors) {}
+    AsmPrinter(const TargetInfo &TI): TI(TI), OS(&llvm::outs()) {}
+    virtual ~AsmPrinter() = default;
 
-    void emitToStreamer() {
+    llvm::raw_fd_ostream &outStreamer() { return *OS; }
+
+    void emitToStreamer(llvm::raw_fd_ostream &Out,
+                        const llvm::SmallVector<AsmFunction *> &AsmFunctions,
+                        const llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> &GVs,
+                        const llvm::SmallVector<llvm::Function *> &GlobalCtors) {
+        OS = &Out;
         for (auto *AsmFunc : AsmFunctions) {
             emitFunctionDeclaration(AsmFunc);
             emitFunctionBody(AsmFunc);
         }
-        emitGlobalVariables();
-        emitInitArray();
+        emitGlobalVariables(GVs);
+        emitInitArray(GlobalCtors);
     }
 
-    virtual void emitFunctionDeclaration(AsmFunction *F) = 0;
+    virtual void emitFunctionDeclaration(const AsmFunction *F) = 0;
 
-    virtual void emitFunctionBody(AsmFunction *F) = 0;
+    virtual void emitFunctionBody(const AsmFunction *F) = 0;
 
-    virtual void emitGlobalVariables() = 0;
+    virtual void emitGlobalVariables(
+        const llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> &GVs) = 0;
 
-    virtual void emitInitArray() = 0;
+    virtual void
+    emitInitArray(const llvm::SmallVector<llvm::Function *> &GlobalCtors) = 0;
 
     virtual void PrintAsmInstruction(const AsmInstruction &I,
                                      llvm::raw_ostream &OS) const = 0;

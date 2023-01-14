@@ -32,6 +32,11 @@ private:
 public:
     AsmBuilder(): CurrentFunction(nullptr) {}
 
+    virtual ~AsmBuilder() {
+        for (auto *F : AsmFunctions)
+            delete F;
+    }
+
     void build(const llvm::SmallVectorImpl<BrgFunction *> &BrgFunctions) {
         for (auto *BrgFunc : BrgFunctions) {
             CurrentCallInstIndexes.clear();
@@ -41,11 +46,6 @@ public:
             for (auto *F : AsmFunctions)
                 F->print(llvm::outs());
         });
-    }
-
-    ~AsmBuilder() {
-        for (auto *F : AsmFunctions)
-            delete F;
     }
 
     virtual const TargetInfo &getTargetInfo() const = 0;
