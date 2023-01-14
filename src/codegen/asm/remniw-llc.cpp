@@ -1,4 +1,5 @@
-#include "AsmCodeGenetator.h"
+#include "codegen/asm/AsmCodeGenetator.h"
+#include "codegen/asm/TargetInfo.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
@@ -18,6 +19,12 @@ static llvm::cl::opt<std::string>
     OutputFilename("o", llvm::cl::desc("Override output filename"), llvm::cl::init("-"),
                    llvm::cl::value_desc("filename"));
 
+static llvm::cl::opt<remniw::Target> CodegenTarget(
+    llvm::cl::desc("Choose codegen target:"),
+    llvm::cl::values(clEnumVal(remniw::Target::x86, "emit X86 assembly"),
+                     clEnumVal(remniw::Target::riscv, "emit RISCV assembly")),
+    llvm::cl::init(remniw::Target::x86));
+
 int main(int argc, char *argv[]) {
     // parse arguments from command line
     llvm::cl::ParseCommandLineOptions(argc, argv, "remniw-llc\n");
@@ -29,8 +36,8 @@ int main(int argc, char *argv[]) {
 
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);
-
-    remniw::AsmCodeGenerator CG(M.get(), Out.os());
+    remniw::AsmCodeGenerator CG(CodegenTarget);
+    CG.compile(M.get(), Out.os());
     Out.keep();
 
     return 0;

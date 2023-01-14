@@ -1,5 +1,5 @@
-#include "ASTBuilder.h"
-#include "Type.h"
+#include "frontend/ASTBuilder.h"
+#include "frontend/Type.h"
 
 namespace remniw {
 

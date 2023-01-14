@@ -1,8 +1,8 @@
 #pragma once
 
-#include "RecursiveASTVisitor.h"
-#include "SymbolTable.h"
-#include "Type.h"
+#include "frontend/RecursiveASTVisitor.h"
+#include "frontend/Type.h"
+#include "semantic/SymbolTable.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Casting.h"
 #include <vector>

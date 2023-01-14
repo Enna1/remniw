@@ -4,8 +4,9 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
-#include <vector>
 
 namespace remniw {
 
@@ -155,7 +156,8 @@ private:
 class FunctionType: public Type {
 public:
     FunctionType(llvm::ArrayRef<Type *> ParamTys, Type *RetTy):
-        Type(TK_FUNCTIONTYPE, RetTy->getContext()), ParamTys(ParamTys), RetTy(RetTy) {}
+        Type(TK_FUNCTIONTYPE, RetTy->getContext()),
+        ParamTys(ParamTys.begin(), ParamTys.end()), RetTy(RetTy) {}
 
     FunctionType(const FunctionType &) = delete;
     FunctionType &operator=(const FunctionType &) = delete;
@@ -168,7 +170,7 @@ public:
     Type *getReturnType() const { return RetTy; }
 
 private:
-    std::vector<Type *> ParamTys;
+    llvm::SmallVector<Type *> ParamTys;
     Type *RetTy;
 };
 
@@ -222,21 +224,8 @@ struct FunctionTypeKeyInfo {
 class TypeContext {
 public:
     TypeContext(): IntTy(*this) {}
-    ~TypeContext() {
-        for (auto p : PointerTypes) {
-            delete p.second;
-        }
-        for (auto p : ArrayTypes) {
-            delete p.second;
-        }
-        for (auto *FT : FunctionTypes) {
-            delete FT;
-        }
-        for (auto *VarTy : VarTypes) {
-            delete VarTy;
-        }
-    }
 
+    llvm::BumpPtrAllocator Alloc;
     IntType IntTy;
     llvm::DenseMap<Type *, PointerType *> PointerTypes;
     llvm::DenseMap<std::pair<Type *, uint64_t>, ArrayType *> ArrayTypes;

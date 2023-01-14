@@ -6,7 +6,11 @@ defaults:
 
 on:
   push:
+    branches-ignore:
+      - "wip/**"
   pull_request:
+    branches-ignore: 
+      - "wip/**"
 
 jobs:
   build:

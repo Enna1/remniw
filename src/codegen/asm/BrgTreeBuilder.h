@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "AsmSymbol.h"
-#include "Register.h"
+#include "codegen/asm/AsmOperand.h"
+#include "codegen/asm/AsmSymbol.h"
+#include "codegen/asm/Register.h"
+#include "codegen/asm/TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -28,6 +30,7 @@ enum BrgTerm {
     Reg,
 #define HANDLE_INST(N, OPC, CLASS) OPC,
 #include "llvm/IR/Instruction.def"
+#undef HANDLE_INST
 };
 
 class BrgTreeNode {
@@ -42,25 +45,6 @@ public:
         LabelNode,
     };
 
-    struct RegOp {
-        uint32_t RegNo;
-    };
-
-    struct MemOp {
-        int64_t Disp;
-        uint32_t BaseReg;
-        uint32_t IndexReg;
-        uint32_t Scale;
-    };
-
-    struct ImmOp {
-        int64_t Val;
-    };
-
-    struct LabelOp {
-        remniw::AsmSymbol *Symbol;
-    };
-
 private:
     burm_state *State;
     KindTy Kind;
@@ -68,11 +52,11 @@ private:
     std::vector<BrgTreeNode *> Kids;
     bool ActionExecuted;
     union {
-        struct RegOp Reg;         // RegNode
-        struct MemOp Mem;         // MemNode
-        struct ImmOp Imm;         // ImmNode
-        struct LabelOp Label;     // LabelNode
-        llvm::Instruction *Inst;  // InstNode
+        remniw::AsmOperand::RegOp Reg;      // RegNode
+        remniw::AsmOperand::MemOp Mem;      // MemNode
+        remniw::AsmOperand::ImmOp Imm;      // ImmNode
+        remniw::AsmOperand::LabelOp Label;  // LabelNode
+        llvm::Instruction *Inst;            // InstNode
     };
 
     BrgTreeNode(KindTy Kind, int Op): Kind(Kind), Op(Op), ActionExecuted(false) {}
@@ -129,7 +113,6 @@ public:
     static BrgTreeNode *createInstNode(llvm::Instruction *I,
                                        std::vector<BrgTreeNode *> Kids) {
         switch (I->getOpcode()) {
-            // Build the switch statement using the Instruction.def file...
 #define HANDLE_INST(NUM, OPCODE, CLASS)                                                  \
     case llvm::Instruction::OPCODE: {                                                    \
         auto *Ret = new BrgTreeNode(KindTy::InstNode, BrgTerm::OPCODE, Kids);            \
@@ -137,6 +120,7 @@ public:
         return Ret;                                                                      \
     }
 #include "llvm/IR/Instruction.def"
+#undef HANDLE_INST
         }
         llvm_unreachable("Unknown instruction type encountered");
         return nullptr;
@@ -148,8 +132,7 @@ public:
         return Ret;
     }
 
-    static BrgTreeNode *createMemNode(int64_t Offset,
-                                      uint32_t BaseReg = remniw::Register::RBP,
+    static BrgTreeNode *createMemNode(int64_t Offset, uint32_t BaseReg,
                                       uint32_t IndexReg = remniw::Register::NoRegister,
                                       uint32_t Scale = 1) {
         auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca);
@@ -177,14 +160,44 @@ public:
         return Inst;
     }
 
-    uint32_t getReg() {
+    remniw::AsmOperand::RegOp getAsAsmOperandReg() {
+        assert(Kind == KindTy::RegNode && "Not a RegNode");
+        return Reg;
+    }
+
+    remniw::AsmOperand::MemOp getAsAsmOperandMem() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem;
+    }
+
+    remniw::AsmOperand::ImmOp getAsAsmOperandImm() {
+        assert(Kind == KindTy::ImmNode && "Not a ImmNode");
+        return Imm;
+    }
+
+    remniw::AsmOperand::LabelOp getAsAsmOperandLabel() {
+        assert(Kind == KindTy::LabelNode && "Not a LabelNode");
+        return Label;
+    }
+
+    uint32_t getRegNo() {
         assert(Kind == KindTy::RegNode && "Not a RegNode");
         return Reg.RegNo;
     }
 
-    void setReg(uint32_t RegNo) {
-        Kind = KindTy::RegNode;
+    void setRegNo(uint32_t RegNo) {
+        assert(Kind == KindTy::RegNode && "Not a RegNode");
         Reg.RegNo = RegNo;
+    }
+
+    void setReg(remniw::AsmOperand::RegOp R) {
+        Kind = KindTy::RegNode;
+        Reg = R;
+    }
+
+    remniw::AsmOperand::MemOp getMem() {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        return Mem;
     }
 
     int64_t getMemDisp() {
@@ -207,14 +220,29 @@ public:
         return Mem.Scale;
     }
 
-    void setMemNode(int64_t Offset, uint32_t BaseReg = remniw::Register::RBP,
-                    uint32_t IndexReg = remniw::Register::NoRegister,
-                    uint32_t Scale = 1) {
-        Kind = KindTy::MemNode;
-        Mem.Disp = Offset;
+    void setMemDisp(int64_t Disp) {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
+        Mem.Disp = Disp;
+    }
+
+    void setMemBaseReg(uint32_t BaseReg) {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
         Mem.BaseReg = BaseReg;
+    }
+
+    void setMemIndexReg(uint32_t IndexReg) {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
         Mem.IndexReg = IndexReg;
+    }
+
+    void setMemScale(uint32_t Scale) {
+        assert(Kind == KindTy::MemNode && "Not a MemNode");
         Mem.Scale = Scale;
+    }
+
+    void setMem(remniw::AsmOperand::MemOp M) {
+        Kind = KindTy::MemNode;
+        Mem = M;
     }
 
     int64_t getImmVal() {
@@ -237,8 +265,6 @@ typedef BrgTreeNode *NODEPTR;
 #define DEFAULT_COST    break
 #define OP_LABEL(p)     ((p)->getOp())
 #define NO_ACTION(x)
-
-/** ================= Cost =================== **/
 
 struct COST {
     COST(int cost): cost(cost) {}
@@ -288,14 +314,16 @@ private:
     llvm::DenseMap<llvm::Function *, BrgTreeNode *> FunctionToNodeMap;
     llvm::DenseMap<llvm::ConstantInt *, BrgTreeNode *> ConstantIntToNodeMap;
     llvm::DenseMap<uint64_t, BrgTreeNode *> ImmToNodeMap;
-    const llvm::DataLayout &DL;
+    const TargetInfo &TI;
     AsmContext &AsmCtx;
-    int64_t Offset;  // clear per function
     BrgFunction *CurrentFunction;
+    int64_t CurrentFunctionStackSize;
+    int64_t ExtraStackSizeForCallArgs;
 
 public:
-    BrgTreeBuilder(const llvm::DataLayout &DL, AsmContext &AsmCtx):
-        DL(DL), AsmCtx(AsmCtx), Offset(0), CurrentFunction(nullptr) {}
+    BrgTreeBuilder(const TargetInfo &TI, AsmContext &AsmCtx):
+        TI(TI), AsmCtx(AsmCtx), CurrentFunction(nullptr), CurrentFunctionStackSize(0),
+        ExtraStackSizeForCallArgs(0) {}
 
     ~BrgTreeBuilder() {
         for (auto *F : Functions)
@@ -314,9 +342,11 @@ public:
         return ConstantStrings;
     }
 
-    llvm::SmallVector<BrgFunction *> getFunctions() { return Functions; }
+    const llvm::SmallVector<BrgFunction *> &getFunctions() { return Functions; }
 
     llvm::SmallVector<llvm::Function *> getGlobalCtors() { return GlobalCtors; }
+
+    void build(llvm::Module &M) { visit(M); }
 
     template<class Iterator>
     void visit(Iterator Start, Iterator End) {
@@ -349,23 +379,35 @@ public:
 
         Functions.push_back(new BrgFunction(F.getName().str()));
         CurrentFunction = Functions.back();
-        Offset = 0;
+        CurrentFunctionStackSize = 0;
+        ExtraStackSizeForCallArgs = 0;
 
+        // Note: assuming stack frame layout, pushed ret addr on stack and pushed frame
+        // pointer on stack. See AsmRewriter::insertPrologue() and
+        // AsmRewriter::insertEpilogue().
+        int64_t FuncArgOffsetFromFramePointer = TI.getRegisterSize() * 2;
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
+            llvm::Type *Ty = F.getArg(i)->getType();
+            uint64_t SizeInBytes = F.getParent()->getDataLayout().getTypeAllocSize(Ty);
+            assert(Ty->isIntOrPtrTy() &&
+                   "Funtion argument must be integerType or PointerType as ");
+            assert(SizeInBytes <= TI.getRegisterSize() &&
+                   "Size of function argument must be less or equal than register size");
             BrgTreeNode *ArgNode;
-            if (i < 6) {
-                ArgNode = BrgTreeNode::createRegNode(Register::ArgRegs[i]);
+            unsigned NumArgRegs = TI.getNumArgRegisters();
+            llvm::ArrayRef<uint32_t> ArgRegs = TI.getArgRegisters();
+            if (i < NumArgRegs) {
+                ArgNode = BrgTreeNode::createRegNode(ArgRegs[i]);
             } else {
-                llvm::Type *Ty = F.getArg(i)->getType();
-                uint64_t SizeInBytes =
-                    F.getParent()->getDataLayout().getTypeAllocSize(Ty);
-                ArgNode = BrgTreeNode::createMemNode(8 * (i - 6 + 2));
+                ArgNode = BrgTreeNode::createMemNode(FuncArgOffsetFromFramePointer,
+                                                     TI.getFramePointerRegister(),
+                                                     Register::NoRegister, 1);
+                FuncArgOffsetFromFramePointer += SizeInBytes;
             }
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
 
-        // body
         for (auto &BB : F) {
             CurrentFunction->Insts.push_back(getBrgNodeForValue(&BB));
             for (auto &I : BB) {
@@ -374,13 +416,17 @@ public:
             }
         }
 
-        CurrentFunction->StackSizeInBytes = -Offset;
+        CurrentFunction->StackSizeInBytes =
+            CurrentFunctionStackSize + ExtraStackSizeForCallArgs;
     }
 
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
-        Offset -= AllocaSizeInBytes;
-        auto *InstNode = BrgTreeNode::createMemNode(Offset);
+        CurrentFunctionStackSize += AllocaSizeInBytes;
+        int64_t OffsetFromFramePointer = 0 - CurrentFunctionStackSize;
+        auto *InstNode = BrgTreeNode::createMemNode(OffsetFromFramePointer,
+                                                    TI.getFramePointerRegister(),
+                                                    remniw::Register::NoRegister, 1);
         CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
     }
@@ -423,20 +469,23 @@ public:
             {BrgTreeNode::getUndefNode(), BrgTreeNode::getUndefNode()});
         CurrentFunction->TmpArgNode.push_back(Args);
         BrgTreeNode *CurrentNode = Args;
+        int64_t NeededStackSizeForCallArgs = 0;
         for (unsigned i = 0, e = CI.arg_size(); i != e; ++i) {
             BrgTreeNode *ArgsTmp = BrgTreeNode::createArgsNode(
                 {BrgTreeNode::getUndefNode(), BrgTreeNode::getUndefNode()});
             CurrentFunction->TmpArgNode.push_back(ArgsTmp);
             CurrentNode->setKids({getBrgNodeForValue(CI.getArgOperand(i)), ArgsTmp});
             CurrentNode = ArgsTmp;
-            if (i >= 6)  // push arg on stack
+            if (i >= TI.getNumArgRegisters())  // push arg on stack
             {
                 llvm::Type *Ty = CI.getArgOperand(i)->getType();
                 uint64_t SizeInBytes =
                     CI.getModule()->getDataLayout().getTypeAllocSize(Ty);
-                Offset -= SizeInBytes;
+                NeededStackSizeForCallArgs += SizeInBytes;
             }
         }
+        if (NeededStackSizeForCallArgs > ExtraStackSizeForCallArgs)
+            ExtraStackSizeForCallArgs = NeededStackSizeForCallArgs;
         BrgTreeNode *InstNode;
         if (auto *Callee = CI.getCalledFunction()) {
             // direct call

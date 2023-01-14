@@ -1,4 +1,4 @@
-#include "Type.h"
+#include "frontend/Type.h"
 #include "llvm/Support/Casting.h"
 
 namespace remniw {
@@ -67,7 +67,7 @@ VarType *VarType::get(const ASTNode *DeclNode, TypeContext &C) {
     VarType *VarTy;
     auto Insertion = C.VarTypes.insert_as(nullptr, Key);
     if (Insertion.second) {
-        VarTy = new VarType(DeclNode, C);
+        VarTy = new (C.Alloc) VarType(DeclNode, C);
         *Insertion.first = VarTy;
     } else {
         VarTy = *Insertion.first;
@@ -81,22 +81,17 @@ IntType *IntType::get(TypeContext &C) {
 
 PointerType *PointerType::get(Type *EltTy) {
     TypeContext &C = EltTy->getContext();
-
-    if (C.PointerTypes.count(EltTy))
-        return C.PointerTypes[EltTy];
-
-    PointerType *Entry = new PointerType(EltTy);
-    C.PointerTypes[EltTy] = Entry;
+    PointerType *&Entry = C.PointerTypes[EltTy];
+    if (!Entry)
+        Entry = new (C.Alloc) PointerType(EltTy);
     return Entry;
 }
 
 ArrayType *ArrayType::get(Type *EltTy, uint64_t NumEl) {
     TypeContext &C = EltTy->getContext();
-
     ArrayType *&Entry = C.ArrayTypes[std::make_pair(EltTy, NumEl)];
-
     if (!Entry)
-        Entry = new ArrayType(EltTy, NumEl);
+        Entry = new (C.Alloc) ArrayType(EltTy, NumEl);
     return Entry;
 }
 
@@ -106,7 +101,7 @@ FunctionType *FunctionType::get(llvm::ArrayRef<Type *> Params, Type *ReturnType)
     FunctionType *FT;
     auto Insertion = C.FunctionTypes.insert_as(nullptr, Key);
     if (Insertion.second) {
-        FT = new FunctionType(Params, ReturnType);
+        FT = new (C.Alloc) FunctionType(Params, ReturnType);
         *Insertion.first = FT;
     } else {
         FT = *Insertion.first;

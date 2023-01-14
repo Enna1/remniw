@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AsmFunction.h"
+#include "codegen/asm/AsmFunction.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Function.h"
 
@@ -8,60 +8,45 @@ namespace remniw {
 
 class AsmPrinter {
 private:
-    llvm::raw_ostream &OS;
-    llvm::SmallVector<AsmFunction *> AsmFunctions;
-    llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GlobalVariables;
-    llvm::SmallVector<llvm::Function *> GlobalCtors;
+    const TargetInfo &TI;
+    llvm::raw_fd_ostream *OS;
 
 public:
-    AsmPrinter(llvm::raw_ostream &OS,
-               llvm::SmallVector<AsmFunction *> AsmFunctions,
-               llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> GVs,
-               llvm::SmallVector<llvm::Function *> GlobalCtors):
-        OS(OS),
-        AsmFunctions(AsmFunctions), GlobalVariables(GVs), GlobalCtors(GlobalCtors) {}
+    AsmPrinter(const TargetInfo &TI): TI(TI), OS(&llvm::outs()) {}
+    virtual ~AsmPrinter() = default;
 
-    void print() {
-        for (auto &AsmFunc : AsmFunctions) {
-            EmitFunctionDeclaration(AsmFunc);
-            EmitFunctionBody(AsmFunc);
+    llvm::raw_fd_ostream &outStreamer() { return *OS; }
+
+    void
+    emitToStreamer(llvm::raw_fd_ostream &Out,
+                   const llvm::SmallVector<std::unique_ptr<AsmFunction>> &AsmFunctions,
+                   const llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> &GVs,
+                   const llvm::SmallVector<llvm::Function *> &GlobalCtors) {
+        OS = &Out;
+        for (const auto &AsmFunc : AsmFunctions) {
+            emitFunctionDeclaration(AsmFunc.get());
+            emitFunctionBody(AsmFunc.get());
         }
-        EmitGlobalVariables();
-        EmitInitArray();
+        emitGlobalVariables(GVs);
+        emitInitArray(GlobalCtors);
     }
 
-    void EmitFunctionDeclaration(AsmFunction *F) {
-        // FIXME
-        OS << ".text\n"
-           << ".globl " << F->FuncName << "\n"
-           << ".type " << F->FuncName << ", @function\n"
-           << F->FuncName << ":\n";
-    }
+    virtual void emitFunctionDeclaration(const AsmFunction *F) = 0;
 
-    void EmitFunctionBody(AsmFunction *F) {
-        for (auto &AsmInst : *F) {
-            AsmInst.print(OS);
-        }
-    }
+    virtual void emitFunctionBody(const AsmFunction *F) = 0;
 
-    void EmitGlobalVariables() {
-        for (auto p : GlobalVariables) {
-            p.first->print(OS);
-            OS << ":\n";
-            OS << "\t.asciz ";
-            OS << "\"";
-            OS.write_escaped(p.second);
-            OS << "\"\n";
-        }
-    }
+    virtual void emitGlobalVariables(
+        const llvm::DenseMap<remniw::AsmSymbol *, llvm::StringRef> &GVs) = 0;
 
-    void EmitInitArray() {
-        for (auto *F : GlobalCtors) {
-            OS << ".section\t.init_array,\"aw\",@init_array\n";
-            OS << ".p2align\t3\n";
-            OS << ".quad\t" << F->getName() << "\n";
-        }
-    }
+    virtual void
+    emitInitArray(const llvm::SmallVector<llvm::Function *> &GlobalCtors) = 0;
+
+    virtual void PrintAsmInstruction(const AsmInstruction &I,
+                                     llvm::raw_ostream &OS) const = 0;
+
+    virtual void PrintAsmOperand(const AsmOperand &Op, llvm::raw_ostream &OS) const = 0;
+
+    virtual void PrintRegister(uint32_t Reg, llvm::raw_ostream &OS) const = 0;
 };
 
 }  // namespace remniw

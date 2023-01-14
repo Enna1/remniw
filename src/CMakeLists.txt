@@ -16,12 +16,6 @@ target_link_libraries(remniw PRIVATE frontend
                                      antlr4_static
                                      ${llvm_libs}
 )
-target_include_directories(remniw PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/frontend
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/semantic
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/codegen/asm
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/codegen/ir
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/optimizer
-)
 
 # runtime
 add_subdirectory(runtime)

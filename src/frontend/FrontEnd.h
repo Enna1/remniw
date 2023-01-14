@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AST.h"
+#include "frontend/AST.h"
 
 namespace remniw {
 

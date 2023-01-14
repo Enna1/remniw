@@ -1,5 +1,5 @@
-#include "IRCodeGeneratorImpl.h"
-#include "AST.h"
+#include "codegen/ir/IRCodeGeneratorImpl.h"
+#include "frontend/AST.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"

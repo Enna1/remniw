@@ -11,8 +11,7 @@ namespace remniw {
 
 struct AsmOperand {
 public:
-    enum KindTy
-    {
+    enum KindTy {
         Register,
         Memory,
         Immediate,
@@ -45,37 +44,30 @@ public:
         struct LabelOp Lbl;
     };
 
-    AsmOperand(KindTy Kind): Kind(Kind) {}
+    AsmOperand(RegOp Reg): Kind(KindTy::Register), Reg(Reg) {}
+    AsmOperand(MemOp Mem): Kind(KindTy::Memory), Mem(Mem) {}
+    AsmOperand(ImmOp Imm): Kind(KindTy::Immediate), Imm(Imm) {}
+    AsmOperand(LabelOp Lbl): Kind(KindTy::Label), Lbl(Lbl) {}
 
-    static std::unique_ptr<AsmOperand> createReg(uint32_t RegNo) {
-        auto Res = std::make_unique<AsmOperand>(KindTy::Register);
-        Res->Reg.RegNo = RegNo;
-        return Res;
+    static AsmOperand::RegOp createReg(uint32_t RegNo) { return {RegNo}; }
+
+    static AsmOperand::ImmOp createImm(int64_t Val) { return {Val}; }
+
+    static AsmOperand::MemOp createMem(int64_t Disp, uint32_t BaseReg,
+                                       uint32_t IndexReg = Register::NoRegister,
+                                       uint32_t Scale = 1) {
+        return {Disp, BaseReg, IndexReg, Scale};
     }
 
-    static std::unique_ptr<AsmOperand> createImm(int64_t Val) {
-        auto Res = std::make_unique<AsmOperand>(KindTy::Immediate);
-        Res->Imm.Val = Val;
-        return Res;
-    }
+    static AsmOperand::LabelOp createLabel(AsmSymbol* Symbol) { return {Symbol}; }
 
-    static std::unique_ptr<AsmOperand> createMem(int64_t Disp,
-                                                 uint32_t BaseReg = Register::RBP,
-                                                 uint32_t IndexReg = Register::NoRegister,
-                                                 uint32_t Scale = 1) {
-        auto Res = std::make_unique<AsmOperand>(KindTy::Memory);
-        Res->Mem.Disp = Disp;
-        Res->Mem.BaseReg = BaseReg;
-        Res->Mem.IndexReg = IndexReg;
-        Res->Mem.Scale = Scale;
-        return Res;
-    }
+    static AsmOperand create(AsmOperand::RegOp Reg) { return {Reg}; }
 
-    static std::unique_ptr<AsmOperand> createLabel(AsmSymbol* Symbol) {
-        auto Res = std::make_unique<AsmOperand>(KindTy::Label);
-        Res->Lbl.Symbol = Symbol;
-        return Res;
-    }
+    static AsmOperand create(AsmOperand::ImmOp Imm) { return {Imm}; }
+
+    static AsmOperand create(AsmOperand::MemOp Mem) { return {Mem}; }
+
+    static AsmOperand create(AsmOperand::LabelOp Lbl) { return {Lbl}; }
 
     std::unique_ptr<AsmOperand> clone() { return std::make_unique<AsmOperand>(*this); }
 
@@ -131,21 +123,25 @@ public:
 
     void print(llvm::raw_ostream& OS) const {
         switch (Kind) {
-        case Register: OS << Register::convertRegisterToString(Reg.RegNo); break;
-        case Immediate: OS << "$" << Imm.Val; break;
+        case Register: OS << "REG: " << Reg.RegNo; break;
+        case Immediate: OS << "IMM: " << Imm.Val; break;
         case Memory:
+            OS << "MEM: ";
             if (Mem.Disp != 0)
                 OS << Mem.Disp;
             OS << "(";
             if (Mem.BaseReg)
-                OS << Register::convertRegisterToString(Mem.BaseReg);
+                OS << (Mem.BaseReg);
             if (Mem.IndexReg) {
-                OS << ", " << Register::convertRegisterToString(Mem.IndexReg);
+                OS << ", " << (Mem.IndexReg);
                 OS << ", " << Mem.Scale;
             }
             OS << ")";
             break;
-        case Label: Lbl.Symbol->print(OS); break;
+        case Label:
+            OS << "LABEL: ";
+            Lbl.Symbol->print(OS);
+            break;
         default: llvm_unreachable("Invalid AsmOperand");
         }
     }
