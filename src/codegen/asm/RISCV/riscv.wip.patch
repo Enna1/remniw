@@ -1,0 +1,1375 @@
+commit e419fcfe8d373525ee37a40f1e087d11f98123b5
+Author: Enna1 <xumingjie1995@outlook.com>
+Date:   Sat Dec 24 16:07:42 2022 +0800
+
+    wip
+
+diff --git a/src/codegen/asm/AsmRewriter.h b/src/codegen/asm/AsmRewriter.h
+index 15b7b4a..bb91ce6 100644
+--- a/src/codegen/asm/AsmRewriter.h
++++ b/src/codegen/asm/AsmRewriter.h
+@@ -261,6 +261,7 @@ private:
+         }
+     }
+ 
++    // TODO: 应该用 AsmInstruction Visitor 模式重写
+     void rewriteAsmInstVirtRegToPhysReg(
+         AsmInstruction *AsmInst,
+         std::unordered_map<uint32_t, uint32_t> &VirtRegToAllocatedRegMap) {
+diff --git a/src/codegen/asm/RISCV64/AsmBuilder.h.rv64 b/src/codegen/asm/RISCV64/AsmBuilder.h.rv64
+new file mode 100644
+index 0000000..c7dc990
+--- /dev/null
++++ b/src/codegen/asm/RISCV64/AsmBuilder.h.rv64
+@@ -0,0 +1,606 @@
++#include "AsmContext.h"
++#include "AsmFunction.h"
++#include "AsmInstruction.h"
++#include "BrgTreeBuilder.h"
++#include "LiveInterval.h"
++#include "Register.h"
++#include "llvm/ADT/DenseMap.h"
++#include "llvm/ADT/SmallVector.h"
++#include "llvm/IR/Constants.h"
++#include "llvm/IR/Function.h"
++#include "llvm/IR/InstIterator.h"
++#include "llvm/IR/InstVisitor.h"
++#include "llvm/IR/Instructions.h"
++#include "llvm/Support/Debug.h"
++#include <unordered_map>
++#include <vector>
++
++class AsmBuilder {
++    // li is a pseudo-instruction, rely assembler expands it to multiple instructions.
++    void handleLoadImmToReg(uint32_t SrcImm, uint32_t DstReg) {
++        RISCV64::LIInst::create(/* source immeidate */ AsmOperand::createImm(SrcImm),
++                                /* destination register*/ AsmOperand::createReg(DstReg),
++                                CurrentFunction);
++    }
++
++    void handleLoadMemToReg(uint32_t SrcMemDisp, uint32_t SrcMemBaseReg,
++                            uint32_t SrcMemIndexReg, uint32_t SrcMemScale,
++                            uint32_t DstReg) {
++        if (SrcMemIndexReg != Register::NoRegister) {
++            uint32_t LIDstReg = remniw::Register::createVirtReg();
++            // MemScale
++            auto *LI = RISCV64::LIInst::create(
++                /* source immediate */ AsmOperand::createImm(SrcMemScale),
++                /* destination register */ AsmOperand::createReg(LIDstReg),
++                CurrentFunction);
++            // MemIndex * MemScale
++            auto *MI = RISCV64::MULInst::create(
++                /* source register 1 */ AsmOperand::createReg(SrcMemIndexReg),
++                /* source register 2 */ AsmOperand::createReg(LIDstReg),
++                /* destination register */ AsmOperand::createReg(SrcMemIndexReg),
++                CurrentFunction);
++            // MemBase + MemIndex * MemScale
++            auto *AI = RISCV64::ADDInst::create(
++                /* source register 1 */ AsmOperand::createReg(SrcMemBaseReg),
++                /* source register 2 */ AsmOperand::createReg(SrcMemIndexReg),
++                /* destination register */ AsmOperand::createReg(SrcMemBaseReg),
++                CurrentFunction);
++        }
++        uint32_t LDDstReg = remniw::Register::createVirtReg();
++        auto *I = RISCV64::LDInst::create(
++            /* source register 1 and offset*/ AsmOperand::createMem(MemDisp, MemBaseReg),
++            /* destination register */ AsmOperand::createReg(LDDstReg), CurrentFunction);
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleLoadRegToReg(uint32_t SrcReg, uint32_t DstReg) {
++        updateRegLiveRanges(SrcReg);
++        updateRegLiveRanges(DstReg);
++        auto *I = RISCV64::LDInst::create(
++            /* destination register */ DstReg,
++            /* source register 1 */ SrcReg,
++            /* offset */ 0, CurrentFunction);
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleRetReg(uint32_t Reg) {
++        updateRegLiveRanges(Reg);
++        auto *I = AsmMVInst::create(
++            /* destination register */ remniw::Register::a0,
++            /* source register 1 */ Ret, CurrentFunction);
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleRetImm(uint32_t Imm) {
++        auto *I = AsmLIInst::create(
++            /* destination register */ remniw::Register::a0,
++            /* immediate */ Imm, CurrentFunction);
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleStoreRegToMem(uint32_t Reg, uint32_t MemDisp, uint32_t MemBaseReg,
++                             uint32_t MemIndexReg, uint32_t MemScale) {
++        if (MemIndexReg != Register::NoRegister) {
++            uint32_t LiDstReg = remniw::Register::createVirtReg();
++            // MemScale
++            auto *LI = RISCV64::LIInst::create(
++                /* destination register */ AsmOperand::createReg(LiDstReg),
++                /* immediate */ AsmOperand::createImm(MemScale), CurrentFunction);
++            // MemIndex * MemScale
++            auto *MI = RISCV64::MULInst::create(
++                /* destination register */ AsmOperand::createReg(MemIndexReg),
++                /* source register 1 */ AsmOperand::createReg(MemIndexReg),
++                /* source register 2 */ AsmOperand::createReg(LiDstReg), CurrentFunction);
++            // MemBase + MemIndex * MemScale
++            auto *AI = RISCV64::ADDInst::create(
++                /* destination register */ AsmOperand::createReg(MemBaseReg),
++                /* source register 1 */ AsmOperand::createReg(MemBaseReg),
++                /* source register 2 */ AsmOperand::createReg(MemIndexReg),
++                CurrentFunction);
++        }
++        auto *I = RISCV64::SDInst::create(
++            /* source register */ AsmOperand::createReg(Reg),
++            /* destination base register and offset*/
++            AsmOperand::createMem(MemDisp, MemBaseReg), CurrentFunction);
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleStoreRegToReg(uint32_t SrcReg, uint32_t DstReg) {
++        auto *I = RISCV64::SDInst::create(remniw::AsmOperand::createReg(SrcReg),
++                                          remniw::AsmOperand::createMem(0, DstReg));
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleStoreImmToReg(uint32_t Imm, uint32_t DstReg) {
++        auto *I = RISCV64::SDInst::create(remniw::AsmOperand::createImm(Imm),
++                                          remniw::AsmOperand::createMem(0, DstReg));
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleStoreImmToMem(uint32_t Imm, uint32_t MemDisp, uint32_t MemBaseReg,
++                             uint32_t MemIndexReg, uint32_t MemScale) {
++        uint32_t VirtReg = remniw::Register::createVirtReg();
++        auto *LI =
++            RISCV64::LIInst::create(/* source */ remniw::AsmOperand::createImm(Imm),
++                                    /* dest */ remniw::AsmOperand::createReg(VirtReg));
++        if (MemIndexReg != Register::NoRegister) {
++            uint32_t LiDstReg = remniw::Register::createVirtReg();
++            // MemScale
++            auto *LI = RISCV64::LIInst::create(
++                /* destination register */ AsmOperand::createReg(LiDstReg),
++                /* immediate */ AsmOperand::createImm(MemScale), CurrentFunction);
++            // MemIndex * MemScale
++            auto *MI = RISCV64::MULInst::create(
++                /* destination register */ AsmOperand::createReg(MemIndexReg),
++                /* source register 1 */ AsmOperand::createReg(MemIndexReg),
++                /* source register 2 */ AsmOperand::createReg(LiDstReg), CurrentFunction);
++            // MemBase + MemIndex * MemScale
++            auto *AI = RISCV64::ADDInst::create(
++                /* destination register */ AsmOperand::createReg(MemBaseReg),
++                /* source register 1 */ AsmOperand::createReg(MemBaseReg),
++                /* source register 2 */ AsmOperand::createReg(MemIndexReg),
++                CurrentFunction);
++        }
++        auto *SD = RISCV64::SDInst::create(
++            /* source */ remniw::AsmOperand::createReg(VirtReg),
++            /* dest */ remniw::AsmOperand::createMem(MemDisp, MemBaseReg));
++        LLVM_DEBUG({
++            llvm::outs() << CurrentFunction->size();
++            I->print(llvm::outs());
++        });
++    }
++
++    void handleStoreMemToMem(uint32_t SrcMemDisp, uint32_t SrcMemBaseReg,
++                             uint32_t SrcMemIndexReg, uint32_t SrcMemScale,
++                             uint32_t DstMemDisp, uint32_t DstMemBaseReg,
++                             uint32_t DstMemIndexReg, uint32_t DstMemScale) {
++        // Prepare source mem op
++        lowerMemoryOperand(SrcMemDisp, SrcMemBaseReg, SrcMemIndexReg, SrcMemScale);
++        auto *AI = RISCV64::ADDIInst::create(
++            /* destination register */ AsmOperand::createReg(SrcMemBaseReg),
++            /* source register 1 */ AsmOperand::createReg(SrcMemBaseReg),
++            /* Immediate data */ AsmOperand::createImm(SrcMemDisp), CurrentFunction);
++
++        // Prepare dest mem op
++        lowerMemoryOperand(DstMemDisp, DstMemBaseReg, DstMemIndexReg, DstMemScale);
++        auto *SD = RISCV64::SDInst::create(
++            /* source register */ AsmOperand::createReg(SrcMemBaseReg),
++            /* destination base register and offset*/
++            AsmOperand::createMem(DstMemDisp, DstMemBaseReg), CurrentFunction);
++    }
++
++    void handleStoreMemToMemForArgument(uint32_t SrcMemDisp, uint32_t SrcMemBaseReg,
++                                        uint32_t SrcMemIndexReg, uint32_t SrcMemScale,
++                                        uint32_t DstMemDisp, uint32_t DstMemBaseReg,
++                                        uint32_t DstMemIndexReg, uint32_t DstMemScale) {
++        // Prepare source mem op
++        lowerMemoryOperand(SrcMemDisp, SrcMemBaseReg, SrcMemIndexReg, SrcMemScale);
++        uint32_t LDDstReg = remniw::Register::createVirtReg();
++        auto *AI = RISCV64::LDInst::create(
++            /* source base register and offset */
++            AsmOperand::createMem(SrcMemDisp, SrcMemBaseReg),
++            /* destination register */ AsmOperand::createReg(LDDstReg), CurrentFunction);
++
++        // Prepare dest mem op
++        lowerMemoryOperand(DstMemDisp, DstMemBaseReg, DstMemIndexReg, DstMemScale);
++        auto *SD = RISCV64::SDInst::create(
++            /* source register */ AsmOperand::createReg(LDDstReg),
++            /* destination base register and offset*/
++            AsmOperand::createMem(DstMemDisp, DstMemBaseReg), CurrentFunction);
++    }
++
++    void handleStoreLabelToMem(AsmSymbol *Label, uint32_t DstMemDisp,
++                               uint32_t DstMemBaseReg, uint32_t DstMemIndexReg,
++                               uint32_t DstMemScale) {
++        uint32_t LADstReg = remniw::Register::createVirtReg();
++        RISCV64::LAInst::create(
++            /* source SYMBOL */ AsmOperand::createLabel(Label),
++            /* destination register */ AsmOperand::createReg(LADstReg), CurrentFunction);
++        // Prepare dest mem op
++        lowerMemoryOperand(DstMemDisp, DstMemBaseReg, DstMemIndexReg, DstMemScale);
++        auto *SD = RISCV64::SDInst::create(
++            /* source register */ AsmOperand::createReg(LADstReg),
++            /* destination base register and offset*/
++            AsmOperand::createMem(DstMemDisp, DstMemBaseReg), CurrentFunction);
++    }
++
++    // mem: BRG_GETELEMENTPTR(mem, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost +
++    // 1; }
++    void storeMemoryAddressToReg(uint32_t SrcMemDisp, uint32_t SrcMemBaseReg,
++                                 uint32_t SrcMemIndexReg, uint32_t SrcMemScale,
++                                 uint32_t DstReg) {
++        // Prepare source mem op
++        lowerMemoryOperand(SrcMemDisp, SrcMemBaseReg, SrcMemIndexReg, SrcMemScale);
++        auto *AI = RISCV64::ADDIInst::create(
++            /* destination register */ AsmOperand::createReg(SrcMemBaseReg),
++            /* source register 1 */ AsmOperand::createReg(SrcMemBaseReg),
++            /* Immediate data */ AsmOperand::createImm(SrcMemDisp), CurrentFunction);
++
++        // Prepare dest mem op
++        lowerMemoryOperand(DstMemDisp, DstMemBaseReg, DstMemIndexReg, DstMemScale);
++        auto *SD = RISCV64::MVInst::create(
++            /* source register */ AsmOperand::createReg(SrcMemBaseReg),
++            /* destination register */ AsmOperand::createReg(DstReg), CurrentFunction);
++    }
++
++    std::unordered_map<llvm::CmpInst *, std::pair<uint32_t, uint32_t>> CondRegsMap;
++
++    void handleICmpRegReg(llvm::CmpInst *CI, uint32_t Reg1, uint32_t Reg2) {
++        CondRegsMap.insert(std::make_pair(CI, {Reg1, Reg2}));
++    }
++
++    void handleICmpRegImm(llvm::CmpInst *CI, uint32_t Reg, uint32_t Imm) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        auto *LI = RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        CondRegsMap.insert(std::make_pair(CI, {Reg, LIDstReg}));
++    }
++
++    void handleICmpImmReg(llvm::CmpInst *CI, uint32_t Imm, uint32_t Reg) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        auto *LI = RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        CondRegsMap.insert(std::make_pair(CI, {LIDstReg, Reg}));
++    }
++
++    // TODO
++    void handleBr(llvm::BranchInst *BI, llvm::CmpInst *CI, AsmSymbol *Label1,
++                  AsmSymbol *Label2) {
++        switch (CI->getPredicate()) {
++        case llvm::CmpInst::Predicate::ICMP_EQ:
++            RISCV64::BEQInst::create(
++                /* source register 1 */ CondRegsMap[CI].first,
++                /* source register 2 */ CondRegsMap[CI].second,
++                remniw::AsmOperand::createLabel(Label1), CurrentFunction);
++            RISCV64::BNEInst::create(
++                /* source register 1 */ CondRegsMap[CI].first,
++                /* source register 2 */ CondRegsMap[CI].second,
++                remniw::AsmOperand::createLabel(Label2), CurrentFunction);
++            break;
++        case llvm::CmpInst::Predicate::ICMP_NE:
++            RISCV64::BNEInst::create(
++                /* source register 1 */ CondRegsMap[CI].first,
++                /* source register 2 */ CondRegsMap[CI].second,
++                remniw::AsmOperand::createLabel(Label1), CurrentFunction);
++            RISCV64::BEQInst::create(
++                /* source register 1 */ CondRegsMap[CI].first,
++                /* source register 2 */ CondRegsMap[CI].second,
++                remniw::AsmOperand::createLabel(Label2), CurrentFunction);
++            break;
++        case llvm::CmpInst::Predicate::ICMP_SGT:
++            RISCV64::BGTInst::create(
++                /* source register 1 */ CondRegsMap[CI].first,
++                /* source register 2 */ CondRegsMap[CI].second,
++                remniw::AsmOperand::createLabel(Label1), CurrentFunction);
++            RISCV64::BLEInst::create(
++                /* source register 1 */ CondRegsMap[CI].first,
++                /* source register 2 */ CondRegsMap[CI].second,
++                remniw::AsmOperand::createLabel(Label2), CurrentFunction);
++            break;
++        }
++        // TODO: optimize
++        llvm::BasicBlock *NextBB = BI->getParent()->getNextNode();
++        if (NextBB == BI->getSuccessor(0)) {
++        } else if (NextBB == BI->getSuccessor(1)) {
++        } else {
++        }
++    }
++
++    void handleBr(AsmSymbol *Label) {
++        RISCV64::JInst::create(remniw::AsmOperand::createLabel(Label), CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleAddRegReg(uint32_t Reg1, uint32_t Reg2) {
++        RISCV64::ADDInst::create(
++            /*source register 1*/ remniw::AsmOperand::createReg(Reg1),
++            /*source register 2*/ remniw::AsmOperand::createReg(Reg2),
++            /*destination register*/ remniw::AsmOperand::createReg(Reg1),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleAddRegImm(uint32_t Reg, int64_t Imm) {
++        RISCV64::ADDIInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(Reg),
++            /* Immediate */ remniw::AsmOperand::createImm(Imm),
++            /* destination register */ remniw::AsmOperand::createReg(Reg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleAddImmReg(int64_t Imm, uint32_t Reg) {
++        RISCV64::ADDIInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(Reg),
++            /* Immediate */ remniw::AsmOperand::createImm(Imm),
++            /* destination register */ remniw::AsmOperand::createReg(Reg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleAddImmImm(int64_t Imm1, int64_t Imm2) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm1), CurrentFunction);
++        RISCV64::ADDIInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(LIDstReg),
++            /* Immediate */ remniw::AsmOperand::createImm(Imm2),
++            /* destination register */ remniw::AsmOperand::createReg(LIDstReg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleSubRegReg(uint32_t Reg1, uint32_t Reg2) {
++        RISCV64::SUBInst::create(
++            /*source register 1*/ remniw::AsmOperand::createReg(Reg1),
++            /*source register 2*/ remniw::AsmOperand::createReg(Reg2),
++            /*destination register*/ remniw::AsmOperand::createReg(Reg1),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleSubRegImm(uint32_t Reg, int64_t Imm) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        RISCV64::SUBInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(Reg),
++            /* source register 2 */ remniw::AsmOperand::createReg(LIDstReg),
++            /* destination register */ remniw::AsmOperand::createReg(Reg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleSubImmReg(int64_t Imm, uint32_t Reg) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        RISCV64::SUBInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(LIDstReg),
++            /* source register 2 */ remniw::AsmOperand::createReg(Reg),
++            /* destination register */ remniw::AsmOperand::createReg(LIDstReg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleSubImmImm(int64_t Imm1, int64_t Imm2) {
++        uint32_t LIDstReg1 = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg1),
++            /* immediate */ AsmOperand::createImm(Imm1), CurrentFunction);
++        uint32_t LIDstReg2 = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg2),
++            /* immediate */ AsmOperand::createImm(Imm2), CurrentFunction);
++        RISCV64::SUBInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(LIDstReg1),
++            /* source register 2 */ remniw::AsmOperand::createReg(LIDstReg2),
++            /* destination register */ remniw::AsmOperand::createReg(LIDstReg1),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleMulRegReg(uint32_t Reg1, uint32_t Reg2) {
++        RISCV64::MULInst::create(
++            /*source register 1*/ remniw::AsmOperand::createReg(Reg1),
++            /*source register 2*/ remniw::AsmOperand::createReg(Reg2),
++            /*destination register*/ remniw::AsmOperand::createReg(Reg1),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleMulRegImm(uint32_t Reg, int64_t Imm) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        RISCV64::MULInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(Reg),
++            /* source register 2 */ remniw::AsmOperand::createReg(LIDstReg),
++            /* destination register */ remniw::AsmOperand::createReg(Reg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleMulImmReg(int64_t Imm, uint32_t Reg) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        RISCV64::MULInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(LIDstReg),
++            /* source register 2 */ remniw::AsmOperand::createReg(Reg),
++            /* destination register */ remniw::AsmOperand::createReg(LIDstReg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleMulImmImm(int64_t Imm1, int64_t Imm2) {
++        uint32_t LIDstReg1 = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg1),
++            /* immediate */ AsmOperand::createImm(Imm1), CurrentFunction);
++        uint32_t LIDstReg2 = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg2),
++            /* immediate */ AsmOperand::createImm(Imm2), CurrentFunction);
++        RISCV64::MULInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(LIDstReg1),
++            /* source register 2 */ remniw::AsmOperand::createReg(LIDstReg2),
++            /* destination register */ remniw::AsmOperand::createReg(LIDstReg1),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleDivRegReg(uint32_t Reg1, uint32_t Reg2) {
++        RISCV64::DIVInst::create(
++            /*source register 1*/ remniw::AsmOperand::createReg(Reg1),
++            /*source register 2*/ remniw::AsmOperand::createReg(Reg2),
++            /*destination register*/ remniw::AsmOperand::createReg(Reg1),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleDivRegImm(uint32_t Reg, int64_t Imm) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        RISCV64::DIVInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(Reg),
++            /* source register 2 */ remniw::AsmOperand::createReg(LIDstReg),
++            /* destination register */ remniw::AsmOperand::createReg(Reg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleDivImmReg(int64_t Imm, uint32_t Reg) {
++        uint32_t LIDstReg = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg),
++            /* immediate */ AsmOperand::createImm(Imm), CurrentFunction);
++        RISCV64::DIVInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(LIDstReg),
++            /* source register 2 */ remniw::AsmOperand::createReg(Reg),
++            /* destination register */ remniw::AsmOperand::createReg(LIDstReg),
++            CurrentFunction);
++    }
++
++    // FIXME: destination register
++    void handleDivImmImm(int64_t Imm1, int64_t Imm2) {
++        uint32_t LIDstReg1 = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg1),
++            /* immediate */ AsmOperand::createImm(Imm1), CurrentFunction);
++        uint32_t LIDstReg2 = remniw::Register::createVirtReg();
++        RISCV64::LIInst::create(
++            /* destination register */ AsmOperand::createReg(LIDstReg2),
++            /* immediate */ AsmOperand::createImm(Imm2), CurrentFunction);
++        RISCV64::DIVInst::create(
++            /* source register 1 */ remniw::AsmOperand::createReg(LIDstReg1),
++            /* source register 2 */ remniw::AsmOperand::createReg(LIDstReg2),
++            /* destination register */ remniw::AsmOperand::createReg(LIDstReg1),
++            CurrentFunction);
++    }
++
++    void handleArgReg(unsigned argNo, uin32_t Reg) {
++        if (argNo < ArgumentsRegisterNum) {
++            RISCV64::MVInst::create(
++                /* source register */ remniw::AsmOperand::createReg(Reg),
++                /* destination register */ remniw::AsmOperand::createReg(
++                    remniw::Register::ArgRegs[argNo]));
++        } else {
++            RISCV64::SDInst::(
++                remniw::AsmOperand::createReg(Reg),
++                remniw::AsmOperand::createMem(8 * (argNo - ArgumentsRegisterNum),
++                                              remniw::Register::SP));
++        }
++    }
++
++    void handleArgImm(unsigned argNo, int64_t Imm) {
++        if (argNo < ArgumentsRegisterNum) {
++            RISCV64::LIInst::create(
++                /* source register */ remniw::AsmOperand::createImm(Imm),
++                /* destination register */ remniw::AsmOperand::createReg(
++                    remniw::Register::ArgRegs[argNo]));
++        } else {
++            uint32_t VirtReg = remniw::Register::createVirtReg();
++            RISCV64::LIInst::create(
++                /* source register */ remniw::AsmOperand::createImm(Imm),
++                /* destination register */ remniw::AsmOperand::createReg(VirtReg));
++            RISCV64::SDInst::(
++                remniw::AsmOperand::createReg(VirtReg),
++                remniw::AsmOperand::createMem(8 * (argNo - ArgumentsRegisterNum),
++                                              remniw::Register::SP));
++        }
++    }
++
++    void handleArgMem(unsigned argNo, uint32_t MemDisp, uint32_t MemBaseReg,
++                      uint32_t MemIndexReg, uint32_t MemScale) {
++        lowerMemoryOperand(MemDisp, MemBaseReg, MemIndexReg, MemScale);
++        auto *AI = RISCV64::ADDIInst::create(
++            /* destination register */ AsmOperand::createReg(MemBaseReg),
++            /* source register 1 */ AsmOperand::createReg(MemBaseReg),
++            /* Immediate data */ AsmOperand::createImm(MemDisp), CurrentFunction);
++        if (argNo < ArgumentsRegisterNum) {
++            RISCV64::MVInst::create(
++                /* source register */ remniw::AsmOperand::createReg(MemBaseReg),
++                /* destination register */ remniw::AsmOperand::createReg(
++                    remniw::Register::ArgRegs[argNo]));
++        } else {
++            RISCV64::SDInst::(
++                remniw::AsmOperand::createReg(MemBaseReg),
++                remniw::AsmOperand::createMem(8 * (argNo - ArgumentsRegisterNum),
++                                              remniw::Register::SP));
++        }
++    }
++
++    void handleArgLabel(unsigned argNo, AsmSymbol *Label) {
++        uint32_t LADstReg = remniw::Register::createVirtReg();
++        RISCV64::LAInst::create(
++            /* source SYMBOL */ AsmOperand::createLabel(Label),
++            /* destination register */ AsmOperand::createReg(LADstReg), CurrentFunction);
++        if (argNo < ArgumentsRegisterNum) {
++            RISCV64::MVInst::create(
++                /* source register */ remniw::AsmOperand::createReg(LADstReg),
++                /* destination register */ remniw::AsmOperand::createReg(
++                    remniw::Register::ArgRegs[argNo]));
++        } else {
++            RISCV64::SDInst::(
++                remniw::AsmOperand::createReg(LADstReg),
++                remniw::AsmOperand::createMem(8 * (argNo - ArgumentsRegisterNum),
++                                              remniw::Register::SP));
++        }
++    }
++
++
++
++    // Convert Disp(BaseReg, IndexReg, Scale) to Disp(BaseReg)
++    void lowerMemoryOperand(uint32_t MemDisp, uint32_t MemBaseReg, uint32_t MemIndexReg,
++                            uint32_t MemScale) {
++        if (MemIndexReg != Register::NoRegister) {
++            uint32_t LiDstReg = remniw::Register::createVirtReg();
++            // MemScale
++            auto *LI = RISCV64::LIInst::create(
++                /* destination register */ AsmOperand::createReg(LiDstReg),
++                /* immediate */ AsmOperand::createImm(MemScale), CurrentFunction);
++            // MemIndex * MemScale
++            auto *MI = RISCV64::MULInst::create(
++                /* destination register */ AsmOperand::createReg(MemIndexReg),
++                /* source register 1 */ AsmOperand::createReg(MemIndexReg),
++                /* source register 2 */ AsmOperand::createReg(LiDstReg), CurrentFunction);
++            // MemBase + MemIndex * MemScale
++            auto *AI = RISCV64::ADDInst::create(
++                /* destination register */ AsmOperand::createReg(MemBaseReg),
++                /* source register 1 */ AsmOperand::createReg(MemBaseReg),
++                /* source register 2 */ AsmOperand::createReg(MemIndexReg),
++                CurrentFunction);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/src/codegen/asm/RISCV64/AsmBuilderHelper.gen.rv64 b/src/codegen/asm/RISCV64/AsmBuilderHelper.gen.rv64
+new file mode 100644
+index 0000000..dd88bbd
+--- /dev/null
++++ b/src/codegen/asm/RISCV64/AsmBuilderHelper.gen.rv64
+@@ -0,0 +1,738 @@
++%{
++#include "AsmBuilder.h"
++#define DEBUG_TYPE "remniw-asmbuilderhelper"
++%}
++
++# Do not delete the following lines
++# The content of BrgTerm.gen will be inserted here during cmake
++# %term define begin
++# %term defind end
++
++%declare<void> stmt<remniw::AsmBuilderPtr Builder>;
++%declare<void> reg<remniw::AsmBuilderPtr Builder>;
++%declare<void> imm<remniw::AsmBuilderPtr Builder>;
++%declare<void> mem<remniw::AsmBuilderPtr Builder>;
++%declare<void> label<remniw::AsmBuilderPtr Builder>;
++%declare<void> cond<remniw::AsmBuilderPtr Builder>;
++%declare<void> arg<remniw::AsmBuilderPtr Builder, unsigned argNo>;
++%declare<void> args<remniw::AsmBuilderPtr Builder, unsigned argNo>;
++
++%%
++
++label: BRG_LABEL { $cost[0].cost = 0; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "label: BRG_LABEL\n";);
++};
++
++imm: BRG_CONST { $cost[0].cost = 0; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "imm: BRG_CONST\n";);
++};
++
++reg: BRG_REG { $cost[0].cost = 0; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_REG\n";);
++};
++
++mem: BRG_ALLOCA { $cost[0].cost = 0; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_ALLOCA\n";);
++};
++
++reg: BRG_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_LOAD(mem)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    uint32_t VirtReg = remniw::Register::createVirtReg();
++    $0->setReg(VirtReg);
++    Builder->createLoadMemToReg(/*dst*/remniw::AsmOperand::createReg(VirtReg),
++                      /*src*/remniw::AsmOperand::createMem($2->getMemDisp(),
++                                                     $2->getMemBaseReg(),
++                                                     $2->getMemIndexReg(),
++                                                     $2->getMemScale()));
++};
++
++reg: BRG_LOAD(reg) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_LOAD(reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    uint32_t VirtReg = remniw::Register::createVirtReg();
++    $0->setReg(VirtReg);
++    // Builder->createMov(remniw::AsmOperand::createMem(0, $2->getReg()),
++    //                    remniw::AsmOperand::createReg(VirtReg));
++
++    Builder->createLoadRegToReg(/*src*/$2->getReg(),
++                                /*dst*/remniw::AsmOperand::createReg(VirtReg));
++};
++
++stmt: reg { $cost[0].cost = $cost[1].cost; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: reg\n";);
++    $action[1](Builder);
++};
++
++stmt: BRG_RET(reg) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(reg)\n";);
++    $action[2](Builder);
++    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
++                       remniw::AsmOperand::createReg(remniw::Register::RAX));
++};
++
++stmt: BRG_RET(BRG_UNDEF) { $cost[0].cost = 0; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(BRG_UNDEF)\n";);
++};
++
++stmt: BRG_RET(imm) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_RET(imm)\n";);
++    $action[2](Builder);
++    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
++                       remniw::AsmOperand::createReg(remniw::Register::RAX));
++};
++
++stmt: BRG_STORE(reg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(reg, mem)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
++                       remniw::AsmOperand::createMem($3->getMemDisp(),
++                                                     $3->getMemBaseReg(),
++                                                     $3->getMemIndexReg(),
++                                                     $3->getMemScale()));
++};
++
++stmt: BRG_STORE(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(reg, reg)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
++                       remniw::AsmOperand::createMem(0, $3->getReg()));
++};
++
++stmt: BRG_STORE(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(imm, reg)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
++                       remniw::AsmOperand::createMem(0, $3->getReg()));
++};
++
++stmt: BRG_STORE(imm, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(imm, mem)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
++                       remniw::AsmOperand::createMem($3->getMemDisp(),
++                                                     $3->getMemBaseReg(),
++                                                     $3->getMemIndexReg(),
++                                                     $3->getMemScale()));
++};
++
++stmt: BRG_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(mem, mem)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    auto* SI = llvm::cast<llvm::StoreInst>($1->getInstruction());
++    // In BrgTreeBuilder, we construct MemBrgTreeNode for argument.
++    // So here we specially handle StoreInst which initializes
++    // permanent storage for a function argument
++    if (llvm::isa<llvm::Argument>(SI->getValueOperand())) {
++        uint32_t VirtReg = remniw::Register::createVirtReg();
++        $0->setReg(VirtReg);
++        Builder->createMov(remniw::AsmOperand::createMem($2->getMemDisp(),
++                                                         $2->getMemBaseReg(),
++                                                         $2->getMemIndexReg(),
++                                                         $2->getMemScale()),
++                           remniw::AsmOperand::createReg(VirtReg));
++        Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
++                           remniw::AsmOperand::createMem($3->getMemDisp(),
++                                                         $3->getMemBaseReg(),
++                                                         $3->getMemIndexReg(),
++                                                         $3->getMemScale()));
++    } else {
++        uint32_t VirtReg = remniw::Register::createVirtReg();
++        $0->setReg(VirtReg);
++        Builder->createLea(remniw::AsmOperand::createMem($2->getMemDisp(),
++                                                         $2->getMemBaseReg(),
++                                                         $2->getMemIndexReg(),
++                                                         $2->getMemScale()),
++                           remniw::AsmOperand::createReg(VirtReg));
++        Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
++                           remniw::AsmOperand::createMem($3->getMemDisp(),
++                                                         $3->getMemBaseReg(),
++                                                         $3->getMemIndexReg(),
++                                                         $3->getMemScale()));
++    }
++};
++
++stmt: BRG_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_STORE(label, mem)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    uint32_t VirtReg = remniw::Register::createVirtReg();
++    Builder->createLea(remniw::AsmOperand::createLabel($2->getLabel()),
++                       remniw::AsmOperand::createReg(VirtReg));
++    Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
++                       remniw::AsmOperand::createMem($3->getMemDisp(),
++                                                     $3->getMemBaseReg(),
++                                                     $3->getMemIndexReg(),
++                                                     $3->getMemScale()));
++};
++
++
++mem: BRG_GETELEMENTPTR(mem, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    // For GetElementPtrInst, if all indices are constant
++    // we can calculate the MemOp offset directly
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(mem, imm)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
++    uint32_t SizeInBytes =
++        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
++            GEP->getResultElementType());
++    $0->setMemNode($2->getMemDisp() + SizeInBytes * $3->getImmVal(),
++                   $2->getMemBaseReg(),
++                   $2->getMemIndexReg(),
++                   $2->getMemScale());
++};
++
++mem: BRG_GETELEMENTPTR(mem, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(mem, reg)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
++    uint32_t SizeInBytes =
++        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
++            GEP->getResultElementType());
++    if ($2->getMemBaseReg() == remniw::Register::NoRegister) {
++        $0->setMemNode($2->getMemDisp(), $2->getMemBaseReg(), $3->getReg(), SizeInBytes);
++    } else {
++        uint32_t VirtReg = remniw::Register::createVirtReg();
++        Builder->createLea(remniw::AsmOperand::createMem($2->getMemDisp(),
++                                                         $2->getMemBaseReg(),
++                                                         $2->getMemIndexReg(),
++                                                         $2->getMemScale()),
++                           remniw::AsmOperand::createReg(VirtReg));
++        $0->setMemNode(0, VirtReg, $3->getReg(), SizeInBytes);
++    }
++};
++
++mem: BRG_GETELEMENTPTR(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(reg, imm)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
++    uint32_t SizeInBytes =
++        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
++            GEP->getResultElementType());
++    $0->setMemNode(SizeInBytes * $3->getImmVal(), $2->getReg());
++};
++
++mem: BRG_GETELEMENTPTR(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "mem: BRG_GETELEMENTPTR(reg, reg)\n";);
++    $action[2](Builder);
++    $action[3](Builder);
++    auto *GEP = llvm::cast<llvm::GetElementPtrInst>($1->getInstruction());
++    uint32_t SizeInBytes =
++        GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
++            GEP->getResultElementType());
++    $0->setMemNode(0, $2->getReg(), $3->getReg(), SizeInBytes);
++};
++
++cond: BRG_ICMP(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "cond: BRG_ICMP(reg, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createCmp(remniw::AsmOperand::createReg($3->getReg()),
++                       remniw::AsmOperand::createReg($2->getReg()));
++};
++
++cond: BRG_ICMP(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "cond: BRG_ICMP(reg, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createCmp(remniw::AsmOperand::createImm($3->getImmVal()),
++                       remniw::AsmOperand::createReg($2->getReg()));
++};
++
++cond: BRG_ICMP(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "cond: BRG_ICMP(imm, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    uint32_t VirtReg = remniw::Register::createVirtReg();
++    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
++                       remniw::AsmOperand::createReg(VirtReg));
++    Builder->createCmp(remniw::AsmOperand::createReg($3->getReg()),
++                       remniw::AsmOperand::createReg(VirtReg));
++};
++
++# Conditional Branch
++stmt: BRG_BR(cond, label, label)
++{ $cost[0].cost = $cost[2].cost + $cost[3].cost + $cost[4].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_BR(cond, label, label)\n";);
++    $action[2](Builder);
++    remniw::AsmJmpInst::JmpKindTy JmpTrue, JmpFalse;
++    auto *CI = llvm::cast<llvm::CmpInst>($2->getInstruction());
++    switch (CI->getPredicate()) {
++    case llvm::CmpInst::Predicate::ICMP_EQ:
++        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Je;
++        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Jne;
++        break;
++    case llvm::CmpInst::Predicate::ICMP_NE:
++        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Jne;
++        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Je;
++        break;
++    case llvm::CmpInst::Predicate::ICMP_SGT:
++        JmpTrue = remniw::AsmJmpInst::JmpKindTy::Jg;
++        JmpFalse = remniw::AsmJmpInst::JmpKindTy::Jle;
++        break;
++    default:
++        llvm_unreachable("Invalid CmpInst!\n");
++    }
++    auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
++    llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
++    if (NextBB == BI->getSuccessor(0)) {
++        Builder->createJmp(JmpFalse, remniw::AsmOperand::createLabel($4->getLabel()));
++    }
++    else if (NextBB == BI->getSuccessor(1)) {
++        Builder->createJmp(JmpTrue, remniw::AsmOperand::createLabel($3->getLabel()));
++    }
++    else {
++        Builder->createJmp(JmpTrue, remniw::AsmOperand::createLabel($3->getLabel()));
++        Builder->createJmp(JmpFalse, remniw::AsmOperand::createLabel($4->getLabel()));
++    }
++};
++
++# Unconditional Branch
++stmt: BRG_BR(label, BRG_UNDEF, BRG_UNDEF) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "stmt: BRG_BR(label, BRG_UNDEF, BRG_UNDEF)\n";);
++    auto *BI = llvm::cast<llvm::BranchInst>($1->getInstruction());
++    llvm::BasicBlock* NextBB = BI->getParent()->getNextNode();
++    if (NextBB != BI->getSuccessor(0)) {
++        Builder->createJmp(remniw::AsmJmpInst::JmpKindTy::Jmp,
++                           remniw::AsmOperand::createLabel($2->getLabel()));
++    }
++};
++
++reg: BRG_ADD(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(reg, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createAdd(remniw::AsmOperand::createReg($2->getReg()),
++                       remniw::AsmOperand::createReg($3->getReg()));
++    $0->setReg($3->getReg());
++};
++
++reg: BRG_ADD(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(reg, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createAdd(remniw::AsmOperand::createImm($3->getImmVal()),
++                       remniw::AsmOperand::createReg($2->getReg()));
++    $0->setReg($2->getReg());
++};
++
++reg: BRG_ADD(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(imm, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createAdd(remniw::AsmOperand::createImm($2->getImmVal()),
++                       remniw::AsmOperand::createReg($3->getReg()));
++    $0->setReg($3->getReg());
++};
++
++reg: BRG_ADD(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_ADD(imm, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    llvm_unreachable("Unexpected action: reg: BRG_ADD(imm, imm)!\n");
++};
++
++reg: BRG_SUB(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(reg, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createSub(remniw::AsmOperand::createReg($3->getReg()),
++                       remniw::AsmOperand::createReg($2->getReg()));
++    $0->setReg($2->getReg());
++};
++
++reg: BRG_SUB(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(reg, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createSub(remniw::AsmOperand::createImm($3->getImmVal()),
++                       remniw::AsmOperand::createReg($2->getReg()));
++    $0->setReg($2->getReg());
++};
++
++reg: BRG_SUB(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(imm, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    $0->setReg(remniw::Register::createVirtReg());
++    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
++                       remniw::AsmOperand::createReg($0->getReg()));
++    Builder->createSub(remniw::AsmOperand::createReg($3->getReg()),
++                       remniw::AsmOperand::createReg($0->getReg()));
++};
++
++reg: BRG_SUB(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SUB(imm, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    llvm_unreachable("Unexpected action reg: BRG_SUB(imm, imm)\n");
++};
++
++reg: BRG_MUL(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(reg, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createImul(remniw::AsmOperand::createReg($2->getReg()),
++                        remniw::AsmOperand::createReg($3->getReg()));
++    $0->setReg($3->getReg());
++};
++
++reg: BRG_MUL(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(reg, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createImul(remniw::AsmOperand::createImm($3->getImmVal()),
++                        remniw::AsmOperand::createReg($2->getReg()));
++    $0->setReg($2->getReg());
++};
++
++reg: BRG_MUL(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(imm, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createImul(remniw::AsmOperand::createImm($2->getImmVal()),
++                        remniw::AsmOperand::createReg($3->getReg()));
++    $0->setReg($3->getReg());
++};
++
++reg: BRG_MUL(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_MUL(imm, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    llvm_unreachable("Unexpected action reg: BRG_MUL(imm, imm)\n");
++};
++
++reg: BRG_SDIV(reg, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(reg, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
++                       remniw::AsmOperand::createReg(remniw::Register::RAX));
++    Builder->createCqto();
++    Builder->createIdiv(remniw::AsmOperand::createReg($3->getReg()));
++    $0->setReg(remniw::Register::RAX);
++};
++
++reg: BRG_SDIV(reg, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(reg, imm)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    $0->setReg(remniw::Register::createVirtReg());
++    Builder->createMov(remniw::AsmOperand::createReg($2->getReg()),
++                       remniw::AsmOperand::createReg(remniw::Register::RAX));
++    Builder->createCqto();
++    Builder->createMov(remniw::AsmOperand::createImm($3->getImmVal()),
++                       remniw::AsmOperand::createReg($0->getReg()));
++    Builder->createIdiv(remniw::AsmOperand::createReg($0->getReg()));
++    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
++                       remniw::AsmOperand::createReg($0->getReg()));
++};
++
++reg: BRG_SDIV(imm, reg) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 2; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(imm, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    Builder->createMov(remniw::AsmOperand::createImm($2->getImmVal()),
++                       remniw::AsmOperand::createReg(remniw::Register::RAX));
++    Builder->createCqto();
++    Builder->createIdiv(remniw::AsmOperand::createReg($3->getReg()));
++    $0->setReg(remniw::Register::RAX);
++};
++
++reg: BRG_SDIV(imm, imm) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 3; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_SDIV(imm, reg)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder);
++    llvm_unreachable("Unexpected action reg: BRG_SDIV(imm, imm)!\n");
++};
++
++arg: reg { $cost[0].cost = $cost[1].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: reg\n";);
++    $action[1](Builder);
++    if (argNo < 6) {
++        Builder->createMov(remniw::AsmOperand::createReg($1->getReg()),
++                           remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
++    } else {
++        Builder->createMov(remniw::AsmOperand::createReg($1->getReg()),
++                           remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
++    }
++};
++
++arg: imm { $cost[0].cost = $cost[1].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: imm\n";);
++    $action[1](Builder);
++    if (argNo < 6) {
++        Builder->createMov(remniw::AsmOperand::createImm($1->getImmVal()),
++            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
++    } else {
++        Builder->createMov(remniw::AsmOperand::createImm($1->getImmVal()),
++            remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
++    }
++};
++
++arg: mem { $cost[0].cost = $cost[1].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: mem\n";);
++    $action[1](Builder);
++    if (argNo < 6) {
++        Builder->createLea(remniw::AsmOperand::createMem($1->getMemDisp(),
++                                                         $1->getMemBaseReg(),
++                                                         $1->getMemIndexReg(),
++                                                         $1->getMemScale()),
++            remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
++    } else {
++        uint32_t VirtReg = remniw::Register::createVirtReg();
++        Builder->createMov(remniw::AsmOperand::createMem($1->getMemDisp(),
++                                                         $1->getMemBaseReg(),
++                                                         $1->getMemIndexReg(),
++                                                         $1->getMemScale()),
++                           remniw::AsmOperand::createReg(VirtReg));
++        Builder->createMov(remniw::AsmOperand::createReg(VirtReg),
++                           remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
++    }
++};
++
++arg: label { $cost[0].cost = $cost[1].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "arg: label\n";);
++    $action[1](Builder);
++    if (argNo < 6) {
++        Builder->createLea(remniw::AsmOperand::createLabel($1->getLabel()),
++                           remniw::AsmOperand::createReg(remniw::Register::ArgRegs[argNo]));
++    } else {
++        Builder->createLea(remniw::AsmOperand::createLabel($1->getLabel()),
++                           remniw::AsmOperand::createMem(8 * (argNo - 6), remniw::Register::RSP));
++    }
++};
++
++args: BRG_ARGS(BRG_UNDEF, BRG_UNDEF) { $cost[0].cost = 0; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "args: BRG_ARGS(BRG_UNDEF, BRG_UNDEF)\n";);
++};
++
++args: BRG_ARGS(arg, args)  { $cost[0].cost = $cost[2].cost + $cost[3].cost; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "args: BRG_ARGS(arg, args)\n";);
++    $action[2](Builder, argNo);
++    $action[3](Builder, argNo+1);
++};
++
++# Direct Call
++reg: BRG_CALL(label, args) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_CALL(label, args)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder, 0);
++    auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
++    std::string CalleeName = $2->getLabel()->getName();
++    if (CalleeName == "printf" || CalleeName == "scanf") {
++        Builder->createXor(remniw::AsmOperand::createReg(remniw::Register::RAX),
++                           remniw::AsmOperand::createReg(remniw::Register::RAX));
++    }
++    Builder->createCall(remniw::AsmOperand::createLabel($2->getLabel()),
++                        /*DirectCall*/true, CB->arg_size());
++    $0->setReg(remniw::Register::createVirtReg());
++    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
++                       remniw::AsmOperand::createReg($0->getReg()));
++};
++
++# Indirect Call
++reg: BRG_CALL(reg, args) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_CALL(reg, args)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder, 0);
++    auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
++    Builder->createCall(remniw::AsmOperand::createReg($2->getReg()),
++                        /*DirectCall*/false, CB->arg_size());
++    $0->setReg(remniw::Register::createVirtReg());
++    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
++                       remniw::AsmOperand::createReg($0->getReg()));
++};
++
++# Indirect call
++reg: BRG_CALL(mem, args) { $cost[0].cost = $cost[2].cost + 1; }
++= {
++    LLVM_DEBUG(llvm::outs() << "brg action: " << "reg: BRG_CALL(mem, args)\n";);
++    if ($0->isActionExecuted())
++        return;
++    $0->setActionExecuted();
++    $action[2](Builder);
++    $action[3](Builder, 0);
++    auto* CB = llvm::cast<llvm::CallBase>($1->getInstruction());
++    Builder->createCall(remniw::AsmOperand::createMem($2->getMemDisp(),
++                                                      $2->getMemBaseReg(),
++                                                      $2->getMemIndexReg(),
++                                                      $2->getMemScale()),
++                        /*DirectCall*/false, CB->arg_size());
++    $0->setReg(remniw::Register::createVirtReg());
++    Builder->createMov(remniw::AsmOperand::createReg(remniw::Register::RAX),
++                       remniw::AsmOperand::createReg($0->getReg()));
++};
++
++%%
++
++/* burm_trace - print trace message for matching p */
++static void burm_trace(NODEPTR p, int eruleno, COST cost) { }
++
++static void gen(NODEPTR p, remniw::AsmBuilder *Builder) {
++    if (burm_label(p) == 0) {
++        LLVM_DEBUG(llvm::outs() << "gen: " << "no cover\n";);
++    } else {
++        stmt_action(p->getState(), Builder);
++    }
++    burm_free(p->getState());
++}
++
++
++static void printDebugTree(BrgTreeNode *p, int indent=0) {
++    if (!p)
++        return;
++    LLVM_DEBUG({
++        if (indent) llvm::outs() << "|";
++        int i = 0;
++        for (; i < indent - 4; ++i) llvm::outs() << " ";
++        if (indent - 4 > 0) llvm::outs() << "|";
++        for (; i < indent; ++i) llvm::outs() << "-";
++        llvm::outs() << "+ op:" << p->getOp() << ", Kind:" << p->getNodeKindString() << "\n";
++        for(auto *kid: p->getKidsVector())
++            printDebugTree(kid, (indent+4));
++    });
++}
++
++namespace remniw {
++
++void AsmBuilder::buildAsmFunction(const BrgFunction *BrgFunc) {
++    CurrentFunction = new AsmFunction(BrgFunc->FuncName, BrgFunc->StackSizeInBytes);
++    AsmFunctions.push_back(CurrentFunction);
++
++    for (auto* RootNode: BrgFunc->Insts) {
++        printDebugTree(RootNode);
++        // FIXME: Label Instruction
++        if (RootNode->getOp() == BrgTerm::Label)
++            createLabel(AsmOperand::createLabel(RootNode->getLabel()));
++        gen(RootNode, this);
++    }
++}
++
++}  // namespace remniw
