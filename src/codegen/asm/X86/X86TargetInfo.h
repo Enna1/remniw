@@ -127,7 +127,7 @@ public:
 
     void getFreeRegistersForRegisterAllocator(
         llvm::SmallVector<bool> &FreeRegisters) const override {
-        FreeRegisters.resize(16 /*number of registers*/ + 1);
+        FreeRegisters.resize(X86::NUM_TARGET_REGS /*number of registers + 1*/);
         FreeRegisters[X86::NoRegister /*0*/] = false;
         // Caller saved registers
         FreeRegisters[X86::RAX /*1*/] = true;

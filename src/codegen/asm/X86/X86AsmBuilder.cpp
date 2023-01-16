@@ -84,7 +84,7 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     uint32_t SizeInBytes =
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
-    if (Mem.BaseReg == Register::NoRegister) {
+    if (Mem.IndexReg == Register::NoRegister) {
         return {Mem.Disp, Mem.BaseReg, Reg.RegNo, SizeInBytes};
     } else {
         uint32_t VirtReg = Register::createVirtReg();

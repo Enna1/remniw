@@ -104,6 +104,10 @@ public:
     void handleLABEL(AsmOperand::LabelOp Label) override;
 
 private:
+    llvm::DenseMap<llvm::ICmpInst *, std::pair<uint32_t, uint32_t>> CondRegsMap;
+
+    void normalizeAsmMemoryOperand(AsmOperand &MemOp);
+
     AsmInstruction *createMOVInst(AsmOperand Src, AsmOperand Dst);
     AsmInstruction *createLEAInst(AsmOperand Src, AsmOperand Dst);
     AsmInstruction *createCMPInst(AsmOperand Src, AsmOperand Dst);
