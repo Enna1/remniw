@@ -31,7 +31,7 @@ AsmOperand::RegOp RISCVAsmBuilder::handleLOAD(llvm::Instruction *I,
     auto DstReg = AsmOperand::createReg(LDDstReg);
     auto *I = createLDInst(
         /* destination register */ DstReg,
-        /* source register 1 and offset*/ AsmOperand::createMem(Mem.Disp, Mem.BaseReg));
+        /* source register and offset*/ AsmOperand::createMem(Mem.Disp, Mem.BaseReg));
     return DstReg;
 }
 
@@ -57,17 +57,21 @@ void RISCVAsmBuilder::handleRET(llvm::Instruction *I, AsmOperand::ImmOp Imm) {
 
 void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::RegOp Reg,
                                   AsmOperand::MemOp Mem) {
-    createSDInst(/* destination register */ Reg, Mem);
+    createSDInst(/* source register */ Reg, /* memory */ Mem);
 }
 
 void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::RegOp Reg1,
                                   AsmOperand::RegOp Reg2) {
-    createMOVInst(Reg1, AsmOperand::createMem(0, Reg2.RegNo));
+    createSDInst(/* source register */ Reg1, /* memory */ AsmOperand::createMem(0, Reg2.RegNo));
 }
 
 void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::ImmOp Imm,
                                   AsmOperand::RegOp Reg) {
-    createMOVInst(Imm, AsmOperand::createMem(0, Reg.RegNo));
+    uint32_t VirtReg = remniw::Register::createVirtReg();
+    auto *LI = createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                            /*immediate*/ AsmOperand::createImm(Imm));
+    auto *I = createSDInst(/* source register */ AsmOperand::createImm(Imm),
+                           /* memory */ AsmOperand::createMem(0, Reg.RegNo));
 }
 
 void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::ImmOp Imm,
