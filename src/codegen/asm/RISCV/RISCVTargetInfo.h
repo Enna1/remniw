@@ -74,23 +74,25 @@ static constexpr unsigned NumArgRegs = sizeof(ArgRegs) / sizeof(ArgRegs[0]);
 
 enum {
     INSTRUCTION_LIST_BEGIN = 0,
-    MOV,
-    LEA,
-    CMP,
-    JMP,
-    JE,
-    JNE,
-    JG,
-    JLE,
-    ADD,
-    SUB,
-    IMUL,
-    IDIV,
-    CQTO,
+    // Load and Store instructions
+    LD, // Fetch of 64-bit value from memory and loads into the destination register. Syntax: ld rd, offset(rs1)
+    SD, // Copy of 64-bit value from register and loads into the memory. Syntax: sd rs2, offset(rs1)
+    MV, // Pseudo Instruction. Copy contents of one register to another. Syntax: mv rd, rs1
+    LI, // Pseudo Instruction. Load a register (rd) with an immeidate value given. Syntax: li rd, CONSTANT
+    LA, // Pseudo Instruction. Load the location address of the specified SYMBOL. Syntax: la rd, SYMBOL
+    // Branch Instructions
+    BEQ, // Compare the contents of source register with source register rs2, if found equal, the control is transferred to the specified label. Syntax: beq rs1, rs2, label
+    BNE, // Compare the contents of source register with source register rs2, if they are not equal control is transferred to the label as mentioned. Syntax: bne rs1, rs2, label
+    BGT, // Shift the program counter to the specified location if the value in a register is greater than that of another. Syntax: bgt rs1, rs2, label. Pseudo Instruction
+    BLE, // Shift the program counter to the specified location if the value in a register is less than or equal to that of another. Syntax: ble rs1, rs2, label. Pseudo Instruction
+    // Arithmetic Instructions
+    ADD, // Add the contents of two registers and stores the result in another register. Syntax: add rd, rs1, rs2
+    ADDI, // Add content of the source registers rs1, immediate data (imm) and store the result in the destination register (rd). Syntax: addi rd, rs1, imm
+    SUB, // Subtract contents of one register from another and stores the result in another register. Syntax: sub rd, rs1, rs2
+    MUL,// calculates the product of the multiplier in source register 1 (rs1) and multiplicand in source register 2 (rs2), with the resulting product being stored in destination register (rd). Syntax: mul rd, rs1, rs2
+    DIV, // divide on the value in source register (rs1) with the value in the source register (rs2) and stores quotient in (rd) register. Syntax: div rd, rs1, rs2
+    // Others
     CALL,
-    XOR,
-    PUSH,
-    POP,
     RET,
     LABEL,
     INSTRUCTION_LIST_END

@@ -11,6 +11,7 @@ class RISCVAsmBuilder: public AsmBuilder {
 private:
     RISCVTargetInfo TI;
     int64_t CallArgOffsetFromStackPointer {0};
+    llvm::DenseMap<llvm::ICmpInst *, std::pair<uint32_t, uint32_t>> CondRegsMap;
 
 public:
     const TargetInfo &getTargetInfo() const override { return TI; }
@@ -104,21 +105,23 @@ public:
     void handleLABEL(AsmOperand::LabelOp Label) override;
 
 private:
-    llvm::DenseMap<llvm::ICmpInst *, std::pair<uint32_t, uint32_t>> CondRegsMap;
-
     void normalizeAsmMemoryOperand(AsmOperand &MemOp);
 
-    AsmInstruction *createMOVInst(AsmOperand Src, AsmOperand Dst);
-    AsmInstruction *createLEAInst(AsmOperand Src, AsmOperand Dst);
-    AsmInstruction *createCMPInst(AsmOperand Src, AsmOperand Dst);
-    AsmInstruction *createJMPInst(unsigned JmpOpcode, AsmOperand Op);
-    AsmInstruction *createADDInst(AsmOperand Src, AsmOperand Dst);
+    AsmInstruction *createLDInst(AsmOperand DstReg, AsmOperand SrcMem);
+    AsmInstruction *createSDInst(AsmOperand SrcReg, AsmOperand DstMem);
+    AsmInstruction *createMVInst(AsmOperand DstReg, AsmOperand SrcReg);
+    AsmInstruction *createLIInst(AsmOperand DstReg, AsmOperand Imm);
+    AsmInstruction *createLAInst(AsmOperand DstReg, AsmOperand Label);
+    AsmInstruction *createBEQInst(AsmOperand Reg1, AsmOperand Reg2, AsmOperand Label);
+    AsmInstruction *createBNEInst(AsmOperand Reg1, AsmOperand Reg2, AsmOperand Label);
+    AsmInstruction *createBGTInst(AsmOperand Reg1, AsmOperand Reg2, AsmOperand Label);
+    AsmInstruction *createBLEInst(AsmOperand Reg1, AsmOperand Reg2, AsmOperand Label);
+    AsmInstruction *createADDInst(AsmOperand DstReg, AsmOperand SrcReg1, AsmOperand SrcReg2);
+    AsmInstruction *createADDIInst(AsmOperand DstReg, AsmOperand SrcReg, AsmOperand SrcImm);
     AsmInstruction *createSUBInst(AsmOperand Src, AsmOperand Dst);
-    AsmInstruction *createIMULInst(AsmOperand Src, AsmOperand Dst);
-    AsmInstruction *createIDIVInst(AsmOperand Op);
-    AsmInstruction *createCQTOInst();
+    AsmInstruction *createMULInst(AsmOperand DstReg, AsmOperand SrcReg1, AsmOperand SrcReg2);
+    AsmInstruction *createDIVInst(AsmOperand DstReg, AsmOperand SrcReg1, AsmOperand SrcReg2);
     AsmInstruction *createCALLInst(AsmOperand Callee, bool DirectCall, unsigned NumArgs);
-    AsmInstruction *createXORInst(AsmOperand Src, AsmOperand Dst);
     AsmInstruction *createLABELInst(AsmOperand LabelOp);
 };
 
