@@ -131,6 +131,12 @@ public:
             OS << "\n";
             break;
         }
+        case RISCV::J: {
+            OS << "\tj\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
         case RISCV::ADD: {
             OS << "\tadd\t";
             PrintAsmOperand(I.getOperand(0), OS);
@@ -181,7 +187,7 @@ public:
             OS << "\n";
             break;
         }
-        case X86::CALL: {
+        case RISCV::CALL: {
             OS << "\tcall\t";
             if (!I.getOperand(0).isLabel())  // Indirect call
                 OS << "*";
@@ -189,11 +195,11 @@ public:
             OS << "\n";
             break;
         }
-        case X86::RET: {
+        case RISCV::RET: {
             OS << "\tret\n";
             break;
         }
-        case X86::LABEL: {
+        case RISCV::LABEL: {
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ":\n";
             break;
@@ -205,7 +211,7 @@ public:
     void PrintAsmOperand(const AsmOperand &Op, llvm::raw_ostream &OS) const override {
         switch (Op.Kind) {
         case AsmOperand::Register: PrintRegister(Op.Reg.RegNo, OS); break;
-        case AsmOperand::Immediate: OS << "$" << Op.Imm.Val; break;
+        case AsmOperand::Immediate: OS << Op.Imm.Val; break;
         case AsmOperand::Memory:
             OS << Op.Mem.Disp;
             OS << "(";

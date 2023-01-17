@@ -11,7 +11,7 @@ class RISCVAsmBuilder: public AsmBuilder {
 private:
     RISCVTargetInfo TI;
     int64_t CallArgOffsetFromStackPointer {0};
-    llvm::DenseMap<llvm::ICmpInst *, std::pair<uint32_t, uint32_t>> CondRegsMap;
+    llvm::DenseMap<llvm::CmpInst *, std::pair<uint32_t, uint32_t>> CondRegsMap;
 
 public:
     const TargetInfo &getTargetInfo() const override { return TI; }
@@ -105,7 +105,7 @@ public:
     void handleLABEL(AsmOperand::LabelOp Label) override;
 
 private:
-    void normalizeAsmMemoryOperand(AsmOperand &MemOp);
+    void normalizeAsmMemoryOperand(AsmOperand::MemOp &Op);
 
     AsmInstruction *createLDInst(AsmOperand DstReg, AsmOperand SrcMem);
     AsmInstruction *createSDInst(AsmOperand SrcReg, AsmOperand DstMem);
@@ -116,13 +116,19 @@ private:
     AsmInstruction *createBNEInst(AsmOperand Reg1, AsmOperand Reg2, AsmOperand Label);
     AsmInstruction *createBGTInst(AsmOperand Reg1, AsmOperand Reg2, AsmOperand Label);
     AsmInstruction *createBLEInst(AsmOperand Reg1, AsmOperand Reg2, AsmOperand Label);
-    AsmInstruction *createADDInst(AsmOperand DstReg, AsmOperand SrcReg1, AsmOperand SrcReg2);
-    AsmInstruction *createADDIInst(AsmOperand DstReg, AsmOperand SrcReg, AsmOperand SrcImm);
-    AsmInstruction *createSUBInst(AsmOperand Src, AsmOperand Dst);
-    AsmInstruction *createMULInst(AsmOperand DstReg, AsmOperand SrcReg1, AsmOperand SrcReg2);
-    AsmInstruction *createDIVInst(AsmOperand DstReg, AsmOperand SrcReg1, AsmOperand SrcReg2);
+    AsmInstruction *createADDInst(AsmOperand DstReg, AsmOperand SrcReg1,
+                                  AsmOperand SrcReg2);
+    AsmInstruction *createADDIInst(AsmOperand DstReg, AsmOperand SrcReg,
+                                   AsmOperand SrcImm);
+    AsmInstruction *createSUBInst(AsmOperand DstReg, AsmOperand SrcReg1,
+                                  AsmOperand SrcReg2);
+    AsmInstruction *createMULInst(AsmOperand DstReg, AsmOperand SrcReg1,
+                                  AsmOperand SrcReg2);
+    AsmInstruction *createDIVInst(AsmOperand DstReg, AsmOperand SrcReg1,
+                                  AsmOperand SrcReg2);
     AsmInstruction *createCALLInst(AsmOperand Callee, bool DirectCall, unsigned NumArgs);
     AsmInstruction *createLABELInst(AsmOperand LabelOp);
+    AsmInstruction *createJInst(AsmOperand LabelOp);
 };
 
 }  // namespace remniw

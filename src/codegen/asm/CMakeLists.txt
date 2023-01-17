@@ -29,7 +29,8 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/AsmInstruction.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AsmFunction.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/AsmContext.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/X86/X86AsmBuilder.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/X86/X86AsmBuilder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RISCV/RISCVAsmBuilder.cpp)
 
 add_executable(remniw-llc ${CMAKE_CURRENT_SOURCE_DIR}/remniw-llc.cpp)
 add_dependencies(remniw-llc brg)

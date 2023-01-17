@@ -38,13 +38,15 @@ private:
     llvm::SmallVector<LiveInterval> Fixed;
     llvm::SmallVector<LiveInterval> Active;
     llvm::SmallVector<LiveInterval> Spilled;
-    llvm::SmallVector<bool> FreeRegisters;
+    llvm::DenseMap<uint32_t, bool> FreeRegisters;
     llvm::DenseMap<uint32_t, uint32_t> VirtRegToAllocatedRegMap;
     uint32_t StackSlotIndex;
 
 public:
     LinearScanRegisterAllocator(const TargetInfo &TI): TI(TI) {
-        TI.getFreeRegistersForRegisterAllocator(FreeRegisters);
+        llvm::ArrayRef<uint32_t> FreeRegs = TI.getFreeRegistersForRegisterAllocator();
+        for (auto Reg : FreeRegs)
+            FreeRegisters[Reg] = true;
     }
 
     void
@@ -128,9 +130,10 @@ private:
     }
 
     uint32_t getFreePhysReg(const LiveInterval &LI) {
-        for (uint32_t Reg = 0, e = FreeRegisters.size(); Reg != e; ++Reg) {
-            if (FreeRegisters[Reg] == false)
+        for (const auto &Entry : FreeRegisters) {
+            if (Entry.second == false)
                 continue;
+            const auto &Reg = Entry.first;
             bool ConflictWithFixed = false;
             for (const auto &FixReg : Fixed) {
                 if (FixReg.Reg != Reg)

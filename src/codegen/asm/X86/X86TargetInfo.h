@@ -51,6 +51,11 @@ static constexpr uint32_t CalleeSavedRegs[] = {X86::RSP, X86::RBP, X86::RBX, X86
 static constexpr uint32_t ArgRegs[] = {X86::RDI, X86::RSI, X86::RDX,
                                        X86::RCX, X86::R8,  X86::R9};
 
+static constexpr uint32_t FreeRegs[] = {
+    X86::RAX, X86::RDI, X86::RSI, X86::RDX, X86::RCX, X86::R8,  X86::R9,
+    X86::R10, X86::R11, X86::RBX, X86::R12, X86::R13, X86::R14, X86::R15,
+};
+
 static constexpr unsigned NumCallerSavedRegs =
     sizeof(CallerSavedRegs) / sizeof(CallerSavedRegs[0]);
 
@@ -125,28 +130,8 @@ public:
 
     virtual uint32_t getFramePointerRegister() const override { return X86::RBP; }
 
-    void getFreeRegistersForRegisterAllocator(
-        llvm::SmallVector<bool> &FreeRegisters) const override {
-        FreeRegisters.resize(X86::NUM_TARGET_REGS /*number of registers + 1*/);
-        FreeRegisters[X86::NoRegister /*0*/] = false;
-        // Caller saved registers
-        FreeRegisters[X86::RAX /*1*/] = true;
-        FreeRegisters[X86::RDI /*2*/] = true;
-        FreeRegisters[X86::RSI /*3*/] = true;
-        FreeRegisters[X86::RDX /*4*/] = true;
-        FreeRegisters[X86::RCX /*5*/] = true;
-        FreeRegisters[X86::R8 /*6*/] = true;
-        FreeRegisters[X86::R9 /*7*/] = true;
-        FreeRegisters[X86::R10 /*8*/] = true;
-        FreeRegisters[X86::R11 /*9*/] = true;
-        // Callee saved registers
-        FreeRegisters[X86::RSP /*10*/] = false;
-        FreeRegisters[X86::RBP /*11*/] = false;
-        FreeRegisters[X86::RBX /*12*/] = true;
-        FreeRegisters[X86::R12 /*13*/] = true;
-        FreeRegisters[X86::R13 /*14*/] = true;
-        FreeRegisters[X86::R14 /*15*/] = true;
-        FreeRegisters[X86::R15 /*16*/] = true;
+    llvm::ArrayRef<uint32_t> getFreeRegistersForRegisterAllocator() const override {
+        return X86::FreeRegs;
     }
 };
 

@@ -64,6 +64,12 @@ static constexpr uint32_t CalleeSavedRegs[] = {
 static constexpr uint32_t ArgRegs[] = {RISCV::A0, RISCV::A1, RISCV::A2, RISCV::A3,
                                        RISCV::A4, RISCV::A5, RISCV::A6, RISCV::A7};
 
+static constexpr uint32_t FreeRegs[] = {
+    RISCV::T0,  RISCV::T1, RISCV::T2, RISCV::S1, RISCV::A0, RISCV::A1, RISCV::A2,
+    RISCV::A3,  RISCV::A4, RISCV::A5, RISCV::A6, RISCV::A7, RISCV::S2, RISCV::S3,
+    RISCV::S4,  RISCV::S5, RISCV::S6, RISCV::S7, RISCV::S8, RISCV::S9, RISCV::S10,
+    RISCV::S11, RISCV::T3, RISCV::T4, RISCV::T5, RISCV::T6};
+
 static constexpr unsigned NumCallerSavedRegs =
     sizeof(CallerSavedRegs) / sizeof(CallerSavedRegs[0]);
 
@@ -74,23 +80,48 @@ static constexpr unsigned NumArgRegs = sizeof(ArgRegs) / sizeof(ArgRegs[0]);
 
 enum {
     INSTRUCTION_LIST_BEGIN = 0,
+
     // Load and Store instructions
-    LD, // Fetch of 64-bit value from memory and loads into the destination register. Syntax: ld rd, offset(rs1)
-    SD, // Copy of 64-bit value from register and loads into the memory. Syntax: sd rs2, offset(rs1)
-    MV, // Pseudo Instruction. Copy contents of one register to another. Syntax: mv rd, rs1
-    LI, // Pseudo Instruction. Load a register (rd) with an immeidate value given. Syntax: li rd, CONSTANT
-    LA, // Pseudo Instruction. Load the location address of the specified SYMBOL. Syntax: la rd, SYMBOL
+    LD,  // Fetch of 64-bit value from memory and loads into the destination register.
+         // Syntax: ld rd, offset(rs1)
+    SD,  // Copy of 64-bit value from register and loads into the memory. Syntax: sd rs2,
+         // offset(rs1)
+    MV,  // Pseudo Instruction. Copy contents of one register to another. Syntax: mv rd,
+         // rs1
+    LI,  // Pseudo Instruction. Load a register (rd) with an immeidate value given.
+         // Syntax: li rd, CONSTANT
+    LA,  // Pseudo Instruction. Load the location address of the specified SYMBOL. Syntax:
+         // la rd, SYMBOL
+
     // Branch Instructions
-    BEQ, // Compare the contents of source register with source register rs2, if found equal, the control is transferred to the specified label. Syntax: beq rs1, rs2, label
-    BNE, // Compare the contents of source register with source register rs2, if they are not equal control is transferred to the label as mentioned. Syntax: bne rs1, rs2, label
-    BGT, // Shift the program counter to the specified location if the value in a register is greater than that of another. Syntax: bgt rs1, rs2, label. Pseudo Instruction
-    BLE, // Shift the program counter to the specified location if the value in a register is less than or equal to that of another. Syntax: ble rs1, rs2, label. Pseudo Instruction
+    BEQ,  // Compare the contents of source register with source register rs2, if found
+          // equal, the control is transferred to the specified label. Syntax: beq rs1,
+          // rs2, label
+    BNE,  // Compare the contents of source register with source register rs2, if they are
+          // not equal control is transferred to the label as mentioned. Syntax: bne rs1,
+          // rs2, label
+    BGT,  // Shift the program counter to the specified location if the value in a
+          // register is greater than that of another. Syntax: bgt rs1, rs2, label. Pseudo
+          // Instruction
+    BLE,  // Shift the program counter to the specified location if the value in a
+          // register is less than or equal to that of another. Syntax: ble rs1, rs2,
+          // label. Pseudo Instruction
+    J,    // Pseudo Instruction. Plain unconditional jump instruction used to jump to
+          // anywhere in the code memory.
+
     // Arithmetic Instructions
-    ADD, // Add the contents of two registers and stores the result in another register. Syntax: add rd, rs1, rs2
-    ADDI, // Add content of the source registers rs1, immediate data (imm) and store the result in the destination register (rd). Syntax: addi rd, rs1, imm
-    SUB, // Subtract contents of one register from another and stores the result in another register. Syntax: sub rd, rs1, rs2
-    MUL,// calculates the product of the multiplier in source register 1 (rs1) and multiplicand in source register 2 (rs2), with the resulting product being stored in destination register (rd). Syntax: mul rd, rs1, rs2
-    DIV, // divide on the value in source register (rs1) with the value in the source register (rs2) and stores quotient in (rd) register. Syntax: div rd, rs1, rs2
+    ADD,   // Add the contents of two registers and stores the result in another register.
+           // Syntax: add rd, rs1, rs2
+    ADDI,  // Add content of the source registers rs1, immediate data (imm) and store the
+           // result in the destination register (rd). Syntax: addi rd, rs1, imm
+    SUB,   // Subtract contents of one register from another and stores the result in
+           // another register. Syntax: sub rd, rs1, rs2
+    MUL,   // calculates the product of the multiplier in source register 1 (rs1) and
+           // multiplicand in source register 2 (rs2), with the resulting product being
+           // stored in destination register (rd). Syntax: mul rd, rs1, rs2
+    DIV,   // divide on the value in source register (rs1) with the value in the source
+          // register (rs2) and stores quotient in (rd) register. Syntax: div rd, rs1, rs2
+
     // Others
     CALL,
     RET,
@@ -105,17 +136,20 @@ public:
     unsigned getRegisterSize() const { return RISCV::RegisterSize; }
 
     bool isCallerSavedRegister(uint32_t Reg) const override {
-        return std::any_of(begin(RISCV::CallerSavedRegs), end(RISCV::CallerSavedRegs),
+        return std::any_of(std::begin(RISCV::CallerSavedRegs),
+                           std::end(RISCV::CallerSavedRegs),
                            [&](int R) { return R == Reg; });
     }
 
     bool isCalleeSavedRegister(uint32_t Reg) const override {
-        return std::any_of(begin(RISCV::CalleeSavedRegs), end(RISCV::CalleeSavedRegs),
+        return std::any_of(std::begin(RISCV::CalleeSavedRegs),
+                           std::end(RISCV::CalleeSavedRegs),
                            [&](int R) { return R == Reg; });
     }
 
     bool isArgRegister(uint32_t Reg) const override {
-        return std::any_of(begin(ArgRegs), end(ArgRegs), [&](int R) { return R == Reg; });
+        return std::any_of(std::begin(RISCV::ArgRegs), std::end(RISCV::ArgRegs),
+                           [&](int R) { return R == Reg; });
     }
 
     unsigned getNumCallerSavedRegisters() const override {
@@ -143,42 +177,8 @@ public:
     virtual uint32_t getFramePointerRegister() const override { return RISCV::FP; }
 
     // TODO: Free register priority?
-    void getFreeRegistersForRegisterAllocator(
-        llvm::SmallVector<bool> &FreeRegisters) const override {
-        FreeRegisters.resize(RISCV::NUM_TARGET_REGS /*number of registers + 1*/);
-        FreeRegisters[RISCV::NoRegister] = false;
-        FreeRegisters[RISCV::ZERO] = false;
-        FreeRegisters[RISCV::RA] = false;
-        FreeRegisters[RISCV::SP] = false;
-        FreeRegisters[RISCV::GP] = false;
-        FreeRegisters[RISCV::TP] = false;
-        FreeRegisters[RISCV::T0] = true;
-        FreeRegisters[RISCV::T1] = true;
-        FreeRegisters[RISCV::T2] = true;
-        FreeRegisters[RISCV::FP] = false;
-        FreeRegisters[RISCV::S1] = true;
-        FreeRegisters[RISCV::A0] = true;
-        FreeRegisters[RISCV::A1] = true;
-        FreeRegisters[RISCV::A2] = true;
-        FreeRegisters[RISCV::A3] = true;
-        FreeRegisters[RISCV::A4] = true;
-        FreeRegisters[RISCV::A5] = true;
-        FreeRegisters[RISCV::A6] = true;
-        FreeRegisters[RISCV::A7] = true;
-        FreeRegisters[RISCV::S2] = true;
-        FreeRegisters[RISCV::S3] = true;
-        FreeRegisters[RISCV::S4] = true;
-        FreeRegisters[RISCV::S5] = true;
-        FreeRegisters[RISCV::S6] = true;
-        FreeRegisters[RISCV::S7] = true;
-        FreeRegisters[RISCV::S8] = true;
-        FreeRegisters[RISCV::S9] = true;
-        FreeRegisters[RISCV::S10] = true;
-        FreeRegisters[RISCV::S11] = true;
-        FreeRegisters[RISCV::T3] = true;
-        FreeRegisters[RISCV::T4] = true;
-        FreeRegisters[RISCV::T5] = true;
-        FreeRegisters[RISCV::T6] = true;
+    llvm::ArrayRef<uint32_t> getFreeRegistersForRegisterAllocator() const override {
+        return RISCV::FreeRegs;
     }
 };
 
