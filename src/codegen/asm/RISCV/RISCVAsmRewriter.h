@@ -6,6 +6,10 @@
 namespace remniw {
 
 class RISCVAsmRewriter: public AsmRewriter {
+private:
+    int64_t NeededStackSizeInBytes {0};
+    int64_t TotalStackFrameSizeInBytes {0};
+
 public:
     RISCVAsmRewriter(const TargetInfo &TI): AsmRewriter(TI) {}
 
@@ -99,70 +103,90 @@ private:
 
     void insertPrologue(AsmFunction *F,
                         llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) override {
-        // AsmInstruction *InsertBefore = &F->front();
+        AsmInstruction *InsertBefore = &F->front();
 
-        // // Specially handle main function
-        // if (F->FuncName != "main") {
-        //     for (uint32_t Reg : UsedCalleeSavedRegs) {
-        //         auto *I = AsmInstruction::create(X86::PUSH, InsertBefore);
-        //         I->addOperand(AsmOperand::createReg(Reg));
-        //     }
-        // }
+        NeededStackSizeInBytes =
+            F->StackSizeInBytes + RISCV::RegisterSize * NumSpilledReg +
+            RISCV::RegisterSize * MaxNumReversedStackSlotForReg;
+        TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
+                                             RISCV::RegisterSize /*frame pointer*/ +
+                                             RISCV::RegisterSize /*return address*/;
+        if (F->FuncName != "main")
+            TotalStackFrameSizeInBytes +=
+                UsedCalleeSavedRegs.size() * RISCV::RegisterSize;
+        // FIXME: x86-64 / AMD64 System V ABI requires 16-byte stack alignment, what about RISCV?
+        if (TotalStackFrameSizeInBytes % 16)
+            TotalStackFrameSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
 
-        // // Reserve space on the stack
-        // int64_t NeededStackSizeInBytes =
-        //     F->StackSizeInBytes + RISCV::RegisterSize * NumSpilledReg +
-        //     RISCV::RegisterSize * MaxNumReversedStackSlotForReg;
-        // int64_t TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
-        //                                      RISCV::RegisterSize /*frame pointer*/ +
-        //                                      RISCV::RegisterSize /*return address*/;
-        // if (F->FuncName != "main")
-        //     TotalStackFrameSizeInBytes +=
-        //         UsedCalleeSavedRegs.size() * RISCV::RegisterSize;
-        // // x86-64 / AMD64 System V ABI requires 16-byte stack alignment
-        // if (TotalStackFrameSizeInBytes % 16)
-        //     NeededStackSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
-        // auto *SI = AsmInstruction::create(X86::SUB, InsertBefore);
-        // SI->addOperand(AsmOperand::createImm(NeededStackSizeInBytes));
-        // SI->addOperand(AsmOperand::createReg(X86::RSP));
+        // Reserve space on the stack
+        auto *AI = AsmInstruction::create(RISCV::ADDI, InsertBefore);
+        AI->addOperand(AsmOperand::createReg(RISCV::SP));
+        AI->addOperand(AsmOperand::createReg(RISCV::SP));
+        AI->addOperand(AsmOperand::createImm(-TotalStackFrameSizeInBytes));
 
-        // // Save return address register on stack
-        // auto *SDRA = AsmInstruction::create(RISCV::SD, InsertBefore);
-        // SDRA->addOperand(AsmOperand::createReg(RISCV::RA));
-        // SDRA->addOperand(AsmOperand::createReg(RISCV::RA));
+        int64_t TmpOffsetFromStackPointer = NeededStackSizeInBytes;
+        // Save return address register on stack
+        auto *SDRA = AsmInstruction::create(RISCV::SD, InsertBefore);
+        SDRA->addOperand(AsmOperand::createReg(RISCV::RA));
+        SDRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+        TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
 
-        // // Save frame pointer on stack
-        // auto *SDFP = AsmInstruction::create(RISCV::SD, InsertBefore);
-        // PI->addOperand(AsmOperand::createReg(X86::RBP));
+        // Save frame pointer on stack
+        auto *SDFP = AsmInstruction::create(RISCV::SD, InsertBefore);
+        SDFP->addOperand(AsmOperand::createReg(RISCV::FP));
+        SDFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+        TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
 
-        // // Mov RSP(stack pointer) to RBP(frame pointer)
-        // auto *MI = AsmInstruction::create(X86::MOV, InsertBefore);
-        // MI->addOperand(AsmOperand::createReg(X86::RSP));
-        // MI->addOperand(AsmOperand::createReg(X86::RBP));
+        // Save callee-saved registers on stack, treat main function as special case 
+        if (F->FuncName != "main") {
+            for (uint32_t Reg : UsedCalleeSavedRegs) {
+                auto *I = AsmInstruction::create(RISCV::SD, InsertBefore);
+                I->addOperand(AsmOperand::createReg(Reg));
+                I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+                TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+            }
+        }
+
+        // Update frame pointer
+        auto *UpdateFP = AsmInstruction::create(RISCV::ADDI, InsertBefore);
+        UpdateFP->addOperand(AsmOperand::createReg(RISCV::FP));
+        UpdateFP->addOperand(AsmOperand::createReg(RISCV::SP));
+        UpdateFP->addOperand(AsmOperand::createImm(NeededStackSizeInBytes));
     }
 
     void insertEpilogue(remniw::AsmFunction *F,
                         llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) override {
-        // // Mov RBP(frame pointer) to RSP(stack pointer)
-        // auto *MI = AsmInstruction::create(X86::MOV, F);
-        // MI->addOperand(AsmOperand::createReg(X86::RBP));
-        // MI->addOperand(AsmOperand::createReg(X86::RSP));
+        int64_t TmpOffsetFromStackPointer = NeededStackSizeInBytes;
+        // Restore return address register
+        auto *RTRA = AsmInstruction::create(RISCV::LD, F);
+        RTRA->addOperand(AsmOperand::createReg(RISCV::RA));
+        RTRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+        TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
 
-        // // Pop RBP(frame pointer) on stack
-        // auto *PI = AsmInstruction::create(X86::POP, F);
-        // PI->addOperand(AsmOperand::createReg(X86::RBP));
+        // Restore frame pointer
+        auto *RTFP = AsmInstruction::create(RISCV::FP, F);
+        RTFP->addOperand(AsmOperand::createReg(RISCV::FP));
+        RTFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+        TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
 
-        // // Specially handle main function
-        // if (F->FuncName != "main") {
-        //     for (auto i = UsedCalleeSavedRegs.rbegin(), e = UsedCalleeSavedRegs.rend();
-        //          i != e; ++i) {
-        //         auto *PI = AsmInstruction::create(X86::POP, F);
-        //         PI->addOperand(AsmOperand::createReg(*i));
-        //     }
-        // }
+        // Restore callee-saved registers, treat main function as special case 
+        if (F->FuncName != "main") {
+            for (uint32_t Reg : UsedCalleeSavedRegs) {
+                auto *I = AsmInstruction::create(RISCV::LD, InsertBefore);
+                I->addOperand(AsmOperand::createReg(Reg));
+                I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+                TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+            }
+        }
 
-        // // Return
-        // AsmInstruction::create(RISCV::RET, F);
+        // Restore stack pointer
+        auto *UpdateSP = AsmInstruction::create(RISCV::ADDI, InsertBefore);
+        UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
+        UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
+        UpdateSP->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes));
+
+        // Return
+        AsmInstruction::create(RISCV::RET, F);
     }
 
     void getUsedRegisters(AsmInstruction *I,
