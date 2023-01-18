@@ -137,7 +137,7 @@ private:
         SDFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
         TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
 
-        // Save callee-saved registers on stack, treat main function as special case 
+        // Save callee-saved registers on stack, treat main function as special case
         if (F->FuncName != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegs) {
                 auto *I = AsmInstruction::create(RISCV::SD, InsertBefore);
@@ -164,15 +164,15 @@ private:
         TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
 
         // Restore frame pointer
-        auto *RTFP = AsmInstruction::create(RISCV::FP, F);
+        auto *RTFP = AsmInstruction::create(RISCV::LD, F);
         RTFP->addOperand(AsmOperand::createReg(RISCV::FP));
         RTFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
         TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
 
-        // Restore callee-saved registers, treat main function as special case 
+        // Restore callee-saved registers, treat main function as special case
         if (F->FuncName != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegs) {
-                auto *I = AsmInstruction::create(RISCV::LD, InsertBefore);
+                auto *I = AsmInstruction::create(RISCV::LD, F);
                 I->addOperand(AsmOperand::createReg(Reg));
                 I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
                 TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
@@ -180,7 +180,7 @@ private:
         }
 
         // Restore stack pointer
-        auto *UpdateSP = AsmInstruction::create(RISCV::ADDI, InsertBefore);
+        auto *UpdateSP = AsmInstruction::create(RISCV::ADDI, F);
         UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
         UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
         UpdateSP->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes));

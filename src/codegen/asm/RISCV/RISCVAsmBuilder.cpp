@@ -77,17 +77,17 @@ void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::MemOp Mem1,
                                   AsmOperand::MemOp Mem2, bool DestIsArgument) {
     normalizeAsmMemoryOperand(Mem1);
     normalizeAsmMemoryOperand(Mem2);
+    uint32_t VirtReg = Register::createVirtReg();
     if (DestIsArgument) {
-        uint32_t LDDstReg = Register::createVirtReg();
-        createLDInst(/* destination register */ AsmOperand::createReg(LDDstReg),
+        createLDInst(/* destination register */ AsmOperand::createReg(VirtReg),
                      /* memory (base register and offset) */ Mem1);
-        createSDInst(/* source register */ AsmOperand::createReg(LDDstReg),
+        createSDInst(/* source register */ AsmOperand::createReg(VirtReg),
                      /* memory (base register and offset) */ Mem2);
     } else {
-        createADDIInst(/* destination register */ AsmOperand::createReg(Mem1.BaseReg),
+        createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                        /* source register 1 */ AsmOperand::createReg(Mem1.BaseReg),
                        /* Immediate data */ AsmOperand::createImm(Mem1.Disp));
-        createSDInst(/* source register */ AsmOperand::createReg(Mem1.BaseReg),
+        createSDInst(/* source register */ AsmOperand::createReg(VirtReg),
                      /* memory (base register and offset) */ Mem2);
     }
 }
@@ -123,10 +123,11 @@ AsmOperand::MemOp RISCVAsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
         return {Mem.Disp, Mem.BaseReg, Reg.RegNo, SizeInBytes};
     } else {
         normalizeAsmMemoryOperand(Mem);
-        createADDIInst(/* destination register */ AsmOperand::createReg(Mem.BaseReg),
+        uint32_t VirtReg = Register::createVirtReg();
+        createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                        /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
                        /* Immediate */ AsmOperand::createImm(Mem.Disp));
-        return {0, Mem.BaseReg, Reg.RegNo, SizeInBytes};
+        return {0, VirtReg, Reg.RegNo, SizeInBytes};
     }
 }
 
@@ -226,26 +227,29 @@ void RISCVAsmBuilder::handleBR(llvm::Instruction *I, AsmOperand::LabelOp Label) 
 
 AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::RegOp Reg1,
                                              AsmOperand::RegOp Reg2) {
-    createADDInst(/* destination register */ Reg1,
+    uint32_t VirtReg = Register::createVirtReg();
+    createADDInst(/* destination register */ AsmOperand::createReg(VirtReg),
                   /* source register 1*/ Reg1,
                   /* source register 2 */ Reg2);
-    return Reg1;
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::RegOp Reg,
                                              AsmOperand::ImmOp Imm) {
-    createADDIInst(/* destination register */ Reg,
+    uint32_t VirtReg = Register::createVirtReg();
+    createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                    /* source register 1 */ Reg,
                    /* Immediate */ Imm);
-    return Reg;
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::ImmOp Imm,
                                              AsmOperand::RegOp Reg) {
-    createADDIInst(/* destination register */ Reg,
+    uint32_t VirtReg = Register::createVirtReg();
+    createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                    /* source register 1 */ Reg,
                    /* Immediate */ Imm);
-    return Reg;
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::ImmOp Imm1,
@@ -256,21 +260,22 @@ AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::I
 
 AsmOperand::RegOp RISCVAsmBuilder::handleSUB(llvm::Instruction *I, AsmOperand::RegOp Reg1,
                                              AsmOperand::RegOp Reg2) {
-    createSUBInst(/* destination register*/ Reg1,
+    uint32_t VirtReg = Register::createVirtReg();
+    createSUBInst(/* destination register*/ AsmOperand::createReg(VirtReg),
                   /* source register 1*/ Reg1,
                   /* source register 2*/ Reg2);
-    return Reg1;
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleSUB(llvm::Instruction *I, AsmOperand::RegOp Reg,
                                              AsmOperand::ImmOp Imm) {
-    uint32_t LIDstReg = Register::createVirtReg();
-    createLIInst(/* destination register */ AsmOperand::createReg(LIDstReg),
+    uint32_t VirtReg = Register::createVirtReg();
+    createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                  /* immediate */ Imm);
-    createSUBInst(/* destination register */ Reg,
+    createSUBInst(/* destination register */ AsmOperand::createReg(VirtReg),
                   /* source register 1 */ Reg,
-                  /* source register 2 */ AsmOperand::createReg(LIDstReg));
-    return Reg;
+                  /* source register 2 */ AsmOperand::createReg(VirtReg));
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleSUB(llvm::Instruction *I, AsmOperand::ImmOp Imm,
@@ -292,32 +297,33 @@ AsmOperand::RegOp RISCVAsmBuilder::handleSUB(llvm::Instruction *I, AsmOperand::I
 
 AsmOperand::RegOp RISCVAsmBuilder::handleMUL(llvm::Instruction *I, AsmOperand::RegOp Reg1,
                                              AsmOperand::RegOp Reg2) {
-    createMULInst(/*destination register */ Reg1,
+    uint32_t VirtReg = Register::createVirtReg();
+    createMULInst(/*destination register */ AsmOperand::createReg(VirtReg),
                   /*source register 1*/ Reg1,
                   /*source register 2*/ Reg2);
-    return Reg1;
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleMUL(llvm::Instruction *I, AsmOperand::RegOp Reg,
                                              AsmOperand::ImmOp Imm) {
-    uint32_t LIDstReg = Register::createVirtReg();
-    createLIInst(/* destination register */ AsmOperand::createReg(LIDstReg),
+    uint32_t VirtReg = Register::createVirtReg();
+    createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                  /* immediate */ Imm);
-    createMULInst(/* destination register */ Reg,
+    createMULInst(/* destination register */ AsmOperand::createReg(VirtReg),
                   /* source register 1 */ Reg,
-                  /* source register 2 */ AsmOperand::createReg(LIDstReg));
-    return Reg;
+                  /* source register 2 */ AsmOperand::createReg(VirtReg));
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleMUL(llvm::Instruction *I, AsmOperand::ImmOp Imm,
                                              AsmOperand::RegOp Reg) {
-    uint32_t LIDstReg = Register::createVirtReg();
-    createLIInst(/* destination register */ AsmOperand::createReg(LIDstReg),
+    uint32_t VirtReg = Register::createVirtReg();
+    createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                  /* immediate */ Imm);
-    createMULInst(/* destination register */ AsmOperand::createReg(LIDstReg),
-                  /* source register 1 */ AsmOperand::createReg(LIDstReg),
+    createMULInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                  /* source register 1 */ AsmOperand::createReg(VirtReg),
                   /* source register 2 */ Reg);
-    return {LIDstReg};
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleMUL(llvm::Instruction *I, AsmOperand::ImmOp Imm1,
@@ -329,32 +335,33 @@ AsmOperand::RegOp RISCVAsmBuilder::handleMUL(llvm::Instruction *I, AsmOperand::I
 AsmOperand::RegOp RISCVAsmBuilder::handleSDIV(llvm::Instruction *I,
                                               AsmOperand::RegOp Reg1,
                                               AsmOperand::RegOp Reg2) {
-    createDIVInst(/* destination register */ Reg1,
+    uint32_t VirtReg = Register::createVirtReg();
+    createDIVInst(/* destination register */ AsmOperand::createReg(VirtReg),
                   /* source register 1*/ Reg1,
                   /* source register 2*/ Reg2);
-    return Reg1;
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleSDIV(llvm::Instruction *I, AsmOperand::RegOp Reg,
                                               AsmOperand::ImmOp Imm) {
-    uint32_t LIDstReg = Register::createVirtReg();
-    createLIInst(/* destination register */ AsmOperand::createReg(LIDstReg),
+    uint32_t VirtReg = Register::createVirtReg();
+    createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                  /* immediate */ Imm);
-    createDIVInst(/* destination register */ Reg,
+    createDIVInst(/* destination register */ AsmOperand::createReg(VirtReg),
                   /* source register 1 */ Reg,
-                  /* source register 2 */ AsmOperand::createReg(LIDstReg));
-    return Reg;
+                  /* source register 2 */ AsmOperand::createReg(VirtReg));
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleSDIV(llvm::Instruction *I, AsmOperand::ImmOp Imm,
                                               AsmOperand::RegOp Reg) {
-    uint32_t LIDstReg = Register::createVirtReg();
-    createLIInst(/* destination register */ AsmOperand::createReg(LIDstReg),
+    uint32_t VirtReg = Register::createVirtReg();
+    createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                  /* immediate */ Imm);
-    createDIVInst(/* destination register */ AsmOperand::createReg(LIDstReg),
-                  /* source register 1 */ AsmOperand::createReg(LIDstReg),
+    createDIVInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                  /* source register 1 */ AsmOperand::createReg(VirtReg),
                   /* source register 2 */ Reg);
-    return {LIDstReg};
+    return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleSDIV(llvm::Instruction *I,
@@ -402,8 +409,8 @@ void RISCVAsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
                                 AsmOperand::RegOp Reg) {
     if (ArgNo < RISCV::NumArgRegs) {
         createMVInst(
-            /* source register */ Reg,
-            /* destination register */ AsmOperand::createReg(RISCV::ArgRegs[ArgNo]));
+            /* destination register */ AsmOperand::createReg(RISCV::ArgRegs[ArgNo]),
+            /* source register */ Reg);
     } else {
         auto *CB = llvm::cast<llvm::CallBase>(CI);
         llvm::Type *Ty = CB->getArgOperand(ArgNo)->getType();
@@ -438,18 +445,19 @@ void RISCVAsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
 void RISCVAsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
                                 AsmOperand::MemOp Mem) {
     normalizeAsmMemoryOperand(Mem);
-    createADDIInst(/* destination register */ AsmOperand::createReg(Mem.BaseReg),
+    uint32_t VirtReg = Register::createVirtReg();
+    createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                    /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
                    /* Immediate data */ AsmOperand::createImm(Mem.Disp));
     if (ArgNo < RISCV::NumArgRegs) {
         createMVInst(
             /* destination register */ AsmOperand::createReg(RISCV::ArgRegs[ArgNo]),
-            /* source register */ AsmOperand::createReg(Mem.BaseReg));
+            /* source register */ AsmOperand::createReg(VirtReg));
     } else {
         auto *CB = llvm::cast<llvm::CallBase>(CI);
         llvm::Type *Ty = CB->getArgOperand(ArgNo)->getType();
         uint64_t SizeInBytes = CB->getModule()->getDataLayout().getTypeAllocSize(Ty);
-        createSDInst(/* source register */ AsmOperand::createReg(Mem.BaseReg),
+        createSDInst(/* source register */ AsmOperand::createReg(VirtReg),
                      /* memory (base register and offset) */ AsmOperand::createMem(
                          CallArgOffsetFromStackPointer, RISCV::SP));
         CallArgOffsetFromStackPointer += SizeInBytes;

@@ -20,6 +20,7 @@ static llvm::cl::opt<std::string>
                    llvm::cl::value_desc("filename"));
 
 static llvm::cl::opt<remniw::Target> CodegenTarget(
+    "target",
     llvm::cl::desc("Choose codegen target:"),
     llvm::cl::values(clEnumVal(remniw::Target::x86, "emit X86 assembly"),
                      clEnumVal(remniw::Target::riscv, "emit RISCV assembly")),
