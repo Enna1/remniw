@@ -490,23 +490,36 @@ void RISCVAsmBuilder::handleLABEL(AsmOperand::LabelOp Label) {
 
 void RISCVAsmBuilder::normalizeAsmMemoryOperand(AsmOperand::MemOp &Mem) {
     if (Mem.IndexReg != Register::NoRegister) {
-        uint32_t LIDstReg = Register::createVirtReg();
+        uint32_t VirtReg = Register::createVirtReg();
         // MemScale
         createLIInst(
-            /* destination register */ AsmOperand::createReg(LIDstReg),
+            /* destination register */ AsmOperand::createReg(VirtReg),
             /* source immediate */ AsmOperand::createImm(Mem.Scale));
 
         // MemIndex * MemScale
         createMULInst(
-            /* destination register */ AsmOperand::createReg(Mem.IndexReg),
+            /* destination register */ AsmOperand::createReg(VirtReg),
             /* source register 1 */ AsmOperand::createReg(Mem.IndexReg),
-            /* source register 2 */ AsmOperand::createReg(LIDstReg));
+            /* source register 2 */ AsmOperand::createReg(VirtReg));
 
-        // MemBase  MemIndex * MemScale
+        // MemBase + MemIndex * MemScale
         createADDInst(
-            /* destination register */ AsmOperand::createReg(Mem.BaseReg),
+            /* destination register */ AsmOperand::createReg(VirtReg),
             /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
-            /* source register 2 */ AsmOperand::createReg(Mem.IndexReg));
+            /* source register 2 */ AsmOperand::createReg(VirtReg));
+
+        // RISCV integer operand muse be in the range [-2048, 2047]
+        if (Mem.Disp < -2048 || Mem.Disp > 2044) {
+            createADDIInst(
+                /* destination register */ AsmOperand::createReg(VirtReg),
+                /* source register 1 */ AsmOperand::createReg(VirtReg),
+                /* immediate */ AsmOperand::createImm(Mem.Disp));
+            Mem.Disp = 0;
+        }
+
+        Mem.BaseReg = VirtReg;
+        Mem.IndexReg = Register::NoRegister;
+        Mem.Scale = 0;
     }
 }
 
@@ -611,13 +624,22 @@ AsmInstruction *RISCVAsmBuilder::createADDInst(AsmOperand DstReg, AsmOperand Src
 
 AsmInstruction *RISCVAsmBuilder::createADDIInst(AsmOperand DstReg, AsmOperand SrcReg,
                                                 AsmOperand SrcImm) {
-    updateAsmOperandLiveRanges(DstReg);
-    updateAsmOperandLiveRanges(SrcReg);
-    updateAsmOperandLiveRanges(SrcImm);
-    auto *I = AsmInstruction::create(RISCV::ADDI, getCurrentFunction());
-    I->addOperand(DstReg);
-    I->addOperand(SrcReg);
-    I->addOperand(SrcImm);
+    AsmInstruction *I;
+    // integer operand muse be in the range [-2048, 2047]
+    if (SrcImm.Imm.Val >= -2048 && SrcImm.Imm.Val <= 2047) {
+        updateAsmOperandLiveRanges(DstReg);
+        updateAsmOperandLiveRanges(SrcReg);
+        updateAsmOperandLiveRanges(SrcImm);
+        I = AsmInstruction::create(RISCV::ADDI, getCurrentFunction());
+        I->addOperand(DstReg);
+        I->addOperand(SrcReg);
+        I->addOperand(SrcImm);
+    } else {
+        uint32_t VirtReg = Register::createVirtReg();
+        createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                     /*immediate*/ SrcImm);
+        I = createADDInst(DstReg, SrcReg, AsmOperand::createReg(VirtReg));
+    }
     return I;
 }
 
@@ -660,7 +682,12 @@ AsmInstruction *RISCVAsmBuilder::createDIVInst(AsmOperand DstReg, AsmOperand Src
 AsmInstruction *RISCVAsmBuilder::createCALLInst(AsmOperand Callee, bool DirectCall,
                                                 unsigned NumArgs) {
     updateAsmOperandLiveRanges(Callee);
-    auto *I = AsmInstruction::create(RISCV::CALL, getCurrentFunction());
+    AsmInstruction *I;
+    if (DirectCall) {
+        I = AsmInstruction::create(RISCV::CALL, getCurrentFunction());
+    } else {
+        I = AsmInstruction::create(RISCV::JALR, getCurrentFunction());
+    }
     I->addOperand(Callee);
     I->addOperand(AsmOperand::createImm(NumArgs));
     getCurrentCallInstIndexes().push_back(getCurrentFunction()->size());

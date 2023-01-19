@@ -124,6 +124,7 @@ enum {
 
     // Others
     CALL,
+    JALR,
     RET,
     LABEL,
     INSTRUCTION_LIST_END

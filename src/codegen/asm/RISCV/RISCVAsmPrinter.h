@@ -187,10 +187,14 @@ public:
             OS << "\n";
             break;
         }
-        case RISCV::CALL: {
+        case RISCV::CALL: {  // direct call
             OS << "\tcall\t";
-            if (!I.getOperand(0).isLabel())  // Indirect call
-                OS << "*";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::JALR: {  // indirect call
+            OS << "\tjalr\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << "\n";
             break;
