@@ -4,6 +4,7 @@
 #include "codegen/asm/RegisterAllocator.h"
 #include "codegen/asm/TargetInfo.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Support/Alignment.h"
 
 namespace remniw {
