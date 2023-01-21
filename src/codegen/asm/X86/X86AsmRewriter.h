@@ -165,7 +165,7 @@ private:
 
         // Reserve space on the stack
         int64_t NeededStackSizeInBytes =
-            F->CallFrameSize /* space for call frame */ + 
+            F->MaxCallFrameSize /* space for call frame */ + 
             F->LocalFrameSize /* space for local frame */ + 
             (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */;
         if (F->FuncName != "main") {

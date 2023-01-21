@@ -93,14 +93,14 @@ public:
     int64_t getStackSlotOffsetForSpilledReg(uint32_t RegNo) {
         assert(Register::isStackSlot(RegNo) && "Must be StackSlot");
         uint32_t StackSlotIndex = Register::stackSlot2Index(RegNo);
-        return -(CurrentFunction->StackSizeInBytes +
+        return -(CurrentFunction->LocalFrameSize +
                  TI.getRegisterSize() * (StackSlotIndex + 1));
     }
 
     int64_t getReservedStackSlotOffsetForReg() {
         NumReversedStackSlotForReg++;
         int64_t Offset =
-            -(CurrentFunction->StackSizeInBytes + TI.getRegisterSize() * NumSpilledReg +
+            -(CurrentFunction->LocalFrameSize + TI.getRegisterSize() * NumSpilledReg +
               TI.getRegisterSize() * NumReversedStackSlotForReg);
         return Offset;
     }
