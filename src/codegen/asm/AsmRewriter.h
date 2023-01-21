@@ -51,10 +51,10 @@ public:
                 rewriteAsmInstSpilledRegToStackSlot(&AsmInst, VirtToAllocRegMap);
 
             // Insert prologue and epilogue.
-            llvm::SmallVector<uint32_t> UsedCalleeSavedRegs;
+            llvm::SetVector<uint32_t> UsedCalleeSavedRegs;
             for (auto p : VirtToAllocRegMap) {
                 if (TI.isCalleeSavedRegister(p.second))
-                    UsedCalleeSavedRegs.push_back(p.second);
+                    UsedCalleeSavedRegs.insert(p.second);
             }
             insertPrologue(CurrentFunction, UsedCalleeSavedRegs);
             insertEpilogue(CurrentFunction, UsedCalleeSavedRegs);
@@ -115,10 +115,10 @@ private:
         const llvm::DenseMap<uint32_t, uint32_t> &VirtToAllocRegMap) = 0;
 
     virtual void insertPrologue(AsmFunction *F,
-                                llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) = 0;
+                                llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) = 0;
 
     virtual void insertEpilogue(AsmFunction *F,
-                                llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) = 0;
+                                llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) = 0;
 
     virtual void adjustStackFrame(AsmFunction *F) = 0;
 

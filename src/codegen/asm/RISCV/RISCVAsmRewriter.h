@@ -121,7 +121,7 @@ private:
     // +-------------------------+ <- New SP. Low address
 
     void insertPrologue(AsmFunction *F,
-                        llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) override {
+                        llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         // AsmInstruction *InsertBefore = &F->front();
 
         // NeededStackSizeInBytes =
@@ -180,7 +180,7 @@ private:
     }
 
     void insertEpilogue(remniw::AsmFunction *F,
-                        llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) override {
+                        llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         // int64_t TmpOffsetFromStackPointer = NeededStackSizeInBytes;
         // // Restore return address register
         // auto *RTRA = AsmInstruction::create(RISCV::LD, F);

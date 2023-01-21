@@ -143,7 +143,7 @@ private:
     // +-------------------------+ <- New SP. Low address
 
     void insertPrologue(AsmFunction *F,
-                        llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) override {
+                        llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         AsmInstruction *InsertBefore = &F->front();
 
         // Push RBP(frame pointer) on stack
@@ -184,7 +184,7 @@ private:
     }
 
     void insertEpilogue(remniw::AsmFunction *F,
-                        llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) override {
+                        llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         // Mov RBP(frame pointer) to RSP(stack pointer)
         auto *MI = AsmInstruction::create(X86::MOV, F);
         MI->addOperand(AsmOperand::createReg(X86::RBP));
