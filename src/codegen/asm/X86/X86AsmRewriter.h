@@ -168,13 +168,13 @@ private:
             F->MaxCallFrameSize /* space for call frame */ + 
             F->LocalFrameSize /* space for local frame */ + 
             (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */;
-        if (F->FuncName != "main") {
-            StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * X86::RegisterSize;
-            NeededStackSizeInBytes += StackSizeForCalleeSavedRegs; /* space for other callee-saved registers */
-        }
         int64_t TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
                                              X86::RegisterSize /* pushed register rbp */ +
                                              X86::RegisterSize /* pushed return address */;
+        if (F->FuncName != "main") {
+            StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * X86::RegisterSize;
+            TotalStackFrameSizeInBytes += StackSizeForCalleeSavedRegs; /* space for other callee-saved registers */
+        }
         // x86-64 / AMD64 System V ABI requires 16-byte stack alignment
         if (TotalStackFrameSizeInBytes % 16)
             NeededStackSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
