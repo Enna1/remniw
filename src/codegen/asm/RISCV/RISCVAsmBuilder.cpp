@@ -508,18 +508,20 @@ void RISCVAsmBuilder::normalizeAsmMemoryOperand(AsmOperand::MemOp &Mem) {
             /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
             /* source register 2 */ AsmOperand::createReg(VirtReg));
 
-        // RISCV integer operand muse be in the range [-2048, 2047]
-        if (Mem.Disp < -2048 || Mem.Disp > 2044) {
-            createADDIInst(
-                /* destination register */ AsmOperand::createReg(VirtReg),
-                /* source register 1 */ AsmOperand::createReg(VirtReg),
-                /* immediate */ AsmOperand::createImm(Mem.Disp));
-            Mem.Disp = 0;
-        }
-
         Mem.BaseReg = VirtReg;
         Mem.IndexReg = Register::NoRegister;
         Mem.Scale = 0;
+    }
+
+    // RISCV integer operand muse be in the range [-2048, 2047]
+    if (Mem.Disp < -2048 || Mem.Disp > 2047) {
+        uint32_t VirtReg = Register::createVirtReg();
+        createADDIInst(
+            /* destination register */ AsmOperand::createReg(VirtReg),
+            /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
+            /* immediate */ AsmOperand::createImm(Mem.Disp));
+        Mem.Disp = 0;
+        Mem.BaseReg = VirtReg;
     }
 }
 
