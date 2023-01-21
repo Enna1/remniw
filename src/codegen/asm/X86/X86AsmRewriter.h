@@ -187,7 +187,7 @@ private:
     void insertEpilogue(remniw::AsmFunction *F,
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         // Restore RSP(stack pointer)
-        auto *SI = AsmInstruction::create(X86::ADD, InsertBefore);
+        auto *SI = AsmInstruction::create(X86::ADD, F);
         SI->addOperand(AsmOperand::createImm(NeededStackSizeInBytes));
         SI->addOperand(AsmOperand::createReg(X86::RSP));
 
