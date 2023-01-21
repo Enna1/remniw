@@ -175,6 +175,8 @@ private:
         if (F->FuncName != "main") {
             StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * X86::RegisterSize;
             TotalStackFrameSizeInBytes += StackSizeForCalleeSavedRegs; /* space for other callee-saved registers */
+        } else {
+            StackSizeForCalleeSavedRegs = 0;
         }
         // x86-64 / AMD64 System V ABI requires 16-byte stack alignment
         if (TotalStackFrameSizeInBytes % 16)
