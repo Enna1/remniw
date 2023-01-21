@@ -297,7 +297,9 @@ struct BrgFunction {
     }
 
     std::string FuncName;
-    int64_t StackSizeInBytes;
+    int64_t LocalFrameSize {0};
+    int64_t MaxCallFrameSize {0};
+
     llvm::SmallVector<BrgTreeNode *> Insts;
     llvm::DenseMap<llvm::Instruction *, BrgTreeNode *> InstToNodeMap;
     llvm::DenseMap<llvm::BasicBlock *, BrgTreeNode *> BasicBlockToNodeMap;
