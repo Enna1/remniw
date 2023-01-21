@@ -8,6 +8,7 @@ namespace remniw {
 class X86AsmRewriter: public AsmRewriter {
 private:
     int64_t StackSizeForCalleeSavedRegs {0};
+    int64_t NeededStackSizeInBytes {0};
 
 public:
     X86AsmRewriter(const TargetInfo &TI): AsmRewriter(TI) {}
@@ -164,7 +165,7 @@ private:
         }
 
         // Reserve space on the stack
-        int64_t NeededStackSizeInBytes =
+        NeededStackSizeInBytes =
             F->MaxCallFrameSize /* space for call frame */ + 
             F->LocalFrameSize /* space for local frame */ + 
             (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */;
@@ -185,10 +186,10 @@ private:
 
     void insertEpilogue(remniw::AsmFunction *F,
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
-        // Mov RBP(frame pointer) to RSP(stack pointer)
-        auto *MI = AsmInstruction::create(X86::MOV, F);
-        MI->addOperand(AsmOperand::createReg(X86::RBP));
-        MI->addOperand(AsmOperand::createReg(X86::RSP));
+        // Restore RSP(stack pointer)
+        auto *SI = AsmInstruction::create(X86::ADD, InsertBefore);
+        SI->addOperand(AsmOperand::createImm(NeededStackSizeInBytes));
+        SI->addOperand(AsmOperand::createReg(X86::RSP));
 
         // Pop callee-saved registers on stack, treat main function as special case
         if (F->FuncName != "main") {
