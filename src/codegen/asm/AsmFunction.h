@@ -13,13 +13,15 @@ class AsmFunction {
 public:
     using InstListType = llvm::ilist<AsmInstruction>;
 
-    AsmFunction(std::string FuncName, int64_t StackSizeInBytes):
-        FuncName(FuncName), StackSizeInBytes(StackSizeInBytes) {
+    AsmFunction(std::string FuncName, int64_t LocalFrameSize, int64_t MaxCallFrameSize):
+        FuncName(FuncName), LocalFrameSize(LocalFrameSize), MaxCallFrameSize(MaxCallFrameSize) {
         InstList.Parent = this;
     }
 
     std::string FuncName;
-    int64_t StackSizeInBytes;
+    int64_t LocalFrameSize;
+    int64_t MaxCallFrameSize;
+
     InstListType InstList;
     std::unordered_map<uint32_t, remniw::LiveRanges> RegLiveRangesMap;
 

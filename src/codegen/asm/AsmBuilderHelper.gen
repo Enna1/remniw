@@ -566,7 +566,7 @@ namespace remniw {
 
 void AsmBuilder::buildAsmFunction(const BrgFunction *BrgFunc) {
     AsmFunctions.push_back(
-        std::make_unique<AsmFunction>(BrgFunc->FuncName, BrgFunc->StackSizeInBytes));
+        std::make_unique<AsmFunction>(BrgFunc->FuncName, BrgFunc->LocalFrameSize, BrgFunc->MaxCallFrameSize));
     CurrentFunction = AsmFunctions.back().get();
     for (auto *RootNode : BrgFunc->Insts) {
         printDebugTree(RootNode);

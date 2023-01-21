@@ -58,6 +58,8 @@ public:
             }
             insertPrologue(CurrentFunction, UsedCalleeSavedRegs);
             insertEpilogue(CurrentFunction, UsedCalleeSavedRegs);
+
+            adjustStackFrame(CurrentFunction);
         }
     }
 
@@ -117,6 +119,8 @@ private:
 
     virtual void insertEpilogue(AsmFunction *F,
                                 llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) = 0;
+
+    virtual void adjustStackFrame(AsmFunction *F) = 0;
 
     virtual void getUsedRegisters(AsmInstruction *I,
                                   llvm::SmallVectorImpl<uint32_t> &UsedRegs) = 0;

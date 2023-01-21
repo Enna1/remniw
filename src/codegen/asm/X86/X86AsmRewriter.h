@@ -6,6 +6,9 @@
 namespace remniw {
 
 class X86AsmRewriter: public AsmRewriter {
+private:
+    int64_t StackSizeForCalleeSavedRegs {0};
+
 public:
     X86AsmRewriter(const TargetInfo &TI): AsmRewriter(TI) {}
 
@@ -120,17 +123,28 @@ private:
         }
     }
 
+    // The stack frame layout:
+    // 
+    // | Incoming arguments      |
+    // | passed via stack.       |
+    // +-------------------------+ <- Old SP. High address
+    // | pushed return address   |
+    // | pushed register rbp     |
+    // +- - - - - - - - - - - - -+ <- New FP(RBP)
+    // | space for other         |
+    // | callee-saved registers  |
+    // +- - - - - - - - - - - - -+
+    // | local vars space        | <- LocalFrame
+    // +- - - - - - - - - - - - -+
+    // | space for spilled regs  | <- SpillFrame
+    // +- - - - - - - - - - - - -+
+    // | parameter area for      | <- CallFrame
+    // | called functions        |
+    // +-------------------------+ <- New SP. Low address
+
     void insertPrologue(AsmFunction *F,
                         llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) override {
         AsmInstruction *InsertBefore = &F->front();
-
-        // Specially handle main function
-        if (F->FuncName != "main") {
-            for (uint32_t Reg : UsedCalleeSavedRegs) {
-                auto *I = AsmInstruction::create(X86::PUSH, InsertBefore);
-                I->addOperand(AsmOperand::createReg(Reg));
-            }
-        }
 
         // Push RBP(frame pointer) on stack
         auto *PI = AsmInstruction::create(X86::PUSH, InsertBefore);
@@ -141,15 +155,26 @@ private:
         MI->addOperand(AsmOperand::createReg(X86::RSP));
         MI->addOperand(AsmOperand::createReg(X86::RBP));
 
+        // Save callee-saved registers on stack, treat main function as special case
+        if (F->FuncName != "main") {
+            for (uint32_t Reg : UsedCalleeSavedRegs) {
+                auto *I = AsmInstruction::create(X86::PUSH, InsertBefore);
+                I->addOperand(AsmOperand::createReg(Reg));
+            }
+        }
+
         // Reserve space on the stack
         int64_t NeededStackSizeInBytes =
-            F->StackSizeInBytes + X86::RegisterSize * NumSpilledReg +
-            X86::RegisterSize * MaxNumReversedStackSlotForReg;
+            F->CallFrameSize /* space for call frame */ + 
+            F->LocalFrameSize /* space for local frame */ + 
+            (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */;
+        if (F->FuncName != "main") {
+            StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * X86::RegisterSize;
+            NeededStackSizeInBytes += StackSizeForCalleeSavedRegs; /* space for other callee-saved registers */
+        }
         int64_t TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
-                                             X86::RegisterSize /*push $rbp*/ +
-                                             X86::RegisterSize /*return address*/;
-        if (F->FuncName != "main")
-            TotalStackFrameSizeInBytes += UsedCalleeSavedRegs.size() * X86::RegisterSize;
+                                             X86::RegisterSize /* pushed register rbp */ +
+                                             X86::RegisterSize /* pushed return address */;
         // x86-64 / AMD64 System V ABI requires 16-byte stack alignment
         if (TotalStackFrameSizeInBytes % 16)
             NeededStackSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
@@ -165,11 +190,7 @@ private:
         MI->addOperand(AsmOperand::createReg(X86::RBP));
         MI->addOperand(AsmOperand::createReg(X86::RSP));
 
-        // Pop RBP(frame pointer) on stack
-        auto *PI = AsmInstruction::create(X86::POP, F);
-        PI->addOperand(AsmOperand::createReg(X86::RBP));
-
-        // Specially handle main function
+        // Pop callee-saved registers on stack, treat main function as special case
         if (F->FuncName != "main") {
             for (auto i = UsedCalleeSavedRegs.rbegin(), e = UsedCalleeSavedRegs.rend();
                  i != e; ++i) {
@@ -178,8 +199,30 @@ private:
             }
         }
 
+        // Pop RBP(frame pointer) on stack
+        auto *PI = AsmInstruction::create(X86::POP, F);
+        PI->addOperand(AsmOperand::createReg(X86::RBP));
+
         // Return
         AsmInstruction::create(X86::RET, F);
+    }
+
+    void adjustStackFrame(AsmFunction *F) override {
+        for (auto &I : *F) {
+            for (unsigned i = 0; i < I.getNumOperands(); ++i) {
+                AsmOperand &Op = I.getOperand(i);
+                if (!Op.isMem() || Op.Mem.BaseReg != X86::RBP)
+                    continue;
+                // Access memory in LocalFrame, SpillFrame, CallFrame
+                if (Op.Mem.Disp < 0) {
+                    Op.Mem.Disp -= StackSizeForCalleeSavedRegs;
+                }
+                // Access Incoming arguments passed via stack
+                if (Op.Mem.Disp >= 0) {
+                    Op.Mem.Disp += X86::RegisterSize * 2; /* pushed register rbp and pushed return address */
+                }
+            }
+        }
     }
 
     void getUsedRegisters(AsmInstruction *I,

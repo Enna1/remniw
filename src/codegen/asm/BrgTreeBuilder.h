@@ -316,14 +316,13 @@ private:
     llvm::DenseMap<uint64_t, BrgTreeNode *> ImmToNodeMap;
     const TargetInfo &TI;
     AsmContext &AsmCtx;
-    BrgFunction *CurrentFunction;
-    int64_t CurrentFunctionStackSize;
-    int64_t ExtraStackSizeForCallArgs;
+    BrgFunction *CurrentFunction {nullptr};
+    int64_t CurrentFunctionLocalFrameSize {0};
+    int64_t CurrentFunctionMaxCallFrameSize {0};
 
 public:
     BrgTreeBuilder(const TargetInfo &TI, AsmContext &AsmCtx):
-        TI(TI), AsmCtx(AsmCtx), CurrentFunction(nullptr), CurrentFunctionStackSize(0),
-        ExtraStackSizeForCallArgs(0) {}
+        TI(TI), AsmCtx(AsmCtx) {}
 
     ~BrgTreeBuilder() {
         for (auto *F : Functions)
@@ -379,13 +378,13 @@ public:
 
         Functions.push_back(new BrgFunction(F.getName().str()));
         CurrentFunction = Functions.back();
-        CurrentFunctionStackSize = 0;
-        ExtraStackSizeForCallArgs = 0;
+        CurrentFunctionLocalFrameSize = 0;
+        CurrentFunctionMaxCallFrameSize = 0;
 
-        // Note: assuming stack frame layout, pushed ret addr on stack and pushed frame
-        // pointer on stack. See AsmRewriter::insertPrologue() and
-        // AsmRewriter::insertEpilogue().
-        int64_t FuncArgOffsetFromFramePointer = TI.getRegisterSize() * 2;
+        // Note: The offset for first incoming argument passed via stack differs from architectures.
+        // On X86, the offset is TI.getRegisterSize() * 2; On RISCV, the offset is 0.
+        // We simply set FuncArgOffsetFromFramePointer to 0, and rely on AsmRewriter::adjustStackFrame() to set proper offset.
+        int64_t FuncArgOffsetFromFramePointer = 0;
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
             llvm::Type *Ty = F.getArg(i)->getType();
@@ -416,14 +415,14 @@ public:
             }
         }
 
-        CurrentFunction->StackSizeInBytes =
-            CurrentFunctionStackSize + ExtraStackSizeForCallArgs;
+        CurrentFunction->LocalFrameSize = CurrentFunctionLocalFrameSize;
+        CurrentFunction->MaxCallFrameSize = CurrentFunctionMaxCallFrameSize;
     }
 
     BrgTreeNode *visitAllocaInst(llvm::AllocaInst &AI) {
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
-        CurrentFunctionStackSize += AllocaSizeInBytes;
-        int64_t OffsetFromFramePointer = 0 - CurrentFunctionStackSize;
+        CurrentFunctionLocalFrameSize += AllocaSizeInBytes;
+        int64_t OffsetFromFramePointer = 0 - CurrentFunctionLocalFrameSize;
         auto *InstNode = BrgTreeNode::createMemNode(OffsetFromFramePointer,
                                                     TI.getFramePointerRegister(),
                                                     remniw::Register::NoRegister, 1);
@@ -484,8 +483,8 @@ public:
                 NeededStackSizeForCallArgs += SizeInBytes;
             }
         }
-        if (NeededStackSizeForCallArgs > ExtraStackSizeForCallArgs)
-            ExtraStackSizeForCallArgs = NeededStackSizeForCallArgs;
+        if (NeededStackSizeForCallArgs > CurrentFunctionMaxCallFrameSize)
+            CurrentFunctionMaxCallFrameSize = NeededStackSizeForCallArgs;
         BrgTreeNode *InstNode;
         if (auto *Callee = CI.getCalledFunction()) {
             // direct call
