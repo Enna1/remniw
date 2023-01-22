@@ -524,15 +524,28 @@ void RISCVAsmBuilder::normalizeAsmMemoryOperand(AsmOperand::MemOp &Mem) {
     }
 
     uint32_t VirtReg = Register::createVirtReg();
-    createLIInst(
-        /* destination register */ AsmOperand::createReg(VirtReg),
-        /* source immediate */ AsmOperand::createImm(Mem.Disp));
-    createADDInst(
+    assert(Mem.Disp % 8 == 0);
+    if (Mem.Disp > 8) {
+        createLIInst(
+            /* destination register */ AsmOperand::createReg(VirtReg),
+            /* source immediate */ AsmOperand::createImm(Mem.Disp - 8));
+        createADDInst(
         /* destination register */ AsmOperand::createReg(VirtReg),
         /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
         /* source register 2 */ AsmOperand::createReg(VirtReg));
-    Mem.Disp = 0;
-    Mem.BaseReg = VirtReg;
+        Mem.Disp = 8;
+        Mem.BaseReg = VirtReg;
+    } else if (Mem.Disp < -8) {
+        createLIInst(
+            /* destination register */ AsmOperand::createReg(VirtReg),
+            /* source immediate */ AsmOperand::createImm(Mem.Disp + 8));
+        createADDInst(
+        /* destination register */ AsmOperand::createReg(VirtReg),
+        /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
+        /* source register 2 */ AsmOperand::createReg(VirtReg));
+        Mem.Disp = -8;
+        Mem.BaseReg = VirtReg;
+    }
 }
 
 AsmInstruction *RISCVAsmBuilder::createLDInst(AsmOperand DstReg, AsmOperand SrcMem) {
