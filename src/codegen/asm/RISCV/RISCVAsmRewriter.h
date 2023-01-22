@@ -228,7 +228,7 @@ private:
         RTRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
         // Restore frame pointer
-        TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+        TmpOffsetFromStackPointer -=  RISCV::RegisterSize;
         auto *RTFP = AsmInstruction::create(RISCV::LD, F);
         RTFP->addOperand(AsmOperand::createReg(RISCV::FP));
         RTFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
