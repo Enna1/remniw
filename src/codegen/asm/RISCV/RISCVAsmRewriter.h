@@ -125,7 +125,7 @@ private:
         AsmInstruction *InsertBefore = &F->front();
 
         TotalStackFrameSizeInBytes = F->MaxCallFrameSize /* space for call frame */ + 
-            (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */ +
+            (RISCV::RegisterSize * NumSpilledReg + RISCV::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */ +
             F->LocalFrameSize /* space for local frame */;
         if (F->FuncName != "main") {
             StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * RISCV::RegisterSize;
@@ -212,10 +212,10 @@ private:
 
         if (SPAdjustAmount) {
             // it is safe to use t0 in epilogue
-            auto *LI = AsmInstruction::create(RISCV::LI, InsertBefore);
+            auto *LI = AsmInstruction::create(RISCV::LI, F);
             LI->addOperand(AsmOperand::createReg(RISCV::T0));
             LI->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes - SPAdjustAmount));
-            auto *SI = AsmInstruction::create(RISCV::ADD, InsertBefore);
+            auto *SI = AsmInstruction::create(RISCV::ADD, F);
             SI->addOperand(AsmOperand::createReg(RISCV::SP));
             SI->addOperand(AsmOperand::createReg(RISCV::SP));
             SI->addOperand(AsmOperand::createReg(RISCV::T0));
@@ -261,7 +261,7 @@ private:
                     continue;
                 // Access memory in LocalFrame, SpillFrame, CallFrame
                 if (Op.Mem.Disp < 0) {
-                    Op.Mem.Disp -= X86::RegisterSize * 2 + StackSizeForCalleeSavedRegs;
+                    Op.Mem.Disp -= RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs;
                 }
             }
         }
