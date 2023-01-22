@@ -84,6 +84,7 @@ void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::MemOp Mem1,
         createSDInst(/* source register */ AsmOperand::createReg(VirtReg),
                      /* memory (base register and offset) */ Mem2);
     } else {
+        // After normalize memory operand, the Mem1.Disp must be 0
         createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                        /* source register 1 */ AsmOperand::createReg(Mem1.BaseReg),
                        /* Immediate data */ AsmOperand::createImm(Mem1.Disp));
@@ -124,6 +125,7 @@ AsmOperand::MemOp RISCVAsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     } else {
         normalizeAsmMemoryOperand(Mem);
         uint32_t VirtReg = Register::createVirtReg();
+        // After normalize memory operand, the Mem.Disp must be 0
         createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                        /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
                        /* Immediate */ AsmOperand::createImm(Mem.Disp));
@@ -229,7 +231,7 @@ AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::R
                                              AsmOperand::RegOp Reg2) {
     uint32_t VirtReg = Register::createVirtReg();
     createADDInst(/* destination register */ AsmOperand::createReg(VirtReg),
-                  /* source register 1*/ Reg1,
+                  /* source register 1 */ Reg1,
                   /* source register 2 */ Reg2);
     return {VirtReg};
 }
@@ -237,18 +239,22 @@ AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::R
 AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::RegOp Reg,
                                              AsmOperand::ImmOp Imm) {
     uint32_t VirtReg = Register::createVirtReg();
-    createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
-                   /* source register 1 */ Reg,
-                   /* Immediate */ Imm);
+    createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                 /* immediate */ Imm);
+    createADDInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                  /* source register 1 */ Reg,
+                  /* source register 2 */ AsmOperand::createReg(VirtReg));
     return {VirtReg};
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleADD(llvm::Instruction *I, AsmOperand::ImmOp Imm,
                                              AsmOperand::RegOp Reg) {
     uint32_t VirtReg = Register::createVirtReg();
-    createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
-                   /* source register 1 */ Reg,
-                   /* Immediate */ Imm);
+    createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                 /* immediate */ Imm);
+    createADDInst(/* destination register */ AsmOperand::createReg(VirtReg),
+                  /* source register 1 */ Reg,
+                  /* source register 2 */ AsmOperand::createReg(VirtReg));
     return {VirtReg};
 }
 
@@ -446,6 +452,7 @@ void RISCVAsmBuilder::handleARG(llvm::Instruction *CI, unsigned ArgNo,
                                 AsmOperand::MemOp Mem) {
     normalizeAsmMemoryOperand(Mem);
     uint32_t VirtReg = Register::createVirtReg();
+    // After normalize memory operand, the Mem.Disp must be 0
     createADDIInst(/* destination register */ AsmOperand::createReg(VirtReg),
                    /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
                    /* Immediate data */ AsmOperand::createImm(Mem.Disp));
@@ -488,6 +495,9 @@ void RISCVAsmBuilder::handleLABEL(AsmOperand::LabelOp Label) {
     createLABELInst(Label);
 }
 
+// FIXME: As RISCV integer operand must be in the range [-2048, 2047],
+// here is the hack: normalize the offset of each memory operand to 0,
+// so the offset of memory operands will never out-of-range.
 void RISCVAsmBuilder::normalizeAsmMemoryOperand(AsmOperand::MemOp &Mem) {
     if (Mem.IndexReg != Register::NoRegister) {
         uint32_t VirtReg = Register::createVirtReg();
@@ -510,19 +520,19 @@ void RISCVAsmBuilder::normalizeAsmMemoryOperand(AsmOperand::MemOp &Mem) {
 
         Mem.BaseReg = VirtReg;
         Mem.IndexReg = Register::NoRegister;
-        Mem.Scale = 0;
+        Mem.Scale = 1;
     }
 
-    // RISCV integer operand muse be in the range [-2048, 2047]
-    if (Mem.Disp < -2048 || Mem.Disp > 2047) {
-        uint32_t VirtReg = Register::createVirtReg();
-        createADDIInst(
-            /* destination register */ AsmOperand::createReg(VirtReg),
-            /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
-            /* immediate */ AsmOperand::createImm(Mem.Disp));
-        Mem.Disp = 0;
-        Mem.BaseReg = VirtReg;
-    }
+    uint32_t VirtReg = Register::createVirtReg();
+    createLIInst(
+        /* destination register */ AsmOperand::createReg(VirtReg),
+        /* source immediate */ AsmOperand::createImm(Mem.Disp));
+    createADDInst(
+        /* destination register */ AsmOperand::createReg(VirtReg),
+        /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
+        /* source register 2 */ AsmOperand::createReg(VirtReg));
+    Mem.Disp = 0;
+    Mem.BaseReg = VirtReg;
 }
 
 AsmInstruction *RISCVAsmBuilder::createLDInst(AsmOperand DstReg, AsmOperand SrcMem) {
@@ -624,24 +634,16 @@ AsmInstruction *RISCVAsmBuilder::createADDInst(AsmOperand DstReg, AsmOperand Src
     return I;
 }
 
+// The user must promise SrcImm is in the range [-2048, 2047]
 AsmInstruction *RISCVAsmBuilder::createADDIInst(AsmOperand DstReg, AsmOperand SrcReg,
                                                 AsmOperand SrcImm) {
-    AsmInstruction *I;
-    // integer operand muse be in the range [-2048, 2047]
-    if (SrcImm.Imm.Val >= -2048 && SrcImm.Imm.Val <= 2047) {
-        updateAsmOperandLiveRanges(DstReg);
-        updateAsmOperandLiveRanges(SrcReg);
-        updateAsmOperandLiveRanges(SrcImm);
-        I = AsmInstruction::create(RISCV::ADDI, getCurrentFunction());
-        I->addOperand(DstReg);
-        I->addOperand(SrcReg);
-        I->addOperand(SrcImm);
-    } else {
-        uint32_t VirtReg = Register::createVirtReg();
-        createLIInst(/* destination register */ AsmOperand::createReg(VirtReg),
-                     /*immediate*/ SrcImm);
-        I = createADDInst(DstReg, SrcReg, AsmOperand::createReg(VirtReg));
-    }
+    assert(SrcImm.Imm.Val >= -2048 && SrcImm.Imm.Val <= 2047);
+    updateAsmOperandLiveRanges(DstReg);
+    updateAsmOperandLiveRanges(SrcReg);
+    auto *I = AsmInstruction::create(RISCV::ADDI, getCurrentFunction());
+    I->addOperand(DstReg);
+    I->addOperand(SrcReg);
+    I->addOperand(SrcImm);
     return I;
 }
 

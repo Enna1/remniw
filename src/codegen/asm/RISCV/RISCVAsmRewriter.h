@@ -7,7 +7,7 @@ namespace remniw {
 
 class RISCVAsmRewriter: public AsmRewriter {
 private:
-    int64_t NeededStackSizeInBytes {0};
+    int64_t StackSizeForCalleeSavedRegs {0};
     int64_t TotalStackFrameSizeInBytes {0};
 
 public:
@@ -122,114 +122,149 @@ private:
 
     void insertPrologue(AsmFunction *F,
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
-        // AsmInstruction *InsertBefore = &F->front();
+        AsmInstruction *InsertBefore = &F->front();
 
-        // NeededStackSizeInBytes =
-        //     F->StackSizeInBytes /* space for local vars */ +
-        //     (RISCV::RegisterSize * NumSpilledReg + RISCV::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spilled regs */ ;
-        // TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
-        //                              RISCV::RegisterSize /* space for saved register ra */ +
-        //                              RISCV::RegisterSize /* space for saved register fp */;
-        // if (F->FuncName != "main")
-        //     TotalStackFrameSizeInBytes += UsedCalleeSavedRegs.size() * RISCV::RegisterSize; /* space for other callee-saved registers */
-        // // The stack alignment for RV32 and RV64 is 16, for RV32E is 4. Align to 16 for simplicity.
-        // if (TotalStackFrameSizeInBytes % 16)
-        //     TotalStackFrameSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
+        TotalStackFrameSizeInBytes = F->MaxCallFrameSize /* space for call frame */ + 
+            (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */ +
+            F->LocalFrameSize /* space for local frame */;
+        if (F->FuncName != "main") {
+            StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * RISCV::RegisterSize;
+            TotalStackFrameSizeInBytes += StackSizeForCalleeSavedRegs;
+        } else {
+            StackSizeForCalleeSavedRegs = 0;
+        }
+        TotalStackFrameSizeInBytes += RISCV::RegisterSize /* space for saved register ra */ +
+                                      RISCV::RegisterSize /* space for saved register fp */;
+        
+        // The stack alignment for RV32 and RV64 is 16, for RV32E is 4. Align to 16 for simplicity.
+        if (TotalStackFrameSizeInBytes % 16)
+            TotalStackFrameSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
 
-        // // Reserve space on the stack
-        // assert(TotalStackFrameSizeInBytes >= 0);
-        // // The RISCV integer operand muse be in the range [-2048, 2047]
-        // if (TotalStackFrameSizeInBytes <= 2048) {
-        //     auto *AI = AsmInstruction::create(RISCV::ADDI, InsertBefore);
-        //     AI->addOperand(AsmOperand::createReg(RISCV::SP));
-        //     AI->addOperand(AsmOperand::createReg(RISCV::SP));
-        //     AI->addOperand(AsmOperand::createImm(-TotalStackFrameSizeInBytes));
+        // Reserve space on the stack
+        assert(TotalStackFrameSizeInBytes >= 0);
+        int64_t SPAdjustAmount = 0;
+        int64_t TmpStackFrameSizeInBytes = TotalStackFrameSizeInBytes;
+        if (TotalStackFrameSizeInBytes > 2047) {
+            // SPAdjustAmount is choosed as (2048 - StackAlign), because 2048 will cause sp = sp + 2048 in epilogue split into
+            // multi-instructions. The offset smaller than 2048 can fit in signle load/store instruction and we have to stick with the stack alignment.
+            // 2048 is 16-byte alignment. The stack alignment for RV32 and RV64 is 16,
+            // for RV32E is 4. So (2048 - StackAlign) will satisfy the stack alignment.
+            // In this way, the offset of the callee saved register could fit in a single store.
+            SPAdjustAmount = 2048 - 16 /* StackAlign */;
+            TmpStackFrameSizeInBytes = SPAdjustAmount;
+        }
+        int64_t TmpOffsetFromStackPointer = TmpStackFrameSizeInBytes;
+        auto *AI = AsmInstruction::create(RISCV::ADDI, InsertBefore);
+        AI->addOperand(AsmOperand::createReg(RISCV::SP));
+        AI->addOperand(AsmOperand::createReg(RISCV::SP));
+        AI->addOperand(AsmOperand::createImm(-TmpOffsetFromStackPointer));
 
-        //     int64_t TmpOffsetFromStackPointer = NeededStackSizeInBytes;
-        //     // Save return address register on stack
-        //     auto *SDRA = AsmInstruction::create(RISCV::SD, InsertBefore);
-        //     SDRA->addOperand(AsmOperand::createReg(RISCV::RA));
-        //     SDRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
-        //     TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+        // Save return address register on stack
+        TmpOffsetFromStackPointer -= RISCV::RegisterSize;
+        auto *SDRA = AsmInstruction::create(RISCV::SD, InsertBefore);
+        SDRA->addOperand(AsmOperand::createReg(RISCV::RA));
+        SDRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
-        //     // Save frame pointer on stack
-        //     auto *SDFP = AsmInstruction::create(RISCV::SD, InsertBefore);
-        //     SDFP->addOperand(AsmOperand::createReg(RISCV::FP));
-        //     SDFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
-        //     TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+        // Save frame pointer on stack
+        TmpOffsetFromStackPointer -= RISCV::RegisterSize;
+        auto *SDFP = AsmInstruction::create(RISCV::SD, InsertBefore);
+        SDFP->addOperand(AsmOperand::createReg(RISCV::FP));
+        SDFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
-        //     // Save callee-saved registers on stack, treat main function as special case
-        //     if (F->FuncName != "main") {
-        //         for (uint32_t Reg : UsedCalleeSavedRegs) {
-        //             auto *I = AsmInstruction::create(RISCV::SD, InsertBefore);
-        //             I->addOperand(AsmOperand::createReg(Reg));
-        //             I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
-        //             TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
-        //         }
-        //     }
+        // Save callee-saved registers on stack, treat main function as special case
+        if (F->FuncName != "main") {
+            for (uint32_t Reg : UsedCalleeSavedRegs) {
+                TmpOffsetFromStackPointer -= RISCV::RegisterSize;
+                auto *I = AsmInstruction::create(RISCV::SD, InsertBefore);
+                I->addOperand(AsmOperand::createReg(Reg));
+                I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+            }
+        }
 
-        //     // Update frame pointer
-        //     auto *UpdateFP = AsmInstruction::create(RISCV::ADDI, InsertBefore);
-        //     UpdateFP->addOperand(AsmOperand::createReg(RISCV::FP));
-        //     UpdateFP->addOperand(AsmOperand::createReg(RISCV::SP));
-        //     UpdateFP->addOperand(AsmOperand::createImm(NeededStackSizeInBytes));
+        // Generate new frame pointer
+        auto *UpdateFP = AsmInstruction::create(RISCV::ADDI, InsertBefore);
+        UpdateFP->addOperand(AsmOperand::createReg(RISCV::FP));
+        UpdateFP->addOperand(AsmOperand::createReg(RISCV::SP));
+        UpdateFP->addOperand(AsmOperand::createImm(TmpStackFrameSizeInBytes));
 
-        // } else {
-
-        // }
+        // Emit the second SP adjustment
+        if (SPAdjustAmount) {
+            // it is safe to use t0 in prologue
+            auto *LI = AsmInstruction::create(RISCV::LI, InsertBefore);
+            LI->addOperand(AsmOperand::createReg(RISCV::T0));
+            LI->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes - SPAdjustAmount));
+            auto *SI = AsmInstruction::create(RISCV::SUB, InsertBefore);
+            SI->addOperand(AsmOperand::createReg(RISCV::SP));
+            SI->addOperand(AsmOperand::createReg(RISCV::SP));
+            SI->addOperand(AsmOperand::createReg(RISCV::T0));
+        }
     }
 
     void insertEpilogue(remniw::AsmFunction *F,
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
-        // int64_t TmpOffsetFromStackPointer = NeededStackSizeInBytes;
-        // // Restore return address register
-        // auto *RTRA = AsmInstruction::create(RISCV::LD, F);
-        // RTRA->addOperand(AsmOperand::createReg(RISCV::RA));
-        // RTRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
-        // TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+        int64_t SPAdjustAmount = 0;
+        int64_t TmpStackFrameSizeInBytes = TotalStackFrameSizeInBytes;
+        if (TotalStackFrameSizeInBytes > 2047) {
+            SPAdjustAmount = 2048 - 16 /* StackAlign */;
+            TmpStackFrameSizeInBytes = SPAdjustAmount;
+        }
+        int64_t TmpOffsetFromStackPointer = TmpStackFrameSizeInBytes;
 
-        // // Restore frame pointer
-        // auto *RTFP = AsmInstruction::create(RISCV::LD, F);
-        // RTFP->addOperand(AsmOperand::createReg(RISCV::FP));
-        // RTFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
-        // TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+        if (SPAdjustAmount) {
+            // it is safe to use t0 in epilogue
+            auto *LI = AsmInstruction::create(RISCV::LI, InsertBefore);
+            LI->addOperand(AsmOperand::createReg(RISCV::T0));
+            LI->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes - SPAdjustAmount));
+            auto *SI = AsmInstruction::create(RISCV::ADD, InsertBefore);
+            SI->addOperand(AsmOperand::createReg(RISCV::SP));
+            SI->addOperand(AsmOperand::createReg(RISCV::SP));
+            SI->addOperand(AsmOperand::createReg(RISCV::T0));
+        }
 
-        // // Restore callee-saved registers, treat main function as special case
-        // if (F->FuncName != "main") {
-        //     for (uint32_t Reg : UsedCalleeSavedRegs) {
-        //         auto *I = AsmInstruction::create(RISCV::LD, F);
-        //         I->addOperand(AsmOperand::createReg(Reg));
-        //         I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
-        //         TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
-        //     }
-        // }
+        // Restore return address register
+        TmpOffsetFromStackPointer -=  RISCV::RegisterSize;
+        auto *RTRA = AsmInstruction::create(RISCV::LD, F);
+        RTRA->addOperand(AsmOperand::createReg(RISCV::RA));
+        RTRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
-        // // Restore stack pointer
-        // auto *UpdateSP = AsmInstruction::create(RISCV::ADDI, F);
-        // UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
-        // UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
-        // UpdateSP->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes));
+        // Restore frame pointer
+        TmpOffsetFromStackPointer +=  RISCV::RegisterSize;
+        auto *RTFP = AsmInstruction::create(RISCV::LD, F);
+        RTFP->addOperand(AsmOperand::createReg(RISCV::FP));
+        RTFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
-        // // Return
-        // AsmInstruction::create(RISCV::RET, F);
+        // Restore callee-saved registers, treat main function as special case
+        if (F->FuncName != "main") {
+            for (uint32_t Reg : UsedCalleeSavedRegs) {
+                TmpOffsetFromStackPointer -=  RISCV::RegisterSize;
+                auto *I = AsmInstruction::create(RISCV::LD, F);
+                I->addOperand(AsmOperand::createReg(Reg));
+                I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+            }
+        }
+
+        // Restore stack pointer
+        auto *UpdateSP = AsmInstruction::create(RISCV::ADDI, F);
+        UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
+        UpdateSP->addOperand(AsmOperand::createReg(RISCV::SP));
+        UpdateSP->addOperand(AsmOperand::createImm(TmpStackFrameSizeInBytes));
+
+        // Return
+        AsmInstruction::create(RISCV::RET, F);
     }
 
     void adjustStackFrame(AsmFunction *F) override {
-        // for (auto &I : *F) {
-        //     for (unsigned i = 0; i < I.getNumOperands(); ++i) {
-        //         AsmOperand &Op = I.getOperand(i);
-        //         if (!Op.isMem() || Op.Mem.BaseReg != X86::RBP)
-        //             continue;
-        //         // Access memory in LocalFrame, SpillFrame, CallFrame
-        //         if (Op.Mem.Disp < 0) {
-        //             Op.Mem.Disp -= StackSizeForCalleeSavedRegs;
-        //         }
-        //         // Access Incoming arguments passed via stack
-        //         if (Op.Mem.Disp >= 0) {
-        //             Op.Mem.Disp += X86::RegisterSize * 2; /* pushed register rbp and pushed return address */
-        //         }
-        //     }
-        // }
+        for (auto &I : *F) {
+            for (unsigned i = 0; i < I.getNumOperands(); ++i) {
+                AsmOperand &Op = I.getOperand(i);
+                if (!Op.isMem() || Op.Mem.BaseReg != RISCV::FP)
+                    continue;
+                // Access memory in LocalFrame, SpillFrame, CallFrame
+                if (Op.Mem.Disp < 0) {
+                    Op.Mem.Disp -= X86::RegisterSize * 2 + StackSizeForCalleeSavedRegs;
+                }
+            }
+        }
     }
 
     void getUsedRegisters(AsmInstruction *I,
