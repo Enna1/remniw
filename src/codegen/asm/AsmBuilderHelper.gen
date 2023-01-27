@@ -16,6 +16,7 @@
 %declare<void> cond<remniw::AsmBuilderPtr Builder>;
 %declare<void> arg<remniw::AsmBuilderPtr Builder, remniw::LLVMInstructionPtr CI, unsigned ArgNo>;
 %declare<void> args<remniw::AsmBuilderPtr Builder, remniw::LLVMInstructionPtr CI, unsigned ArgNo>;
+%declare<void> func_arg<remniw::AsmBuilderPtr Builder>;
 
 %%
 
@@ -37,6 +38,11 @@ reg: BRG_REG { $cost[0].cost = 0; }
 mem: BRG_ALLOCA { $cost[0].cost = 0; }
 = {
     LLVM_DEBUG(llvm::outs() << "brg action: mem: BRG_ALLOCA\n";);
+};
+
+func_arg: BRG_FUNCARG { $cost[0].cost = 0; }
+= {
+    LLVM_DEBUG(llvm::outs() << "brg action: func_arg: BRG_FUNCARG\n";);
 };
 
 reg: BRG_LOAD(mem) { $cost[0].cost = $cost[2].cost + 1; }
@@ -130,18 +136,9 @@ stmt: BRG_STORE(mem, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
     $action[2](Builder);
     $action[3](Builder);
     auto *SI = llvm::cast<llvm::StoreInst>($1->getInstruction());
-    // In BrgTreeBuilder, we construct MemBrgTreeNode for argument.
-    // So here we specially handle StoreInst which initializes
-    // permanent storage for a function argument
-    if (llvm::isa<llvm::Argument>(SI->getValueOperand())) {
-        Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandMem(),
-                             $3->getAsAsmOperandMem(),
-                             /*bool DestIsArgument=*/true);
-    } else {
-        Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandMem(),
-                             $3->getAsAsmOperandMem(),
-                             /*bool DestIsArgument=*/false);
-    }
+    Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandMem(),
+                         $3->getAsAsmOperandMem(),
+                         /*bool DestIsArgument=*/false);
 };
 
 stmt: BRG_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
@@ -150,6 +147,15 @@ stmt: BRG_STORE(label, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1;
     $action[2](Builder);
     $action[3](Builder);
     Builder->handleSTORE($1->getInstruction(), $2->getAsAsmOperandLabel(),
+                         $3->getAsAsmOperandMem());
+};
+
+stmt: BRG_STORE(func_arg, mem) { $cost[0].cost = $cost[2].cost + $cost[3].cost + 1; }
+= {
+    LLVM_DEBUG(llvm::outs() << "brg action: stmt: BRG_STORE(func_arg, mem)\n";);
+    $action[2](Builder);
+    $action[3](Builder);
+    Builder->handleSTORE($1->getInstruction(), $2->getFunctionArgument(),
                          $3->getAsAsmOperandMem());
 };
 
@@ -566,7 +572,7 @@ namespace remniw {
 
 void AsmBuilder::buildAsmFunction(const BrgFunction *BrgFunc) {
     AsmFunctions.push_back(
-        std::make_unique<AsmFunction>(BrgFunc->FuncName, BrgFunc->LocalFrameSize, BrgFunc->MaxCallFrameSize));
+        std::make_unique<AsmFunction>(BrgFunc->F, BrgFunc->FuncName, BrgFunc->LocalFrameSize, BrgFunc->MaxCallFrameSize));
     CurrentFunction = AsmFunctions.back().get();
     for (auto *RootNode : BrgFunc->Insts) {
         printDebugTree(RootNode);

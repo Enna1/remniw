@@ -102,7 +102,7 @@ private:
     }
 
     // The stack frame layout:
-    // 
+    //
     // | Incoming arguments      |
     // | passed via stack.       |
     // +-------------------------+ <- Old SP, New FP. High address
@@ -124,7 +124,7 @@ private:
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         AsmInstruction *InsertBefore = &F->front();
 
-        TotalStackFrameSizeInBytes = F->MaxCallFrameSize /* space for call frame */ + 
+        TotalStackFrameSizeInBytes = F->MaxCallFrameSize /* space for call frame */ +
             (RISCV::RegisterSize * NumSpilledReg + RISCV::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */ +
             F->LocalFrameSize /* space for local frame */;
         if (F->FuncName != "main") {
@@ -135,7 +135,7 @@ private:
         }
         TotalStackFrameSizeInBytes += RISCV::RegisterSize /* space for saved register ra */ +
                                       RISCV::RegisterSize /* space for saved register fp */;
-        
+
         // The stack alignment for RV32 and RV64 is 16, for RV32E is 4. Align to 16 for simplicity.
         if (TotalStackFrameSizeInBytes % 16)
             TotalStackFrameSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
@@ -253,15 +253,58 @@ private:
         AsmInstruction::create(RISCV::RET, F);
     }
 
-    void adjustStackFrame(AsmFunction *F) override {
-        for (auto &I : *F) {
+    void adjustStackFrame(AsmFunction *AsmFn) override {
+        int64_t IncommingArgOffsetFromFP = 0;
+        llvm::SmallVector<int64_t> FuncArgOffets;
+        llvm::Function *F = AsmFn->F;
+        for (unsigned i = RISCV::NumArgRegs, e = F->arg_size(); i < e; ++i) {
+            llvm::Argument *Arg = F->getArg(i);
+            llvm::Type *Ty = F->getArg(i)->getType();
+            uint64_t SizeInBytes = F->getParent()->getDataLayout().getTypeAllocSize(Ty);
+            FuncArgOffets.push_back(IncommingArgOffsetFromFP);
+            IncommingArgOffsetFromFP += SizeInBytes;
+        }
+
+        for (auto &I : *AsmFn) {
             for (unsigned i = 0; i < I.getNumOperands(); ++i) {
                 AsmOperand &Op = I.getOperand(i);
-                if (!Op.isMem() || Op.Mem.BaseReg != RISCV::FP)
+                if (!Op.isMem())
                     continue;
                 // Access memory in LocalFrame, SpillFrame, CallFrame
-                if (Op.Mem.Disp < 0) {
+                if (Op.Mem.Disp < 0 && Op.Mem.BaseReg == RISCV::FP) {
                     Op.Mem.Disp -= RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs;
+                }
+                // Access Incoming arguments passed via stack
+                if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
+                    unsigned ArgNo = Arg->getArgNo();
+                    assert(ArgNo >= RISCV::NumArgRegs);
+                    if (Op.Mem.BaseReg == Register::NoRegister)
+                        Op.Mem.BaseReg = RISCV::FP;
+                    Op.Mem.Disp += FuncArgOffets[ArgNo-RISCV::NumArgRegs];
+                }
+            }
+        }
+
+        // FIXME: As RISCV integer operand must be in the range [-2048, 2047],
+        // This Hack uses register ra to avoid offset of memory operands out-of-range.
+        for (auto &I : *AsmFn) {
+            for (unsigned i = 0; i < I.getNumOperands(); ++i) {
+                AsmOperand &Op = I.getOperand(i);
+                if (!Op.isMem())
+                    continue;
+                if (Op.Mem.Disp < -2048 || Op.Mem.Disp > 2047) {
+                    // li ra, Mem.Disp
+                    auto *LI = AsmInstruction::create(RISCV::LI, &I);
+                    LI->addOperand(AsmOperand::createReg(RISCV::RA));
+                    LI->addOperand(AsmOperand::createImm(Op.Mem.Disp));
+                    // add ra, ra, Mem.BaseReg
+                    auto *AI = AsmInstruction::create(RISCV::ADD, &I);
+                    AI->addOperand(AsmOperand::createReg(RISCV::RA));
+                    AI->addOperand(AsmOperand::createReg(RISCV::RA));
+                    AI->addOperand(AsmOperand::createReg(Op.Mem.BaseReg));
+                    // Disp(BaseReg) -> 0(ra)
+                    Op.Mem.Disp = 0;
+                    Op.Mem.BaseReg = RISCV::RA;
                 }
             }
         }

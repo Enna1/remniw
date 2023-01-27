@@ -10,6 +10,7 @@
 %term BRG_LABEL
 %term BRG_ARGS
 %term BRG_REG
+%term BRG_FUNCARG
 
 #define HANDLE_INST(N, OPC, CLASS) \
   %term BRG_##OPC

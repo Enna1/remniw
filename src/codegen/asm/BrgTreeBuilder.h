@@ -28,6 +28,7 @@ enum BrgTerm {
     Label,
     Args,
     Reg,
+    FuncArg,
 #define HANDLE_INST(N, OPC, CLASS) OPC,
 #include "llvm/IR/Instruction.def"
 #undef HANDLE_INST
@@ -43,6 +44,7 @@ public:
         MemNode,
         ImmNode,
         LabelNode,
+        FuncArgNode,
     };
 
 private:
@@ -57,6 +59,7 @@ private:
         remniw::AsmOperand::ImmOp Imm;      // ImmNode
         remniw::AsmOperand::LabelOp Label;  // LabelNode
         llvm::Instruction *Inst;            // InstNode
+        llvm::Argument *FuncArg;            // FuncArgNode
     };
 
     BrgTreeNode(KindTy Kind, int Op): Kind(Kind), Op(Op), ActionExecuted(false) {}
@@ -140,6 +143,27 @@ public:
         Ret->Mem.BaseReg = BaseReg;
         Ret->Mem.IndexReg = IndexReg;
         Ret->Mem.Scale = Scale;
+        Ret->Mem.V = nullptr;
+        return Ret;
+    }
+
+    static BrgTreeNode *createFuncArgNode(llvm::Argument *FuncArg) {
+        auto *Ret = new BrgTreeNode(KindTy::FuncArgNode, BrgTerm::FuncArg);
+        Ret->FuncArg = FuncArg;
+        return Ret;
+    }
+
+    // TODO
+    static BrgTreeNode *createAllocaMemNode(int64_t Offset, uint32_t BaseReg,
+                                            uint32_t IndexReg = remniw::Register::NoRegister,
+                                            uint32_t Scale = 1,
+                                            llvm::Value *V = nullptr) {
+        auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca);
+        Ret->Mem.Disp = Offset;
+        Ret->Mem.BaseReg = BaseReg;
+        Ret->Mem.IndexReg = IndexReg;
+        Ret->Mem.Scale = Scale;
+        Ret->Mem.V = V;
         return Ret;
     }
 
@@ -158,6 +182,11 @@ public:
     llvm::Instruction *getInstruction() {
         assert(Kind == KindTy::InstNode && "Not a InstNode");
         return Inst;
+    }
+
+    llvm::Argument *getFunctionArgument() {
+        assert(Kind == KindTy::FuncArgNode && "Not a FuncArgNode");
+        return FuncArg;
     }
 
     remniw::AsmOperand::RegOp getAsAsmOperandReg() {
@@ -283,7 +312,7 @@ static void burm_trace(NODEPTR, int, COST);
 namespace remniw {
 
 struct BrgFunction {
-    BrgFunction(std::string FuncName): FuncName(FuncName) {}
+    BrgFunction(llvm::Function *F, std::string FuncName): F(F), FuncName(FuncName) {}
 
     ~BrgFunction() {
         for (const auto &DM : InstToNodeMap)
@@ -296,6 +325,7 @@ struct BrgFunction {
             delete Node;
     }
 
+    llvm::Function *F;
     std::string FuncName;
     int64_t LocalFrameSize {0};
     int64_t MaxCallFrameSize {0};
@@ -378,34 +408,23 @@ public:
         if (F.isDeclaration())
             return;
 
-        Functions.push_back(new BrgFunction(F.getName().str()));
+        Functions.push_back(new BrgFunction(&F, F.getName().str()));
         CurrentFunction = Functions.back();
         CurrentFunctionLocalFrameSize = 0;
         CurrentFunctionMaxCallFrameSize = 0;
 
         // Note: The offset for first incoming argument passed via stack differs from architectures.
         // On X86, the offset is TI.getRegisterSize() * 2; On RISCV, the offset is 0.
-        // We simply set FuncArgOffsetFromFramePointer to 0, and rely on AsmRewriter::adjustStackFrame() to set proper offset.
-        int64_t FuncArgOffsetFromFramePointer = 0;
+        // We depend on AsmRewriter::adjustStackFrame() to set the proper offset.
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
             llvm::Type *Ty = F.getArg(i)->getType();
             uint64_t SizeInBytes = F.getParent()->getDataLayout().getTypeAllocSize(Ty);
             assert(Ty->isIntOrPtrTy() &&
-                   "Funtion argument must be integerType or PointerType as ");
+                   "Funtion argument must be integerType or PointerType");
             assert(SizeInBytes <= TI.getRegisterSize() &&
                    "Size of function argument must be less or equal than register size");
-            BrgTreeNode *ArgNode;
-            unsigned NumArgRegs = TI.getNumArgRegisters();
-            llvm::ArrayRef<uint32_t> ArgRegs = TI.getArgRegisters();
-            if (i < NumArgRegs) {
-                ArgNode = BrgTreeNode::createRegNode(ArgRegs[i]);
-            } else {
-                ArgNode = BrgTreeNode::createMemNode(FuncArgOffsetFromFramePointer,
-                                                     TI.getFramePointerRegister(),
-                                                     Register::NoRegister, 1);
-                FuncArgOffsetFromFramePointer += SizeInBytes;
-            }
+            auto *ArgNode = BrgTreeNode::createFuncArgNode(Arg);
             CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
         }
 
@@ -425,9 +444,11 @@ public:
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         CurrentFunctionLocalFrameSize += AllocaSizeInBytes;
         int64_t OffsetFromFramePointer = 0 - CurrentFunctionLocalFrameSize;
-        auto *InstNode = BrgTreeNode::createMemNode(OffsetFromFramePointer,
+        auto *InstNode = BrgTreeNode::createAllocaMemNode(OffsetFromFramePointer,
                                                     TI.getFramePointerRegister(),
-                                                    remniw::Register::NoRegister, 1);
+                                                    remniw::Register::NoRegister, 1, &AI);
+
+        // auto *InstNode = BrgTreeNode::createAllocaMemNode(&AI);
         CurrentFunction->InstToNodeMap[&AI] = InstNode;
         return InstNode;
     }

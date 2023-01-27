@@ -13,11 +13,12 @@ class AsmFunction {
 public:
     using InstListType = llvm::ilist<AsmInstruction>;
 
-    AsmFunction(std::string FuncName, int64_t LocalFrameSize, int64_t MaxCallFrameSize):
-        FuncName(FuncName), LocalFrameSize(LocalFrameSize), MaxCallFrameSize(MaxCallFrameSize) {
+    AsmFunction(llvm::Function *F, std::string FuncName, int64_t LocalFrameSize, int64_t MaxCallFrameSize):
+        F(F), FuncName(FuncName), LocalFrameSize(LocalFrameSize), MaxCallFrameSize(MaxCallFrameSize) {
         InstList.Parent = this;
     }
 
+    llvm::Function *F;
     std::string FuncName;
     int64_t LocalFrameSize;
     int64_t MaxCallFrameSize;

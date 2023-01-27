@@ -33,6 +33,8 @@ public:
                      bool DestIsArgument) override;
     void handleSTORE(llvm::Instruction *I, AsmOperand::LabelOp Label,
                      AsmOperand::MemOp Mem) override;
+    void handleSTORE(llvm::Instruction *I, llvm::Argument *FuncArg,
+                     AsmOperand::MemOp Mem) override;
 
     AsmOperand::MemOp handleGETELEMENTPTR(llvm::Instruction *I, AsmOperand::MemOp Mem,
                                           AsmOperand::ImmOp Imm);

@@ -3,6 +3,7 @@
 #include "AsmSymbol.h"
 #include "Register.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/Value.h"
 #include <cassert>
 #include <cstdint>
 #include <memory>
@@ -27,6 +28,7 @@ public:
         uint32_t BaseReg;
         uint32_t IndexReg;
         uint32_t Scale;
+        llvm::Value *V;
     };
 
     struct ImmOp {
@@ -53,10 +55,14 @@ public:
 
     static AsmOperand::ImmOp createImm(int64_t Val) { return {Val}; }
 
+    static AsmOperand::MemOp createMem(llvm::Value *V) {
+        return {0, Register::NoRegister, Register::NoRegister, 1, V};
+    }
+
     static AsmOperand::MemOp createMem(int64_t Disp, uint32_t BaseReg,
                                        uint32_t IndexReg = Register::NoRegister,
                                        uint32_t Scale = 1) {
-        return {Disp, BaseReg, IndexReg, Scale};
+        return {Disp, BaseReg, IndexReg, Scale, nullptr};
     }
 
     static AsmOperand::LabelOp createLabel(AsmSymbol* Symbol) { return {Symbol}; }

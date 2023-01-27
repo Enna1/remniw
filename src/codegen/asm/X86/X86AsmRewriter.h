@@ -125,7 +125,7 @@ private:
     }
 
     // The stack frame layout:
-    // 
+    //
     // | Incoming arguments      |
     // | passed via stack.       |
     // +-------------------------+ <- Old SP. High address
@@ -166,8 +166,8 @@ private:
 
         // Reserve space on the stack
         NeededStackSizeInBytes =
-            F->MaxCallFrameSize /* space for call frame */ + 
-            F->LocalFrameSize /* space for local frame */ + 
+            F->MaxCallFrameSize /* space for call frame */ +
+            F->LocalFrameSize /* space for local frame */ +
             (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */;
         int64_t TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
                                              X86::RegisterSize /* pushed register rbp */ +
@@ -210,19 +210,34 @@ private:
         AsmInstruction::create(X86::RET, F);
     }
 
-    void adjustStackFrame(AsmFunction *F) override {
-        for (auto &I : *F) {
+    void adjustStackFrame(AsmFunction *AsmFn) override {
+        int64_t IncommingArgOffsetFromFP = 0;
+        llvm::SmallVector<int64_t> FuncArgOffets;
+        llvm::Function *F = AsmFn->F;
+        for (unsigned i = X86::NumArgRegs, e = F->arg_size(); i < e; ++i) {
+            llvm::Argument *Arg = F->getArg(i);
+            llvm::Type *Ty = F->getArg(i)->getType();
+            uint64_t SizeInBytes = F->getParent()->getDataLayout().getTypeAllocSize(Ty);
+            FuncArgOffets.push_back(IncommingArgOffsetFromFP);
+            IncommingArgOffsetFromFP += SizeInBytes;
+        }
+
+        for (auto &I : *AsmFn) {
             for (unsigned i = 0; i < I.getNumOperands(); ++i) {
                 AsmOperand &Op = I.getOperand(i);
-                if (!Op.isMem() || Op.Mem.BaseReg != X86::RBP)
+                if (!Op.isMem())
                     continue;
                 // Access memory in LocalFrame, SpillFrame, CallFrame
-                if (Op.Mem.Disp < 0) {
+                if (Op.Mem.Disp < 0 && Op.Mem.BaseReg == X86::RBP) {
                     Op.Mem.Disp -= StackSizeForCalleeSavedRegs;
                 }
                 // Access Incoming arguments passed via stack
-                if (Op.Mem.Disp >= 0) {
-                    Op.Mem.Disp += X86::RegisterSize * 2; /* pushed register rbp and pushed return address */
+                if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
+                    unsigned ArgNo = Arg->getArgNo();
+                    assert(ArgNo >= X86::NumArgRegs);
+                    if (Op.Mem.BaseReg == Register::NoRegister)
+                        Op.Mem.BaseReg = X86::RBP;
+                    Op.Mem.Disp += X86::RegisterSize * 2 + FuncArgOffets[ArgNo-X86::NumArgRegs];
                 }
             }
         }

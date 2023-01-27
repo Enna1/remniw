@@ -73,6 +73,8 @@ public:
                              AsmOperand::MemOp Mem2, bool DestIsArgument) = 0;
     virtual void handleSTORE(llvm::Instruction *I, AsmOperand::LabelOp Label,
                              AsmOperand::MemOp Mem) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, llvm::Argument *FuncArg,
+                             AsmOperand::MemOp Mem) = 0;
 
     virtual AsmOperand::MemOp handleGETELEMENTPTR(llvm::Instruction *I,
                                                   AsmOperand::MemOp Mem,
