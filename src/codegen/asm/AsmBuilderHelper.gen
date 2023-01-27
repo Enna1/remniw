@@ -38,6 +38,12 @@ reg: BRG_REG { $cost[0].cost = 0; }
 mem: BRG_ALLOCA { $cost[0].cost = 0; }
 = {
     LLVM_DEBUG(llvm::outs() << "brg action: mem: BRG_ALLOCA\n";);
+    if ($0->isActionExecuted())
+        return;
+    $0->setActionExecuted();
+    remniw::AsmOperand::MemOp Mem =
+        Builder->handleALLOCA($1->getStackObjectIndex());
+    $0->setMem(Mem);
 };
 
 func_arg: BRG_FUNCARG { $cost[0].cost = 0; }
@@ -572,7 +578,7 @@ namespace remniw {
 
 void AsmBuilder::buildAsmFunction(const BrgFunction *BrgFunc) {
     AsmFunctions.push_back(
-        std::make_unique<AsmFunction>(BrgFunc->F, BrgFunc->FuncName, BrgFunc->LocalFrameSize, BrgFunc->MaxCallFrameSize));
+        std::make_unique<AsmFunction>(BrgFunc->F, BrgFunc->FuncName, BrgFunc->LocalFrameSize, BrgFunc->MaxCallFrameSize, BrgFunc->StackObjects));
     CurrentFunction = AsmFunctions.back().get();
     for (auto *RootNode : BrgFunc->Insts) {
         printDebugTree(RootNode);

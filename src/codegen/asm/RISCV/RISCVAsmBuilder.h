@@ -16,6 +16,8 @@ private:
 public:
     const TargetInfo &getTargetInfo() const override { return TI; }
 
+    AsmOperand::MemOp handleALLOCA(int StackObjectIndex) override;
+
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) override;
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) override;
 
@@ -106,6 +108,8 @@ public:
 
     void handleLABEL(AsmOperand::LabelOp Label) override;
 
+    AsmOperand::MemOp getStackObjectAddress(int StackObjectIndex) override;
+
 private:
     void normalizeAsmMemoryOperand(AsmOperand::MemOp &Op);
 
@@ -131,6 +135,8 @@ private:
     AsmInstruction *createCALLInst(AsmOperand Callee, bool DirectCall, unsigned NumArgs);
     AsmInstruction *createLABELInst(AsmOperand LabelOp);
     AsmInstruction *createJInst(AsmOperand LabelOp);
+
+    AsmInstruction *createGetStackObjectAddressUserInst(AsmOperand Mem);
 };
 
 }  // namespace remniw

@@ -214,15 +214,15 @@ public:
 
     void PrintAsmOperand(const AsmOperand &Op, llvm::raw_ostream &OS) const override {
         switch (Op.Kind) {
-        case AsmOperand::Register: PrintRegister(Op.Reg.RegNo, OS); break;
-        case AsmOperand::Immediate: OS << Op.Imm.Val; break;
-        case AsmOperand::Memory:
+        case AsmOperand::AO_Register: PrintRegister(Op.Reg.RegNo, OS); break;
+        case AsmOperand::AO_Immediate: OS << Op.Imm.Val; break;
+        case AsmOperand::AO_Memory:
             OS << Op.Mem.Disp;
             OS << "(";
             PrintRegister(Op.Mem.BaseReg, OS);
             OS << ")";
             break;
-        case AsmOperand::Label: Op.Lbl.Symbol->print(OS); break;
+        case AsmOperand::AO_Label: Op.Lbl.Symbol->print(OS); break;
         default: llvm_unreachable("Invalid AsmOperand");
         }
     }

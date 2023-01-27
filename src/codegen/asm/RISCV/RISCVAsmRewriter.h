@@ -265,25 +265,46 @@ private:
             IncommingArgOffsetFromFP += SizeInBytes;
         }
 
-        for (auto &I : *AsmFn) {
-            for (unsigned i = 0; i < I.getNumOperands(); ++i) {
-                AsmOperand &Op = I.getOperand(i);
-                if (!Op.isMem())
-                    continue;
-                // Access memory in LocalFrame, SpillFrame, CallFrame
-                if (Op.Mem.Disp < 0 && Op.Mem.BaseReg == RISCV::FP) {
-                    Op.Mem.Disp -= RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs;
-                }
-                // Access Incoming arguments passed via stack
-                if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
-                    unsigned ArgNo = Arg->getArgNo();
-                    assert(ArgNo >= RISCV::NumArgRegs);
-                    if (Op.Mem.BaseReg == Register::NoRegister)
-                        Op.Mem.BaseReg = RISCV::FP;
-                    Op.Mem.Disp += FuncArgOffets[ArgNo-RISCV::NumArgRegs];
-                }
+        int64_t LocalFrameObjectOffsetFromFP = -(RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs);
+        for (auto &StackObj: AsmFn->StackObjects) {
+            if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(StackObj.V)) {
+                unsigned ArgNo = Arg->getArgNo();
+                assert(ArgNo >= RISCV::NumArgRegs);
+                StackObj.Offset = FuncArgOffets[ArgNo-RISCV::NumArgRegs];
+            }
+            if (auto *Alloca = llvm::dyn_cast_or_null<llvm::AllocaInst>(StackObj.V)) {
+                StackObj.Offset = LocalFrameObjectOffsetFromFP;
+                LocalFrameObjectOffsetFromFP -= StackObj.Size;
             }
         }
+
+        for (auto &p : AsmFn->UsedStackObjectsMap) {
+            auto *&I = p.first;
+            assert(I->getOpcode() == RISCV::GET_STACKOBJECT_ADDRESS_USER_INST);
+            I->setOpcode(RISCV::ADDI);
+            I->addOperand(AsmOperand::createReg(RISCV::FP));
+            I->addOperand(AsmOperand::createImm(p.second->Offset));
+        }
+
+        // for (auto &I : *AsmFn) {
+        //     for (unsigned i = 0; i < I.getNumOperands(); ++i) {
+        //         AsmOperand &Op = I.getOperand(i);
+        //         if (!Op.isMem())
+        //             continue;
+        //         // Access memory in LocalFrame, SpillFrame, CallFrame
+        //         if (Op.Mem.Disp < 0 && Op.Mem.BaseReg == RISCV::FP) {
+        //             Op.Mem.Disp -= RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs;
+        //         }
+        //         // Access Incoming arguments passed via stack
+        //         if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
+        //             unsigned ArgNo = Arg->getArgNo();
+        //             assert(ArgNo >= RISCV::NumArgRegs);
+        //             if (Op.Mem.BaseReg == Register::NoRegister)
+        //                 Op.Mem.BaseReg = RISCV::FP;
+        //             Op.Mem.Disp += FuncArgOffets[ArgNo-RISCV::NumArgRegs];
+        //         }
+        //     }
+        // }
 
         // FIXME: As RISCV integer operand must be in the range [-2048, 2047],
         // This Hack uses register ra to avoid offset of memory operands out-of-range.

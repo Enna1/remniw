@@ -45,6 +45,7 @@ public:
         ImmNode,
         LabelNode,
         FuncArgNode,
+        AllocaNode, // FIXME: unify with func arg node?
     };
 
 private:
@@ -60,6 +61,7 @@ private:
         remniw::AsmOperand::LabelOp Label;  // LabelNode
         llvm::Instruction *Inst;            // InstNode
         llvm::Argument *FuncArg;            // FuncArgNode
+        int AllocaIndex;                    // AllocaNode
     };
 
     BrgTreeNode(KindTy Kind, int Op): Kind(Kind), Op(Op), ActionExecuted(false) {}
@@ -81,6 +83,8 @@ public:
         case InstNode: return "InstNode";
         case ArgsNode: return "ArgsNode";
         case LabelNode: return "LabelNode";
+        case FuncArgNode: return "FuncArgNode";
+        case AllocaNode: return "AllocaNode";
         }
         llvm_unreachable("Invalid NodeKind");
     };
@@ -143,7 +147,6 @@ public:
         Ret->Mem.BaseReg = BaseReg;
         Ret->Mem.IndexReg = IndexReg;
         Ret->Mem.Scale = Scale;
-        Ret->Mem.V = nullptr;
         return Ret;
     }
 
@@ -153,17 +156,9 @@ public:
         return Ret;
     }
 
-    // TODO
-    static BrgTreeNode *createAllocaMemNode(int64_t Offset, uint32_t BaseReg,
-                                            uint32_t IndexReg = remniw::Register::NoRegister,
-                                            uint32_t Scale = 1,
-                                            llvm::Value *V = nullptr) {
-        auto *Ret = new BrgTreeNode(KindTy::MemNode, BrgTerm::Alloca);
-        Ret->Mem.Disp = Offset;
-        Ret->Mem.BaseReg = BaseReg;
-        Ret->Mem.IndexReg = IndexReg;
-        Ret->Mem.Scale = Scale;
-        Ret->Mem.V = V;
+    static BrgTreeNode *createAllocaNode(int Index) {
+        auto *Ret = new BrgTreeNode(KindTy::AllocaNode, BrgTerm::Alloca);
+        Ret->AllocaIndex = Index;
         return Ret;
     }
 
@@ -283,6 +278,12 @@ public:
         assert(Kind == KindTy::LabelNode && "Not a LabelNode");
         return Label.Symbol;
     }
+
+    int getStackObjectIndex() {
+        assert(Kind == KindTy::AllocaNode && "Not a AllocaNode");
+        return AllocaIndex;
+    }
+
 };
 
 typedef BrgTreeNode *NODEPTR;
@@ -329,6 +330,7 @@ struct BrgFunction {
     std::string FuncName;
     int64_t LocalFrameSize {0};
     int64_t MaxCallFrameSize {0};
+    llvm::SmallVector<remniw::AsmOperand::StackObject> StackObjects;
 
     llvm::SmallVector<BrgTreeNode *> Insts;
     llvm::DenseMap<llvm::Instruction *, BrgTreeNode *> InstToNodeMap;
@@ -351,6 +353,7 @@ private:
     BrgFunction *CurrentFunction {nullptr};
     int64_t CurrentFunctionLocalFrameSize {0};
     int64_t CurrentFunctionMaxCallFrameSize {0};
+    int CurrentFunctionAllocaInstIndex {0};
 
 public:
     BrgTreeBuilder(const TargetInfo &TI, AsmContext &AsmCtx):
@@ -412,6 +415,7 @@ public:
         CurrentFunction = Functions.back();
         CurrentFunctionLocalFrameSize = 0;
         CurrentFunctionMaxCallFrameSize = 0;
+        CurrentFunctionAllocaInstIndex = 0;
 
         // Note: The offset for first incoming argument passed via stack differs from architectures.
         // On X86, the offset is TI.getRegisterSize() * 2; On RISCV, the offset is 0.
@@ -424,8 +428,13 @@ public:
                    "Funtion argument must be integerType or PointerType");
             assert(SizeInBytes <= TI.getRegisterSize() &&
                    "Size of function argument must be less or equal than register size");
-            auto *ArgNode = BrgTreeNode::createFuncArgNode(Arg);
-            CurrentFunction->ArgToNodeMap[Arg] = ArgNode;
+            auto *FuncArgNode = BrgTreeNode::createFuncArgNode(Arg);
+            CurrentFunction->ArgToNodeMap[Arg] = FuncArgNode;
+            if (i >= TI.getNumArgRegisters())  // incomming arg on stack
+            {
+                int FuncArgOnStackIndex = TI.getNumArgRegisters() - i - 1;
+                CurrentFunction->StackObjects.push_back({FuncArgOnStackIndex, SizeInBytes, 0, Arg});
+            }
         }
 
         for (auto &BB : F) {
@@ -444,13 +453,11 @@ public:
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         CurrentFunctionLocalFrameSize += AllocaSizeInBytes;
         int64_t OffsetFromFramePointer = 0 - CurrentFunctionLocalFrameSize;
-        auto *InstNode = BrgTreeNode::createAllocaMemNode(OffsetFromFramePointer,
-                                                    TI.getFramePointerRegister(),
-                                                    remniw::Register::NoRegister, 1, &AI);
-
-        // auto *InstNode = BrgTreeNode::createAllocaMemNode(&AI);
-        CurrentFunction->InstToNodeMap[&AI] = InstNode;
-        return InstNode;
+        CurrentFunction->StackObjects.push_back({CurrentFunctionAllocaInstIndex++, AllocaSizeInBytes, 0, &AI});
+        int Index = (int)CurrentFunction->StackObjects.size() - 1;
+        auto *Node = BrgTreeNode::createAllocaNode(Index);
+        CurrentFunction->InstToNodeMap[&AI] = Node;
+        return Node;
     }
 
     BrgTreeNode *visitBranchInst(llvm::BranchInst &BI) {

@@ -69,8 +69,9 @@ void X86AsmBuilder::handleSTORE(llvm::Instruction *I, llvm::Argument *FuncArg,
     if (ArgNo < X86::NumArgRegs) {
         createMOVInst(AsmOperand::createReg(X86::ArgRegs[ArgNo]), Mem);
     } else {
-        createMOVInst(AsmOperand::createMem(FuncArg), AsmOperand::createReg(VirtReg));
-        createMOVInst(AsmOperand::createReg(VirtReg), Mem);
+        // FIXME
+        // createMOVInst(AsmOperand::createMem(FuncArg), AsmOperand::createReg(VirtReg));
+        // createMOVInst(AsmOperand::createReg(VirtReg), Mem);
     }
 }
 
@@ -81,7 +82,7 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     uint32_t SizeInBytes =
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
-    return {Mem.Disp + SizeInBytes * Imm.Val, Mem.BaseReg, Mem.IndexReg, Mem.Scale, Mem.V};
+    return {Mem.Disp + SizeInBytes * Imm.Val, Mem.BaseReg, Mem.IndexReg, Mem.Scale};
 }
 
 AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
@@ -92,11 +93,11 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
     if (Mem.IndexReg == Register::NoRegister) {
-        return {Mem.Disp, Mem.BaseReg, Reg.RegNo, SizeInBytes, Mem.V};
+        return {Mem.Disp, Mem.BaseReg, Reg.RegNo, SizeInBytes};
     } else {
         uint32_t VirtReg = Register::createVirtReg();
         createLEAInst(Mem, AsmOperand::createReg(VirtReg));
-        return {0, VirtReg, Reg.RegNo, SizeInBytes, Mem.V};
+        return {0, VirtReg, Reg.RegNo, SizeInBytes};
     }
 }
 
@@ -107,7 +108,7 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     uint32_t SizeInBytes =
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
-    return {SizeInBytes * Imm.Val, Reg.RegNo, Register::NoRegister, 1, nullptr};
+    return {SizeInBytes * Imm.Val, Reg.RegNo, Register::NoRegister, 1};
 }
 
 AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,

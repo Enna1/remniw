@@ -232,13 +232,13 @@ private:
                     Op.Mem.Disp -= StackSizeForCalleeSavedRegs;
                 }
                 // Access Incoming arguments passed via stack
-                if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
-                    unsigned ArgNo = Arg->getArgNo();
-                    assert(ArgNo >= X86::NumArgRegs);
-                    if (Op.Mem.BaseReg == Register::NoRegister)
-                        Op.Mem.BaseReg = X86::RBP;
-                    Op.Mem.Disp += X86::RegisterSize * 2 + FuncArgOffets[ArgNo-X86::NumArgRegs];
-                }
+                // if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
+                //     unsigned ArgNo = Arg->getArgNo();
+                //     assert(ArgNo >= X86::NumArgRegs);
+                //     if (Op.Mem.BaseReg == Register::NoRegister)
+                //         Op.Mem.BaseReg = X86::RBP;
+                //     Op.Mem.Disp += X86::RegisterSize * 2 + FuncArgOffets[ArgNo-X86::NumArgRegs];
+                // }
             }
         }
     }

@@ -3,6 +3,7 @@
 #include "AsmInstruction.h"
 #include "LiveInterval.h"
 #include "llvm/ADT/ilist.h"
+#include "llvm/ADT/DenseMap.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -13,8 +14,8 @@ class AsmFunction {
 public:
     using InstListType = llvm::ilist<AsmInstruction>;
 
-    AsmFunction(llvm::Function *F, std::string FuncName, int64_t LocalFrameSize, int64_t MaxCallFrameSize):
-        F(F), FuncName(FuncName), LocalFrameSize(LocalFrameSize), MaxCallFrameSize(MaxCallFrameSize) {
+    AsmFunction(llvm::Function *F, std::string FuncName, int64_t LocalFrameSize, int64_t MaxCallFrameSize, llvm::SmallVector<remniw::AsmOperand::StackObject> StackObjects):
+        F(F), FuncName(FuncName), LocalFrameSize(LocalFrameSize), MaxCallFrameSize(MaxCallFrameSize), StackObjects(StackObjects) {
         InstList.Parent = this;
     }
 
@@ -22,6 +23,8 @@ public:
     std::string FuncName;
     int64_t LocalFrameSize;
     int64_t MaxCallFrameSize;
+    llvm::SmallVector<remniw::AsmOperand::StackObject> StackObjects;
+    llvm::DenseMap<AsmInstruction *, AsmOperand::StackObject *> UsedStackObjectsMap;
 
     InstListType InstList;
     std::unordered_map<uint32_t, remniw::LiveRanges> RegLiveRangesMap;

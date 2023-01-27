@@ -127,6 +127,9 @@ enum {
     JALR,
     RET,
     LABEL,
+
+    // Used internally only
+    GET_STACKOBJECT_ADDRESS_USER_INST,
     INSTRUCTION_LIST_END
 };
 

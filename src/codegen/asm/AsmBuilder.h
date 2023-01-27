@@ -55,6 +55,8 @@ public:
     };
     AsmFunction *getCurrentFunction() { return CurrentFunction; }
 
+    virtual AsmOperand::MemOp handleALLOCA(int StackObjectIndex) = 0;
+
     virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) = 0;
     virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) = 0;
 
@@ -151,6 +153,8 @@ public:
                            AsmOperand::LabelOp Label) = 0;
 
     virtual void handleLABEL(AsmOperand::LabelOp Label) = 0;
+
+    virtual AsmOperand::MemOp getStackObjectAddress(int StackObjectIndex) = 0;
 
     void updateRegLiveRanges(uint32_t Reg) {
         uint32_t StartPoint = static_cast<uint32_t>(CurrentFunction->size());
