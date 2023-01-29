@@ -19,7 +19,7 @@ public:
         // TODO
     }
 
-    AsmOperand::MemOp handleALLOCA(int StackObjectIndex) override {
+    AsmOperand::MemOp handleALLOCA(uint32_t StackObjectIndex) override {
         // TODO
     }
 

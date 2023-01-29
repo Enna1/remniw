@@ -45,7 +45,7 @@ public:
         ImmNode,
         LabelNode,
         FuncArgNode,
-        AllocaNode, // FIXME: unify with func arg node?
+        AllocaNode,  // FIXME: unify with func arg node?
     };
 
 private:
@@ -61,7 +61,7 @@ private:
         remniw::AsmOperand::LabelOp Label;  // LabelNode
         llvm::Instruction *Inst;            // InstNode
         llvm::Argument *FuncArg;            // FuncArgNode
-        int AllocaIndex;                    // AllocaNode
+        uint32_t AllocaIndex;               // AllocaNode
     };
 
     BrgTreeNode(KindTy Kind, int Op): Kind(Kind), Op(Op), ActionExecuted(false) {}
@@ -156,7 +156,7 @@ public:
         return Ret;
     }
 
-    static BrgTreeNode *createAllocaNode(int Index) {
+    static BrgTreeNode *createAllocaNode(uint32_t Index) {
         auto *Ret = new BrgTreeNode(KindTy::AllocaNode, BrgTerm::Alloca);
         Ret->AllocaIndex = Index;
         return Ret;
@@ -283,7 +283,6 @@ public:
         assert(Kind == KindTy::AllocaNode && "Not a AllocaNode");
         return AllocaIndex;
     }
-
 };
 
 typedef BrgTreeNode *NODEPTR;
@@ -330,7 +329,7 @@ struct BrgFunction {
     std::string FuncName;
     int64_t LocalFrameSize {0};
     int64_t MaxCallFrameSize {0};
-    llvm::SmallVector<remniw::AsmOperand::StackObject> StackObjects;
+    llvm::SmallVector<remniw::StackObject> StackObjects;
 
     llvm::SmallVector<BrgTreeNode *> Insts;
     llvm::DenseMap<llvm::Instruction *, BrgTreeNode *> InstToNodeMap;
@@ -356,8 +355,7 @@ private:
     int CurrentFunctionAllocaInstIndex {0};
 
 public:
-    BrgTreeBuilder(const TargetInfo &TI, AsmContext &AsmCtx):
-        TI(TI), AsmCtx(AsmCtx) {}
+    BrgTreeBuilder(const TargetInfo &TI, AsmContext &AsmCtx): TI(TI), AsmCtx(AsmCtx) {}
 
     ~BrgTreeBuilder() {
         for (auto *F : Functions)
@@ -417,9 +415,10 @@ public:
         CurrentFunctionMaxCallFrameSize = 0;
         CurrentFunctionAllocaInstIndex = 0;
 
-        // Note: The offset for first incoming argument passed via stack differs from architectures.
-        // On X86, the offset is TI.getRegisterSize() * 2; On RISCV, the offset is 0.
-        // We depend on AsmRewriter::adjustStackFrame() to set the proper offset.
+        // Note: The offset for first incoming argument passed via stack differs from
+        // architectures. On X86, the offset is TI.getRegisterSize() * 2; On RISCV, the
+        // offset is 0. We depend on AsmRewriter::adjustStackFrame() to set the proper
+        // offset.
         for (unsigned i = 0, e = F.arg_size(); i != e; ++i) {
             llvm::Argument *Arg = F.getArg(i);
             llvm::Type *Ty = F.getArg(i)->getType();
@@ -433,7 +432,8 @@ public:
             if (i >= TI.getNumArgRegisters())  // incomming arg on stack
             {
                 int FuncArgOnStackIndex = TI.getNumArgRegisters() - i - 1;
-                CurrentFunction->StackObjects.push_back({FuncArgOnStackIndex, SizeInBytes, 0, Arg});
+                CurrentFunction->StackObjects.push_back(
+                    {FuncArgOnStackIndex, SizeInBytes, 0, Arg});
             }
         }
 
@@ -453,8 +453,9 @@ public:
         uint64_t AllocaSizeInBytes = getAllocaSizeInBytes(AI);
         CurrentFunctionLocalFrameSize += AllocaSizeInBytes;
         int64_t OffsetFromFramePointer = 0 - CurrentFunctionLocalFrameSize;
-        CurrentFunction->StackObjects.push_back({CurrentFunctionAllocaInstIndex++, AllocaSizeInBytes, 0, &AI});
-        int Index = (int)CurrentFunction->StackObjects.size() - 1;
+        CurrentFunction->StackObjects.push_back(
+            {CurrentFunctionAllocaInstIndex++, AllocaSizeInBytes, 0, &AI});
+        uint32_t Index = (uint32_t)CurrentFunction->StackObjects.size() - 1;
         auto *Node = BrgTreeNode::createAllocaNode(Index);
         CurrentFunction->InstToNodeMap[&AI] = Node;
         return Node;

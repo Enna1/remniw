@@ -55,7 +55,7 @@ public:
     };
     AsmFunction *getCurrentFunction() { return CurrentFunction; }
 
-    virtual AsmOperand::MemOp handleALLOCA(int StackObjectIndex) = 0;
+    virtual AsmOperand::MemOp handleALLOCA(uint32_t StackObjectIndex) = 0;
 
     virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) = 0;
     virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) = 0;

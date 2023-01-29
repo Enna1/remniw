@@ -16,7 +16,7 @@ private:
 public:
     const TargetInfo &getTargetInfo() const override { return TI; }
 
-    AsmOperand::MemOp handleALLOCA(int StackObjectIndex) override;
+    AsmOperand::MemOp handleALLOCA(uint32_t StackObjectIndex) override;
 
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) override;
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) override;
@@ -112,6 +112,8 @@ public:
 
 private:
     void normalizeAsmMemoryOperand(AsmOperand::MemOp &Op);
+    AsmOperand::RegOp storeMemoryAddressToReg(AsmOperand::MemOp Mem,
+                                              AsmOperand::RegOp Reg);
 
     AsmInstruction *createLDInst(AsmOperand DstReg, AsmOperand SrcMem);
     AsmInstruction *createSDInst(AsmOperand SrcReg, AsmOperand DstMem);

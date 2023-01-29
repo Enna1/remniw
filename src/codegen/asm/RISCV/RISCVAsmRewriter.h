@@ -124,19 +124,25 @@ private:
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         AsmInstruction *InsertBefore = &F->front();
 
-        TotalStackFrameSizeInBytes = F->MaxCallFrameSize /* space for call frame */ +
-            (RISCV::RegisterSize * NumSpilledReg + RISCV::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */ +
-            F->LocalFrameSize /* space for local frame */;
+        TotalStackFrameSizeInBytes =
+            F->MaxCallFrameSize /* space for call frame */ +
+            (RISCV::RegisterSize * NumSpilledReg +
+             RISCV::RegisterSize *
+                 MaxNumReversedStackSlotForReg) /* space for spill frame */
+            + F->LocalFrameSize /* space for local frame */;
         if (F->FuncName != "main") {
-            StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * RISCV::RegisterSize;
+            StackSizeForCalleeSavedRegs =
+                UsedCalleeSavedRegs.size() * RISCV::RegisterSize;
             TotalStackFrameSizeInBytes += StackSizeForCalleeSavedRegs;
         } else {
             StackSizeForCalleeSavedRegs = 0;
         }
-        TotalStackFrameSizeInBytes += RISCV::RegisterSize /* space for saved register ra */ +
-                                      RISCV::RegisterSize /* space for saved register fp */;
+        TotalStackFrameSizeInBytes +=
+            RISCV::RegisterSize /* space for saved register ra */ +
+            RISCV::RegisterSize /* space for saved register fp */;
 
-        // The stack alignment for RV32 and RV64 is 16, for RV32E is 4. Align to 16 for simplicity.
+        // The stack alignment for RV32 and RV64 is 16, for RV32E is 4. Align to 16 for
+        // simplicity.
         if (TotalStackFrameSizeInBytes % 16)
             TotalStackFrameSizeInBytes += 16 - TotalStackFrameSizeInBytes % 16;
 
@@ -145,11 +151,13 @@ private:
         int64_t SPAdjustAmount = 0;
         int64_t TmpStackFrameSizeInBytes = TotalStackFrameSizeInBytes;
         if (TotalStackFrameSizeInBytes > 2047) {
-            // SPAdjustAmount is choosed as (2048 - StackAlign), because 2048 will cause sp = sp + 2048 in epilogue split into
-            // multi-instructions. The offset smaller than 2048 can fit in signle load/store instruction and we have to stick with the stack alignment.
-            // 2048 is 16-byte alignment. The stack alignment for RV32 and RV64 is 16,
-            // for RV32E is 4. So (2048 - StackAlign) will satisfy the stack alignment.
-            // In this way, the offset of the callee saved register could fit in a single store.
+            // SPAdjustAmount is choosed as (2048 - StackAlign), because 2048 will cause
+            // sp = sp + 2048 in epilogue split into multi-instructions. The offset
+            // smaller than 2048 can fit in signle load/store instruction and we have to
+            // stick with the stack alignment. 2048 is 16-byte alignment. The stack
+            // alignment for RV32 and RV64 is 16, for RV32E is 4. So (2048 - StackAlign)
+            // will satisfy the stack alignment. In this way, the offset of the callee
+            // saved register could fit in a single store.
             SPAdjustAmount = 2048 - 16 /* StackAlign */;
             TmpStackFrameSizeInBytes = SPAdjustAmount;
         }
@@ -177,7 +185,8 @@ private:
                 TmpOffsetFromStackPointer -= RISCV::RegisterSize;
                 auto *I = AsmInstruction::create(RISCV::SD, InsertBefore);
                 I->addOperand(AsmOperand::createReg(Reg));
-                I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+                I->addOperand(
+                    AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
             }
         }
 
@@ -192,7 +201,8 @@ private:
             // it is safe to use t0 in prologue
             auto *LI = AsmInstruction::create(RISCV::LI, InsertBefore);
             LI->addOperand(AsmOperand::createReg(RISCV::T0));
-            LI->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes - SPAdjustAmount));
+            LI->addOperand(
+                AsmOperand::createImm(TotalStackFrameSizeInBytes - SPAdjustAmount));
             auto *SI = AsmInstruction::create(RISCV::SUB, InsertBefore);
             SI->addOperand(AsmOperand::createReg(RISCV::SP));
             SI->addOperand(AsmOperand::createReg(RISCV::SP));
@@ -214,7 +224,8 @@ private:
             // it is safe to use t0 in epilogue
             auto *LI = AsmInstruction::create(RISCV::LI, F);
             LI->addOperand(AsmOperand::createReg(RISCV::T0));
-            LI->addOperand(AsmOperand::createImm(TotalStackFrameSizeInBytes - SPAdjustAmount));
+            LI->addOperand(
+                AsmOperand::createImm(TotalStackFrameSizeInBytes - SPAdjustAmount));
             auto *SI = AsmInstruction::create(RISCV::ADD, F);
             SI->addOperand(AsmOperand::createReg(RISCV::SP));
             SI->addOperand(AsmOperand::createReg(RISCV::SP));
@@ -222,13 +233,13 @@ private:
         }
 
         // Restore return address register
-        TmpOffsetFromStackPointer -=  RISCV::RegisterSize;
+        TmpOffsetFromStackPointer -= RISCV::RegisterSize;
         auto *RTRA = AsmInstruction::create(RISCV::LD, F);
         RTRA->addOperand(AsmOperand::createReg(RISCV::RA));
         RTRA->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
         // Restore frame pointer
-        TmpOffsetFromStackPointer -=  RISCV::RegisterSize;
+        TmpOffsetFromStackPointer -= RISCV::RegisterSize;
         auto *RTFP = AsmInstruction::create(RISCV::LD, F);
         RTFP->addOperand(AsmOperand::createReg(RISCV::FP));
         RTFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
@@ -236,10 +247,11 @@ private:
         // Restore callee-saved registers, treat main function as special case
         if (F->FuncName != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegs) {
-                TmpOffsetFromStackPointer -=  RISCV::RegisterSize;
+                TmpOffsetFromStackPointer -= RISCV::RegisterSize;
                 auto *I = AsmInstruction::create(RISCV::LD, F);
                 I->addOperand(AsmOperand::createReg(Reg));
-                I->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
+                I->addOperand(
+                    AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
             }
         }
 
@@ -265,12 +277,13 @@ private:
             IncommingArgOffsetFromFP += SizeInBytes;
         }
 
-        int64_t LocalFrameObjectOffsetFromFP = -(RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs);
-        for (auto &StackObj: AsmFn->StackObjects) {
+        int64_t LocalFrameObjectOffsetFromFP =
+            -(RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs);
+        for (auto &StackObj : AsmFn->StackObjects) {
             if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(StackObj.V)) {
                 unsigned ArgNo = Arg->getArgNo();
                 assert(ArgNo >= RISCV::NumArgRegs);
-                StackObj.Offset = FuncArgOffets[ArgNo-RISCV::NumArgRegs];
+                StackObj.Offset = FuncArgOffets[ArgNo - RISCV::NumArgRegs];
             }
             if (auto *Alloca = llvm::dyn_cast_or_null<llvm::AllocaInst>(StackObj.V)) {
                 StackObj.Offset = LocalFrameObjectOffsetFromFP;
@@ -286,25 +299,16 @@ private:
             I->addOperand(AsmOperand::createImm(p.second->Offset));
         }
 
-        // for (auto &I : *AsmFn) {
-        //     for (unsigned i = 0; i < I.getNumOperands(); ++i) {
-        //         AsmOperand &Op = I.getOperand(i);
-        //         if (!Op.isMem())
-        //             continue;
-        //         // Access memory in LocalFrame, SpillFrame, CallFrame
-        //         if (Op.Mem.Disp < 0 && Op.Mem.BaseReg == RISCV::FP) {
-        //             Op.Mem.Disp -= RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs;
-        //         }
-        //         // Access Incoming arguments passed via stack
-        //         if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
-        //             unsigned ArgNo = Arg->getArgNo();
-        //             assert(ArgNo >= RISCV::NumArgRegs);
-        //             if (Op.Mem.BaseReg == Register::NoRegister)
-        //                 Op.Mem.BaseReg = RISCV::FP;
-        //             Op.Mem.Disp += FuncArgOffets[ArgNo-RISCV::NumArgRegs];
-        //         }
-        //     }
-        // }
+        for (auto &I : *AsmFn) {
+            for (unsigned i = 0; i < I.getNumOperands(); ++i) {
+                AsmOperand &Op = I.getOperand(i);
+                if (Op.isStackObject()) {
+                    Op.Mem.BaseReg = RISCV::FP;
+                    Op.Mem.Disp = AsmFn->StackObjects[Op.Mem.StackObjectIndex].Offset;
+                    Op.Mem.StackObjectIndex = ~0U;
+                }
+            }
+        }
 
         // FIXME: As RISCV integer operand must be in the range [-2048, 2047],
         // This Hack uses register ra to avoid offset of memory operands out-of-range.
