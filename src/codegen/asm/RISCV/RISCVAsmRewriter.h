@@ -315,21 +315,31 @@ private:
         for (auto &I : *AsmFn) {
             for (unsigned i = 0; i < I.getNumOperands(); ++i) {
                 AsmOperand &Op = I.getOperand(i);
-                if (!Op.isMem())
-                    continue;
-                if (Op.Mem.Disp < -2048 || Op.Mem.Disp > 2047) {
-                    // li ra, Mem.Disp
-                    auto *LI = AsmInstruction::create(RISCV::LI, &I);
-                    LI->addOperand(AsmOperand::createReg(RISCV::RA));
-                    LI->addOperand(AsmOperand::createImm(Op.Mem.Disp));
-                    // add ra, ra, Mem.BaseReg
-                    auto *AI = AsmInstruction::create(RISCV::ADD, &I);
-                    AI->addOperand(AsmOperand::createReg(RISCV::RA));
-                    AI->addOperand(AsmOperand::createReg(RISCV::RA));
-                    AI->addOperand(AsmOperand::createReg(Op.Mem.BaseReg));
-                    // Disp(BaseReg) -> 0(ra)
-                    Op.Mem.Disp = 0;
-                    Op.Mem.BaseReg = RISCV::RA;
+                if (Op.isMem()) {
+                    if (Op.Mem.Disp < -2048 || Op.Mem.Disp > 2047) {
+                        // li ra, Mem.Disp
+                        auto *LI = AsmInstruction::create(RISCV::LI, &I);
+                        LI->addOperand(AsmOperand::createReg(RISCV::RA));
+                        LI->addOperand(AsmOperand::createImm(Op.Mem.Disp));
+                        // add ra, ra, Mem.BaseReg
+                        auto *AI = AsmInstruction::create(RISCV::ADD, &I);
+                        AI->addOperand(AsmOperand::createReg(RISCV::RA));
+                        AI->addOperand(AsmOperand::createReg(RISCV::RA));
+                        AI->addOperand(AsmOperand::createReg(Op.Mem.BaseReg));
+                        // Disp(BaseReg) -> 0(ra)
+                        Op.Mem.Disp = 0;
+                        Op.Mem.BaseReg = RISCV::RA;
+                    }
+                }
+                if (I.getOpcode() == RISCV::ADDI) {
+                    if (I.getOperand(2).Imm.Val < -2048 || I.getOperand(2).Imm.Val > 2047) {
+                        auto *LI = AsmInstruction::create(RISCV::LI, &I);
+                        LI->addOperand(AsmOperand::createReg(RISCV::RA));
+                        LI->addOperand(I.getOperand(2));
+
+                        I.setOpcode(RISCV::ADD)
+                        I.setOperand(2, AsmOperand::createReg(RISCV::RA));
+                    }
                 }
             }
         }
