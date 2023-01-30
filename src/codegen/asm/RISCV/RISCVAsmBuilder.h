@@ -112,8 +112,7 @@ public:
 
 private:
     void normalizeAsmMemoryOperand(AsmOperand::MemOp &Op);
-    AsmOperand::RegOp storeMemoryAddressToReg(AsmOperand::MemOp Mem,
-                                              AsmOperand::RegOp Reg);
+    void storeMemoryAddressToReg(AsmOperand::MemOp SrcMem, AsmOperand::RegOp DstReg);
 
     AsmInstruction *createLDInst(AsmOperand DstReg, AsmOperand SrcMem);
     AsmInstruction *createSDInst(AsmOperand SrcReg, AsmOperand DstMem);
@@ -138,7 +137,7 @@ private:
     AsmInstruction *createLABELInst(AsmOperand LabelOp);
     AsmInstruction *createJInst(AsmOperand LabelOp);
 
-    AsmInstruction *createGetStackObjectAddressUserInst(AsmOperand Mem);
+    AsmInstruction *createGetStackObjectAddressUserInst(AsmOperand DstMem, AsmOperand SrcReg);
 };
 
 }  // namespace remniw

@@ -157,7 +157,7 @@ private:
         MI->addOperand(AsmOperand::createReg(X86::RBP));
 
         // Save callee-saved registers on stack, treat main function as special case
-        if (F->FuncName != "main") {
+        if (F->getName() != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegs) {
                 auto *I = AsmInstruction::create(X86::PUSH, InsertBefore);
                 I->addOperand(AsmOperand::createReg(Reg));
@@ -172,7 +172,7 @@ private:
         int64_t TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
                                              X86::RegisterSize /* pushed register rbp */ +
                                              X86::RegisterSize /* pushed return address */;
-        if (F->FuncName != "main") {
+        if (F->getName() != "main") {
             StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * X86::RegisterSize;
             TotalStackFrameSizeInBytes += StackSizeForCalleeSavedRegs; /* space for other callee-saved registers */
         } else {
@@ -194,7 +194,7 @@ private:
         SI->addOperand(AsmOperand::createReg(X86::RSP));
 
         // Pop callee-saved registers on stack, treat main function as special case
-        if (F->FuncName != "main") {
+        if (F->getName() != "main") {
             for (auto i = UsedCalleeSavedRegs.rbegin(), e = UsedCalleeSavedRegs.rend();
                  i != e; ++i) {
                 auto *PI = AsmInstruction::create(X86::POP, F);

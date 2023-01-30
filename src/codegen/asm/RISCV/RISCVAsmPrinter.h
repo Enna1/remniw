@@ -14,9 +14,9 @@ public:
     void emitFunctionDeclaration(const AsmFunction *F) override {
         auto &OS = outStreamer();
         OS << ".text\n"
-           << ".globl " << F->FuncName << "\n"
-           << ".type " << F->FuncName << ", @function\n"
-           << F->FuncName << ":\n";
+           << ".globl " << F->getName() << "\n"
+           << ".type " << F->getName() << ", @function\n"
+           << F->getName() << ":\n";
     }
 
     void emitFunctionBody(const AsmFunction *F) override {

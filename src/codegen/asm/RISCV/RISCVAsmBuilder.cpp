@@ -13,12 +13,12 @@ AsmOperand::MemOp RISCVAsmBuilder::handleALLOCA(uint32_t StackObjectIndex) {
 AsmOperand::RegOp RISCVAsmBuilder::handleLOAD(llvm::Instruction *I,
                                               AsmOperand::MemOp Mem) {
     normalizeAsmMemoryOperand(Mem);
-    uint32_t LDDstReg = Register::createVirtReg();
-    auto DstReg = AsmOperand::createReg(LDDstReg);
+    uint32_t VirtReg = Register::createVirtReg();
+    auto Reg = AsmOperand::createReg(VirtReg);
     createLDInst(
-        /* destination register */ DstReg,
+        /* destination register */ Reg,
         /* source register and offset*/ Mem);
-    return DstReg;
+    return Reg;
 }
 
 AsmOperand::RegOp RISCVAsmBuilder::handleLOAD(llvm::Instruction *I,
@@ -89,10 +89,10 @@ void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::MemOp Mem1,
 void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, AsmOperand::LabelOp Label,
                                   AsmOperand::MemOp Mem) {
     normalizeAsmMemoryOperand(Mem);
-    uint32_t LADstReg = Register::createVirtReg();
-    createLAInst(/* destination register */ AsmOperand::createReg(LADstReg),
+    uint32_t VirtReg = Register::createVirtReg();
+    createLAInst(/* destination register */ AsmOperand::createReg(VirtReg),
                  /* source SYMBOL */ Label);
-    createSDInst(/* source register */ AsmOperand::createReg(LADstReg),
+    createSDInst(/* source register */ AsmOperand::createReg(VirtReg),
                  /* memory (base register and offset) */ Mem);
 }
 
@@ -105,11 +105,11 @@ void RISCVAsmBuilder::handleSTORE(llvm::Instruction *I, llvm::Argument *FuncArg,
         createSDInst(/* source register */ AsmOperand::createReg(RISCV::ArgRegs[ArgNo]),
                      /* memory (base register and offset) */ Mem);
     } else {
-        int ArgOnStackIndex = ArgNo - RISCV::NumArgRegs;
+        uint32_t FuncArgStackObjectIndex = ArgNo - RISCV::NumArgRegs;
         createLDInst(
             /* destination register */ AsmOperand::createReg(VirtReg),
             /* memory (base register and offset) */ AsmOperand::createStackObject(
-                ArgOnStackIndex));
+                FuncArgStackObjectIndex));
         createSDInst(/* source register */ AsmOperand::createReg(VirtReg),
                      /* memory (base register and offset) */ Mem);
     }
@@ -520,59 +520,45 @@ void RISCVAsmBuilder::handleLABEL(AsmOperand::LabelOp Label) {
     createLABELInst(Label);
 }
 
-AsmOperand::RegOp RISCVAsmBuilder::storeMemoryAddressToReg(AsmOperand::MemOp Mem,
-                                                           AsmOperand::RegOp Reg) {
-    // Get the address of stack object, save it in VirtReg.
-    if (Mem.isStackObject()) {
-        auto *StackObj = &getCurrentFunction()->StackObjects[Mem.StackObjectIndex];
-        auto *I = createGetStackObjectAddressUserInst(Reg /*, Object->Index */);
+void RISCVAsmBuilder::storeMemoryAddressToReg(AsmOperand::MemOp SrcMem,
+                                              AsmOperand::RegOp DstReg) {
+    if (SrcMem.isStackObject()) {
+        auto *StackObj = &getCurrentFunction()->StackObjects[SrcMem.StackObjectIndex];
+        auto *I = createGetStackObjectAddressUserInst(DstReg, SrcMem);
         getCurrentFunction()->UsedStackObjectsMap.insert({I, StackObj});
     } else {
-        createADDIInst(/* destination register */ Reg,
-                       /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
-                       /* Immediate data */ AsmOperand::createImm(Mem.Disp));
+        createADDIInst(/* destination register */ DstReg,
+                       /* source register 1 */ AsmOperand::createReg(SrcMem.BaseReg),
+                       /* Immediate data */ AsmOperand::createImm(SrcMem.Disp));
     }
-    return Reg;
 }
 
-// TODO: delete
-AsmOperand::MemOp RISCVAsmBuilder::getStackObjectAddress(int StackObjectIndex) {
-    // Get the address of stack object, save it in VirtReg.
-    // Return a MemOp, the displacement of which is 0, the base register of which is
-    // VirtReg.
-    auto *StackObj = &getCurrentFunction()->StackObjects[StackObjectIndex];
-    uint32_t VirtReg = Register::createVirtReg();
-    auto DstMem = AsmOperand::createMem(0, VirtReg);
-    auto *I = createGetStackObjectAddressUserInst(
-        AsmOperand::createReg(VirtReg) /*, Object->Index */);
-    getCurrentFunction()->UsedStackObjectsMap.insert({I, StackObj});
-    return DstMem;
-}
+AsmOperand::MemOp RISCVAsmBuilder::getStackObjectAddress(int StackObjectIndex) {}
 
 void RISCVAsmBuilder::normalizeAsmMemoryOperand(AsmOperand::MemOp &Mem) {
-    if (Mem.IndexReg != Register::NoRegister) {
-        uint32_t VirtReg = Register::createVirtReg();
-        // MemScale
-        createLIInst(
-            /* destination register */ AsmOperand::createReg(VirtReg),
-            /* source immediate */ AsmOperand::createImm(Mem.Scale));
+    // if (Mem.IndexReg != Register::NoRegister) {
+    //     uint32_t VirtReg = Register::createVirtReg();
+    //     // MemScale
+    //     createLIInst(
+    //         /* destination register */ AsmOperand::createReg(VirtReg),
+    //         /* source immediate */ AsmOperand::createImm(Mem.Scale));
 
-        // MemIndex * MemScale
-        createMULInst(
-            /* destination register */ AsmOperand::createReg(VirtReg),
-            /* source register 1 */ AsmOperand::createReg(Mem.IndexReg),
-            /* source register 2 */ AsmOperand::createReg(VirtReg));
+    //     // MemIndex * MemScale
+    //     createMULInst(
+    //         /* destination register */ AsmOperand::createReg(VirtReg),
+    //         /* source register 1 */ AsmOperand::createReg(Mem.IndexReg),
+    //         /* source register 2 */ AsmOperand::createReg(VirtReg));
 
-        // MemBase + MemIndex * MemScale
-        createADDInst(
-            /* destination register */ AsmOperand::createReg(VirtReg),
-            /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
-            /* source register 2 */ AsmOperand::createReg(VirtReg));
+    //     // MemBase + MemIndex * MemScale
+    //     createADDInst(
+    //         /* destination register */ AsmOperand::createReg(VirtReg),
+    //         /* source register 1 */ AsmOperand::createReg(Mem.BaseReg),
+    //         /* source register 2 */ AsmOperand::createReg(VirtReg));
 
-        Mem.BaseReg = VirtReg;
-        Mem.IndexReg = Register::NoRegister;
-        Mem.Scale = 1;
-    }
+    //     Mem.BaseReg = VirtReg;
+    //     Mem.IndexReg = Register::NoRegister;
+    //     Mem.Scale = 1;
+    // }
 }
 
 AsmInstruction *RISCVAsmBuilder::createLDInst(AsmOperand DstReg, AsmOperand SrcMem) {
@@ -755,11 +741,14 @@ AsmInstruction *RISCVAsmBuilder::createJInst(AsmOperand LabelOp) {
     return I;
 }
 
-AsmInstruction *RISCVAsmBuilder::createGetStackObjectAddressUserInst(AsmOperand Reg) {
-    updateAsmOperandLiveRanges(Reg);
+AsmInstruction *RISCVAsmBuilder::createGetStackObjectAddressUserInst(AsmOperand DstReg,
+                                                                     AsmOperand SrcMem) {
+    updateAsmOperandLiveRanges(DstReg);
+    updateAsmOperandLiveRanges(SrcMem);
     auto *I = AsmInstruction::create(RISCV::GET_STACKOBJECT_ADDRESS_USER_INST,
                                      getCurrentFunction());
-    I->addOperand(Reg);
+    I->addOperand(DstReg);
+    I->addOperand(SrcMem);
     return I;
 }
 

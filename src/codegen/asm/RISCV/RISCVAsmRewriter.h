@@ -101,25 +101,6 @@ private:
         }
     }
 
-    // The stack frame layout:
-    //
-    // | Incoming arguments      |
-    // | passed via stack.       |
-    // +-------------------------+ <- Old SP, New FP. High address
-    // | saved register ra       |
-    // | saved register fp       |
-    // +- - - - - - - - - - - - -+
-    // | space for other         |
-    // | callee-saved registers  |
-    // +- - - - - - - - - - - - -+
-    // | local vars space        | <- LocalFrame
-    // +- - - - - - - - - - - - -+
-    // | space for spilled regs  | <- SpillFrame
-    // +- - - - - - - - - - - - -+
-    // | parameter area for      | <- CallFrame
-    // | called functions        |
-    // +-------------------------+ <- New SP. Low address
-
     void insertPrologue(AsmFunction *F,
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         AsmInstruction *InsertBefore = &F->front();
@@ -130,7 +111,7 @@ private:
              RISCV::RegisterSize *
                  MaxNumReversedStackSlotForReg) /* space for spill frame */
             + F->LocalFrameSize /* space for local frame */;
-        if (F->FuncName != "main") {
+        if (F->getName() != "main") {
             StackSizeForCalleeSavedRegs =
                 UsedCalleeSavedRegs.size() * RISCV::RegisterSize;
             TotalStackFrameSizeInBytes += StackSizeForCalleeSavedRegs;
@@ -180,7 +161,7 @@ private:
         SDFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
         // Save callee-saved registers on stack, treat main function as special case
-        if (F->FuncName != "main") {
+        if (F->getName() != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegs) {
                 TmpOffsetFromStackPointer -= RISCV::RegisterSize;
                 auto *I = AsmInstruction::create(RISCV::SD, InsertBefore);
@@ -245,7 +226,7 @@ private:
         RTFP->addOperand(AsmOperand::createMem(TmpOffsetFromStackPointer, RISCV::SP));
 
         // Restore callee-saved registers, treat main function as special case
-        if (F->FuncName != "main") {
+        if (F->getName() != "main") {
             for (uint32_t Reg : UsedCalleeSavedRegs) {
                 TmpOffsetFromStackPointer -= RISCV::RegisterSize;
                 auto *I = AsmInstruction::create(RISCV::LD, F);
@@ -265,25 +246,37 @@ private:
         AsmInstruction::create(RISCV::RET, F);
     }
 
-    void adjustStackFrame(AsmFunction *AsmFn) override {
-        int64_t IncommingArgOffsetFromFP = 0;
-        llvm::SmallVector<int64_t> FuncArgOffets;
-        llvm::Function *F = AsmFn->F;
-        for (unsigned i = RISCV::NumArgRegs, e = F->arg_size(); i < e; ++i) {
-            llvm::Argument *Arg = F->getArg(i);
-            llvm::Type *Ty = F->getArg(i)->getType();
-            uint64_t SizeInBytes = F->getParent()->getDataLayout().getTypeAllocSize(Ty);
-            FuncArgOffets.push_back(IncommingArgOffsetFromFP);
-            IncommingArgOffsetFromFP += SizeInBytes;
-        }
 
+    // The stack frame layout:
+    //
+    // | Incoming arguments      |
+    // | passed via stack.       |
+    // +-------------------------+ <- Old SP, New FP. High address
+    // | saved register ra       |
+    // | saved register fp       |
+    // +- - - - - - - - - - - - -+
+    // | space for other         |
+    // | callee-saved registers  |
+    // +- - - - - - - - - - - - -+
+    // | local vars space        | <- LocalFrame
+    // +- - - - - - - - - - - - -+
+    // | space for spilled regs  | <- SpillFrame
+    // +- - - - - - - - - - - - -+
+    // | parameter area for      | <- CallFrame
+    // | called functions        |
+    // +-------------------------+ <- New SP. Low address
+    //
+    void adjustStackFrame(AsmFunction *AsmFn) override {
+        // Update stack object offset
+        int64_t IncommingArgOffsetFromFP = 0;
         int64_t LocalFrameObjectOffsetFromFP =
             -(RISCV::RegisterSize * 2 + StackSizeForCalleeSavedRegs);
         for (auto &StackObj : AsmFn->StackObjects) {
             if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(StackObj.V)) {
                 unsigned ArgNo = Arg->getArgNo();
                 assert(ArgNo >= RISCV::NumArgRegs);
-                StackObj.Offset = FuncArgOffets[ArgNo - RISCV::NumArgRegs];
+                StackObj.Offset = IncommingArgOffsetFromFP;
+                IncommingArgOffsetFromFP += StackObj.Size;
             }
             if (auto *Alloca = llvm::dyn_cast_or_null<llvm::AllocaInst>(StackObj.V)) {
                 LocalFrameObjectOffsetFromFP -= StackObj.Size;
@@ -291,15 +284,19 @@ private:
             }
         }
 
-        for (auto &p : AsmFn->UsedStackObjectsMap) {
-            auto *&I = p.first;
-            assert(I->getOpcode() == RISCV::GET_STACKOBJECT_ADDRESS_USER_INST);
-            I->setOpcode(RISCV::ADDI);
-            I->addOperand(AsmOperand::createReg(RISCV::FP));
-            I->addOperand(AsmOperand::createImm(p.second->Offset));
-        }
-
+        // Lower stack object
         for (auto &I : *AsmFn) {
+            // Lower GET_STACKOBJECT_ADDRESS_USER_INST to RISCV::ADDI.
+            if (I.getOpcode() == RISCV::GET_STACKOBJECT_ADDRESS_USER_INST) {
+                assert(I.getNumOperands() == 2 && I.getOperand(1).isStackObject());
+                I.setOpcode(RISCV::ADDI);
+                uint32_t StackObjectIndex = I.getOperand(1).Mem.StackObjectIndex;
+                I.setOperand(1, AsmOperand::createReg(RISCV::FP));
+                I.addOperand(
+                    AsmOperand::createImm(AsmFn->StackObjects[StackObjectIndex].Offset));
+            }
+
+            // Adjust stack object memory operand to concrete base reg and offset.
             for (unsigned i = 0; i < I.getNumOperands(); ++i) {
                 AsmOperand &Op = I.getOperand(i);
                 if (Op.isStackObject()) {
@@ -310,36 +307,33 @@ private:
             }
         }
 
-        // FIXME: As RISCV integer operand must be in the range [-2048, 2047],
+        // As RISCV integer operand must be in the range [-2048, 2047],
         // This Hack uses register ra to avoid offset of memory operands out-of-range.
         for (auto &I : *AsmFn) {
             for (unsigned i = 0; i < I.getNumOperands(); ++i) {
                 AsmOperand &Op = I.getOperand(i);
-                if (Op.isMem()) {
-                    if (Op.Mem.Disp < -2048 || Op.Mem.Disp > 2047) {
-                        // li ra, Mem.Disp
-                        auto *LI = AsmInstruction::create(RISCV::LI, &I);
-                        LI->addOperand(AsmOperand::createReg(RISCV::RA));
-                        LI->addOperand(AsmOperand::createImm(Op.Mem.Disp));
-                        // add ra, ra, Mem.BaseReg
-                        auto *AI = AsmInstruction::create(RISCV::ADD, &I);
-                        AI->addOperand(AsmOperand::createReg(RISCV::RA));
-                        AI->addOperand(AsmOperand::createReg(RISCV::RA));
-                        AI->addOperand(AsmOperand::createReg(Op.Mem.BaseReg));
-                        // Disp(BaseReg) -> 0(ra)
-                        Op.Mem.Disp = 0;
-                        Op.Mem.BaseReg = RISCV::RA;
-                    }
+                if (Op.isMem() && (Op.Mem.Disp < -2048 || Op.Mem.Disp > 2047)) {
+                    // li ra, Mem.Disp
+                    auto *LI = AsmInstruction::create(RISCV::LI, &I);
+                    LI->addOperand(AsmOperand::createReg(RISCV::RA));
+                    LI->addOperand(AsmOperand::createImm(Op.Mem.Disp));
+                    // add ra, ra, Mem.BaseReg
+                    auto *AI = AsmInstruction::create(RISCV::ADD, &I);
+                    AI->addOperand(AsmOperand::createReg(RISCV::RA));
+                    AI->addOperand(AsmOperand::createReg(RISCV::RA));
+                    AI->addOperand(AsmOperand::createReg(Op.Mem.BaseReg));
+                    // Disp(BaseReg) -> 0(ra)
+                    Op.Mem.Disp = 0;
+                    Op.Mem.BaseReg = RISCV::RA;
                 }
-                if (I.getOpcode() == RISCV::ADDI) {
-                    if (I.getOperand(2).Imm.Val < -2048 || I.getOperand(2).Imm.Val > 2047) {
-                        auto *LI = AsmInstruction::create(RISCV::LI, &I);
-                        LI->addOperand(AsmOperand::createReg(RISCV::RA));
-                        LI->addOperand(I.getOperand(2));
+                if (I.getOpcode() == RISCV::ADDI &&
+                    (I.getOperand(2).Imm.Val < -2048 || I.getOperand(2).Imm.Val > 2047)) {
+                    auto *LI = AsmInstruction::create(RISCV::LI, &I);
+                    LI->addOperand(AsmOperand::createReg(RISCV::RA));
+                    LI->addOperand(I.getOperand(2));
 
-                        I.setOpcode(RISCV::ADD)
-                        I.setOperand(2, AsmOperand::createReg(RISCV::RA));
-                    }
+                    I.setOpcode(RISCV::ADD);
+                    I.setOperand(2, AsmOperand::createReg(RISCV::RA));
                 }
             }
         }

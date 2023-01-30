@@ -8,8 +8,8 @@
 %term BRG_UNDEF
 %term BRG_CONST
 %term BRG_LABEL
-%term BRG_ARGS
 %term BRG_REG
+%term BRG_CALLARGS
 %term BRG_FUNCARG
 
 #define HANDLE_INST(N, OPC, CLASS) \

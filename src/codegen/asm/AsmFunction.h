@@ -4,6 +4,7 @@
 #include "LiveInterval.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/ilist.h"
+#include "llvm/IR/Function.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -14,16 +15,15 @@ class AsmFunction {
 public:
     using InstListType = llvm::ilist<AsmInstruction>;
 
-    AsmFunction(llvm::Function *F, std::string FuncName, int64_t LocalFrameSize,
-                int64_t MaxCallFrameSize, llvm::SmallVector<StackObject> StackObjects):
+    AsmFunction(llvm::Function *F, int64_t LocalFrameSize, int64_t MaxCallFrameSize,
+                llvm::SmallVector<StackObject> StackObjects):
         F(F),
-        FuncName(FuncName), LocalFrameSize(LocalFrameSize),
-        MaxCallFrameSize(MaxCallFrameSize), StackObjects(StackObjects) {
+        LocalFrameSize(LocalFrameSize), MaxCallFrameSize(MaxCallFrameSize),
+        StackObjects(StackObjects) {
         InstList.Parent = this;
     }
 
     llvm::Function *F;
-    std::string FuncName;
     int64_t LocalFrameSize;
     int64_t MaxCallFrameSize;
     llvm::SmallVector<StackObject> StackObjects;
@@ -35,12 +35,14 @@ public:
     AsmFunction(const AsmFunction &) = delete;
     AsmFunction &operator=(const AsmFunction &) = delete;
 
+    llvm::StringRef getName() const { return F->getName(); }
+
     std::unordered_map<uint32_t, remniw::LiveRanges> &getRegLiveRangesMap() {
         return RegLiveRangesMap;
     }
 
     void print(llvm::raw_ostream &OS) const {
-        OS << "AsmFunction: " << FuncName << "\n";
+        OS << "AsmFunction: " << getName() << "\n";
         unsigned Idx = 0;
         for (auto &I : InstList) {
             OS << Idx++ << ": ";
