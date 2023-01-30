@@ -286,8 +286,8 @@ private:
                 StackObj.Offset = FuncArgOffets[ArgNo - RISCV::NumArgRegs];
             }
             if (auto *Alloca = llvm::dyn_cast_or_null<llvm::AllocaInst>(StackObj.V)) {
-                StackObj.Offset = LocalFrameObjectOffsetFromFP;
                 LocalFrameObjectOffsetFromFP -= StackObj.Size;
+                StackObj.Offset = LocalFrameObjectOffsetFromFP;
             }
         }
 
