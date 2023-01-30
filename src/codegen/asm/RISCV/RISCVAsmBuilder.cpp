@@ -756,6 +756,7 @@ AsmInstruction *RISCVAsmBuilder::createJInst(AsmOperand LabelOp) {
 }
 
 AsmInstruction *RISCVAsmBuilder::createGetStackObjectAddressUserInst(AsmOperand Reg) {
+    updateAsmOperandLiveRanges(Reg);
     auto *I = AsmInstruction::create(RISCV::GET_STACKOBJECT_ADDRESS_USER_INST,
                                      getCurrentFunction());
     I->addOperand(Reg);
