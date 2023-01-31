@@ -15,13 +15,7 @@ private:
 public:
     const TargetInfo &getTargetInfo() const override { return TI; }
 
-    AsmOperand::MemOp getStackObjectAddress(int StackObjectIndex) override {
-        // TODO
-    }
-
-    AsmOperand::MemOp handleALLOCA(uint32_t StackObjectIndex) override {
-        // TODO
-    }
+    AsmOperand::MemOp handleALLOCA(uint32_t StackObjectIndex) override;
 
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) override;
     AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) override;

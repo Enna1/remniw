@@ -6,6 +6,10 @@
 
 namespace remniw {
 
+AsmOperand::MemOp X86AsmBuilder::handleALLOCA(uint32_t StackObjectIndex) {
+    return AsmOperand::createStackObject(StackObjectIndex);
+}
+
 AsmOperand::RegOp X86AsmBuilder::handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) {
     uint32_t VirtReg = Register::createVirtReg();
     auto DstReg = AsmOperand::createReg(VirtReg);
@@ -69,9 +73,10 @@ void X86AsmBuilder::handleSTORE(llvm::Instruction *I, llvm::Argument *FuncArg,
     if (ArgNo < X86::NumArgRegs) {
         createMOVInst(AsmOperand::createReg(X86::ArgRegs[ArgNo]), Mem);
     } else {
-        // FIXME
-        // createMOVInst(AsmOperand::createMem(FuncArg), AsmOperand::createReg(VirtReg));
-        // createMOVInst(AsmOperand::createReg(VirtReg), Mem);
+        uint32_t FuncArgStackObjectIndex = ArgNo - X86::NumArgRegs;
+        createMOVInst(AsmOperand::createStackObject(FuncArgStackObjectIndex),
+                      AsmOperand::createReg(VirtReg));
+        createMOVInst(AsmOperand::createReg(VirtReg), Mem);
     }
 }
 
@@ -82,7 +87,14 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     uint32_t SizeInBytes =
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
-    return {Mem.Disp + SizeInBytes * Imm.Val, Mem.BaseReg, Mem.IndexReg, Mem.Scale};
+    if (Mem.isStackObject()) {
+        uint32_t VirtReg = Register::createVirtReg();
+        createLEAInst(Mem, AsmOperand::createReg(VirtReg));
+        return AsmOperand::createMem(SizeInBytes * Imm.Val, VirtReg);
+    } else {
+        return AsmOperand::createMem(Mem.Disp + SizeInBytes * Imm.Val, Mem.BaseReg,
+                                     Mem.IndexReg, Mem.Scale);
+    }
 }
 
 AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
@@ -92,12 +104,19 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     uint32_t SizeInBytes =
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
-    if (Mem.IndexReg == Register::NoRegister) {
-        return {Mem.Disp, Mem.BaseReg, Reg.RegNo, SizeInBytes};
-    } else {
+    assert(SizeInBytes == 1 || SizeInBytes == 2 || SizeInBytes == 4 || SizeInBytes == 8);
+    if (Mem.isStackObject()) {
         uint32_t VirtReg = Register::createVirtReg();
         createLEAInst(Mem, AsmOperand::createReg(VirtReg));
-        return {0, VirtReg, Reg.RegNo, SizeInBytes};
+        return AsmOperand::createMem(0, VirtReg, Reg.RegNo, SizeInBytes);
+    } else {
+        if (Mem.IndexReg == Register::NoRegister) {
+            return AsmOperand::createMem(Mem.Disp, Mem.BaseReg, Reg.RegNo, SizeInBytes);
+        } else {
+            uint32_t VirtReg = Register::createVirtReg();
+            createLEAInst(Mem, AsmOperand::createReg(VirtReg));
+            return AsmOperand::createMem(0, VirtReg, Reg.RegNo, SizeInBytes);
+        }
     }
 }
 
@@ -108,7 +127,7 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     uint32_t SizeInBytes =
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
-    return {SizeInBytes * Imm.Val, Reg.RegNo, Register::NoRegister, 1};
+    return AsmOperand::createMem(SizeInBytes * Imm.Val, Reg.RegNo);
 }
 
 AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
@@ -118,7 +137,8 @@ AsmOperand::MemOp X86AsmBuilder::handleGETELEMENTPTR(llvm::Instruction *I,
     uint32_t SizeInBytes =
         GEP->getFunction()->getParent()->getDataLayout().getTypeAllocSize(
             GEP->getResultElementType());
-    return {0, Reg1.RegNo, Reg2.RegNo, SizeInBytes};
+    assert(SizeInBytes == 1 || SizeInBytes == 2 || SizeInBytes == 4 || SizeInBytes == 8);
+    return AsmOperand::createMem(0, Reg1.RegNo, Reg2.RegNo, SizeInBytes);
 }
 
 void X86AsmBuilder::handleICMP(llvm::Instruction *I, AsmOperand::RegOp Reg1,

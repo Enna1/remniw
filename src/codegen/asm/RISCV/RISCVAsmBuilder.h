@@ -108,10 +108,7 @@ public:
 
     void handleLABEL(AsmOperand::LabelOp Label) override;
 
-    AsmOperand::MemOp getStackObjectAddress(int StackObjectIndex) override;
-
 private:
-    void normalizeAsmMemoryOperand(AsmOperand::MemOp &Op);
     void storeMemoryAddressToReg(AsmOperand::MemOp SrcMem, AsmOperand::RegOp DstReg);
 
     AsmInstruction *createLDInst(AsmOperand DstReg, AsmOperand SrcMem);
@@ -137,7 +134,8 @@ private:
     AsmInstruction *createLABELInst(AsmOperand LabelOp);
     AsmInstruction *createJInst(AsmOperand LabelOp);
 
-    AsmInstruction *createGetStackObjectAddressUserInst(AsmOperand DstMem, AsmOperand SrcReg);
+    AsmInstruction *createGetStackObjectAddressUserInst(AsmOperand DstMem,
+                                                        AsmOperand SrcReg);
 };
 
 }  // namespace remniw

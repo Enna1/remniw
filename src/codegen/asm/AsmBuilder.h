@@ -154,8 +154,6 @@ public:
 
     virtual void handleLABEL(AsmOperand::LabelOp Label) = 0;
 
-    virtual AsmOperand::MemOp getStackObjectAddress(int StackObjectIndex) = 0;
-
     void updateRegLiveRanges(uint32_t Reg) {
         uint32_t StartPoint = static_cast<uint32_t>(CurrentFunction->size());
         uint32_t EndPoint = StartPoint + 1;

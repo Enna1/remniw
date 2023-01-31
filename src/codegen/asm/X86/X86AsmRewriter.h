@@ -124,25 +124,6 @@ private:
         }
     }
 
-    // The stack frame layout:
-    //
-    // | Incoming arguments      |
-    // | passed via stack.       |
-    // +-------------------------+ <- Old SP. High address
-    // | pushed return address   |
-    // | pushed register rbp     |
-    // +- - - - - - - - - - - - -+ <- New FP(RBP)
-    // | space for other         |
-    // | callee-saved registers  |
-    // +- - - - - - - - - - - - -+
-    // | local vars space        | <- LocalFrame
-    // +- - - - - - - - - - - - -+
-    // | space for spilled regs  | <- SpillFrame
-    // +- - - - - - - - - - - - -+
-    // | parameter area for      | <- CallFrame
-    // | called functions        |
-    // +-------------------------+ <- New SP. Low address
-
     void insertPrologue(AsmFunction *F,
                         llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) override {
         AsmInstruction *InsertBefore = &F->front();
@@ -168,13 +149,16 @@ private:
         NeededStackSizeInBytes =
             F->MaxCallFrameSize /* space for call frame */ +
             F->LocalFrameSize /* space for local frame */ +
-            (X86::RegisterSize * NumSpilledReg + X86::RegisterSize * MaxNumReversedStackSlotForReg) /* space for spill frame */;
-        int64_t TotalStackFrameSizeInBytes = NeededStackSizeInBytes +
-                                             X86::RegisterSize /* pushed register rbp */ +
-                                             X86::RegisterSize /* pushed return address */;
+            (X86::RegisterSize * NumSpilledReg +
+             X86::RegisterSize *
+                 MaxNumReversedStackSlotForReg) /* space for spill frame */;
+        int64_t TotalStackFrameSizeInBytes =
+            NeededStackSizeInBytes + X86::RegisterSize /* pushed register rbp */ +
+            X86::RegisterSize /* pushed return address */;
         if (F->getName() != "main") {
             StackSizeForCalleeSavedRegs = UsedCalleeSavedRegs.size() * X86::RegisterSize;
-            TotalStackFrameSizeInBytes += StackSizeForCalleeSavedRegs; /* space for other callee-saved registers */
+            TotalStackFrameSizeInBytes +=
+                StackSizeForCalleeSavedRegs; /* space for other callee-saved registers */
         } else {
             StackSizeForCalleeSavedRegs = 0;
         }
@@ -210,35 +194,52 @@ private:
         AsmInstruction::create(X86::RET, F);
     }
 
+    // The stack frame layout:
+    //
+    // | Incoming arguments      |
+    // | passed via stack.       |
+    // +-------------------------+ <- Old SP. High address
+    // | pushed return address   |
+    // | pushed register rbp     |
+    // +- - - - - - - - - - - - -+ <- New FP(RBP)
+    // | space for other         |
+    // | callee-saved registers  |
+    // +- - - - - - - - - - - - -+
+    // | local vars space        | <- LocalFrame
+    // +- - - - - - - - - - - - -+
+    // | space for spilled regs  | <- SpillFrame
+    // +- - - - - - - - - - - - -+
+    // | parameter area for      | <- CallFrame
+    // | called functions        |
+    // +-------------------------+ <- New SP. Low address
+    //
     void adjustStackFrame(AsmFunction *AsmFn) override {
-        int64_t IncommingArgOffsetFromFP = 0;
-        llvm::SmallVector<int64_t> FuncArgOffets;
-        llvm::Function *F = AsmFn->F;
-        for (unsigned i = X86::NumArgRegs, e = F->arg_size(); i < e; ++i) {
-            llvm::Argument *Arg = F->getArg(i);
-            llvm::Type *Ty = F->getArg(i)->getType();
-            uint64_t SizeInBytes = F->getParent()->getDataLayout().getTypeAllocSize(Ty);
-            FuncArgOffets.push_back(IncommingArgOffsetFromFP);
-            IncommingArgOffsetFromFP += SizeInBytes;
+        // Update stack object offset
+        int64_t IncommingArgOffsetFromFP = X86::RegisterSize * 2;
+        int64_t LocalFrameObjectOffsetFromFP = -StackSizeForCalleeSavedRegs;
+        for (auto &StackObj : AsmFn->StackObjects) {
+            if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(StackObj.V)) {
+                unsigned ArgNo = Arg->getArgNo();
+                assert(ArgNo >= X86::NumArgRegs);
+                StackObj.Offset = IncommingArgOffsetFromFP;
+                IncommingArgOffsetFromFP += StackObj.Size;
+            }
+            if (auto *Alloca = llvm::dyn_cast_or_null<llvm::AllocaInst>(StackObj.V)) {
+                LocalFrameObjectOffsetFromFP -= StackObj.Size;
+                StackObj.Offset = LocalFrameObjectOffsetFromFP;
+            }
         }
 
+        // Lower stack object
         for (auto &I : *AsmFn) {
+            // Adjust stack object memory operand to concrete base reg and offset.
             for (unsigned i = 0; i < I.getNumOperands(); ++i) {
                 AsmOperand &Op = I.getOperand(i);
-                if (!Op.isMem())
-                    continue;
-                // Access memory in LocalFrame, SpillFrame, CallFrame
-                if (Op.Mem.Disp < 0 && Op.Mem.BaseReg == X86::RBP) {
-                    Op.Mem.Disp -= StackSizeForCalleeSavedRegs;
+                if (Op.isStackObject()) {
+                    Op.Mem.BaseReg = X86::RBP;
+                    Op.Mem.Disp = AsmFn->StackObjects[Op.Mem.StackObjectIndex].Offset;
+                    Op.Mem.StackObjectIndex = ~0U;
                 }
-                // Access Incoming arguments passed via stack
-                // if (auto *Arg = llvm::dyn_cast_or_null<llvm::Argument>(Op.Mem.V)) {
-                //     unsigned ArgNo = Arg->getArgNo();
-                //     assert(ArgNo >= X86::NumArgRegs);
-                //     if (Op.Mem.BaseReg == Register::NoRegister)
-                //         Op.Mem.BaseReg = X86::RBP;
-                //     Op.Mem.Disp += X86::RegisterSize * 2 + FuncArgOffets[ArgNo-X86::NumArgRegs];
-                // }
             }
         }
     }
