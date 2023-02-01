@@ -516,7 +516,6 @@ void RISCVAsmBuilder::storeMemoryAddressToReg(AsmOperand::MemOp SrcMem,
     if (SrcMem.isStackObject()) {
         auto *StackObj = &getCurrentFunction()->StackObjects[SrcMem.StackObjectIndex];
         auto *I = createGetStackObjectAddressUserInst(DstReg, SrcMem);
-        getCurrentFunction()->UsedStackObjectsMap.insert({I, StackObj});
     } else {
         createADDIInst(/* destination register */ DstReg,
                        /* source register 1 */ AsmOperand::createReg(SrcMem.BaseReg),

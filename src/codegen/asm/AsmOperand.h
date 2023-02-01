@@ -109,7 +109,7 @@ public:
 
     bool isMem() const { return Kind == AO_Memory; }
 
-    bool isStackObject() const { return Kind == AO_Memory && Mem.StackObjectIndex != ~0; }
+    bool isStackObject() const { return Kind == AO_Memory && Mem.isStackObject(); }
 
     bool isImm() const { return Kind == AO_Immediate; }
 

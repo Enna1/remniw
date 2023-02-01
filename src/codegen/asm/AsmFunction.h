@@ -27,7 +27,6 @@ public:
     int64_t LocalFrameSize;
     int64_t MaxCallFrameSize;
     llvm::SmallVector<StackObject> StackObjects;
-    llvm::DenseMap<AsmInstruction *, StackObject *> UsedStackObjectsMap;
 
     InstListType InstList;
     std::unordered_map<uint32_t, remniw::LiveRanges> RegLiveRangesMap;
