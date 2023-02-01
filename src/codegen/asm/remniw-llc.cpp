@@ -10,6 +10,8 @@
 #include <memory>
 #include <string>
 
+using namespace remniw;
+
 static llvm::cl::opt<std::string> InputFilename(llvm::cl::Positional,
                                                 llvm::cl::desc("<input bitcode>"),
                                                 llvm::cl::init("-"));
@@ -19,9 +21,9 @@ static llvm::cl::opt<std::string>
 
 static llvm::cl::opt<remniw::Target> CodegenTarget(
     "target", llvm::cl::desc("Choose codegen target:"),
-    llvm::cl::values(clEnumVal(remniw::Target::x86, "emit X86 assembly"),
-                     clEnumVal(remniw::Target::riscv, "emit RISCV assembly")),
-    llvm::cl::init(remniw::Target::x86));
+    llvm::cl::values(clEnumVal(x86, "emit X86 assembly"),
+                     clEnumVal(riscv, "emit RISCV assembly")),
+    llvm::cl::init(x86));
 
 int main(int argc, char *argv[]) {
     // parse arguments from command line
