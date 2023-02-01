@@ -40,7 +40,7 @@ static llvm::cl::opt<std::string>
                    llvm::cl::cat(RemniwCat));
 
 static llvm::cl::opt<Target> CodegenTarget(
-    llvm::cl::desc("Choose codegen target:"), llvm::cl::cat(RemniwCat),
+    "target", llvm::cl::desc("Choose codegen target:"), llvm::cl::cat(RemniwCat),
     llvm::cl::values(clEnumVal(x86, "X86 assembly"), clEnumVal(riscv, "RISCV assembly")),
     llvm::cl::init(x86));
 
