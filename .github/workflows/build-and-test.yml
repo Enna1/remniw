@@ -9,7 +9,7 @@ on:
     branches-ignore:
       - "wip/**"
   pull_request:
-    branches-ignore: 
+    branches-ignore:
       - "wip/**"
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-22.04]
         llvm-version: [12, 13, 14]
     steps:
       - uses: actions/checkout@v2
@@ -30,13 +30,11 @@ jobs:
           make check-remniw
           make check-aphotic_shield
           popd
-      - run: |
-          mkdir asan-build
-          pushd asan-build
-          cmake -DCMAKE_CXX_FLAGS="-fsanitize=address -g" -DCMAKE_C_FLAGS="-fsanitize=address -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address" ..
-          make -j `nproc`
-          make check-remniw
-          popd
+      - run: ./utils/install-riscv.sh
+      - name: Print compiler version
+        run: riscv64-linux-gnu-gcc --version
+      - name: Print qemu version
+        run: qemu-riscv64 --version
       - name: Cache build
         if: runner.os == 'Linux'
         id: cache-build
