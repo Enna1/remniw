@@ -44,7 +44,7 @@ public:
         uint32_t IndexReg;
         uint32_t Scale;
         uint32_t StackObjectIndex;
-        bool isStackObject() { return StackObjectIndex != ~0U; }
+        bool isStackObject() const { return StackObjectIndex != ~0U; }
     };
 
     struct ImmOp {

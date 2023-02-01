@@ -2,7 +2,7 @@
 add_custom_target(gen1 ALL DEPENDS BrgTerm.cpp)
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
-  COMMAND clang++ -xc++ -E -P ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.gen `llvm-config --cxxflags` -o ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
+  COMMAND clang++ -xc++ -E -P ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.gen -I${LLVM_INCLUDE_DIRS}  -o ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
   COMMAND sed -i 's/_.*/\\U&/' ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
 )
 
