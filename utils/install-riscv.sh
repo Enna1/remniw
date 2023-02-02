@@ -5,6 +5,5 @@ set -ex
 # necessary software to build/run tests in CI.
 
 sudo apt-get update
-sudo apt-get install -y gcc-riscv64-linux-gnu
+sudo apt-get install -y gcc-riscv64-linux-gnu gcc-riscv64-unknown-elf
 sudo apt-get install -y qemu-system-riscv64 qemu-user
-
