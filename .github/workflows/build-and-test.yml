@@ -33,6 +33,7 @@ jobs:
       - run: ./utils/install-riscv.sh
       - name: Print compiler version
         run: riscv64-linux-gnu-gcc --version
+        run: riscv64-unknown-elf-gcc --version
       - name: Print qemu version
         run: qemu-riscv64 --version
       - name: Cache build
