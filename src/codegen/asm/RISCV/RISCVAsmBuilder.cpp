@@ -634,7 +634,7 @@ AsmInstruction *RISCVAsmBuilder::createADDInst(AsmOperand DstReg, AsmOperand Src
 
 AsmInstruction *RISCVAsmBuilder::createADDIInst(AsmOperand DstReg, AsmOperand SrcReg,
                                                 AsmOperand SrcImm) {
-    assert(DstReg.isReg() && SrcReg.isReg() && SrcImm.isMem());
+    assert(DstReg.isReg() && SrcReg.isReg() && SrcImm.isImm());
     updateAsmOperandLiveRanges(DstReg);
     updateAsmOperandLiveRanges(SrcReg);
     if (SrcImm.Imm.Val >= -2048 && SrcImm.Imm.Val <= 2047) {
