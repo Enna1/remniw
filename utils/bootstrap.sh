@@ -62,10 +62,18 @@ bootstrap_ubuntu_env() {
     echo "export PATH=/usr/lib/llvm-$LLVM_VERSION/bin:\$PATH" >> ~/.bashrc
 }
 
+bootstrap_riscv_dependencies() {
+    sudo apt -y install \
+        gcc-riscv64-linux-gnu \
+        gcc-riscv64-unknown-elf \
+        qemu-system-riscv64 \
+        qemu-user
+}
 
 bootstrap_ubuntu() {
     bootstrap_ubuntu_dependencies
     bootstrap_ubuntu_env
+    bootstrap_riscv_dependencies
 }
 
 

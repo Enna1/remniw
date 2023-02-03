@@ -10,7 +10,7 @@
 #include <memory>
 #include <string>
 
-using namespace llvm;
+using namespace remniw;
 
 static llvm::cl::opt<std::string> InputFilename(llvm::cl::Positional,
                                                 llvm::cl::desc("<input bitcode>"),
@@ -20,10 +20,10 @@ static llvm::cl::opt<std::string>
                    llvm::cl::value_desc("filename"));
 
 static llvm::cl::opt<remniw::Target> CodegenTarget(
-    llvm::cl::desc("Choose codegen target:"),
-    llvm::cl::values(clEnumVal(remniw::Target::x86, "emit X86 assembly"),
-                     clEnumVal(remniw::Target::riscv, "emit RISCV assembly")),
-    llvm::cl::init(remniw::Target::x86));
+    "target", llvm::cl::desc("Choose codegen target:"),
+    llvm::cl::values(clEnumVal(x86, "emit X86 assembly"),
+                     clEnumVal(riscv, "emit RISCV assembly")),
+    llvm::cl::init(x86));
 
 int main(int argc, char *argv[]) {
     // parse arguments from command line
@@ -33,6 +33,10 @@ int main(int argc, char *argv[]) {
     llvm::LLVMContext Context;
     llvm::SMDiagnostic Error;
     std::unique_ptr<llvm::Module> M = parseIRFile(InputFilename, Error, Context);
+    if (!M) {
+        Error.print(argv[0], llvm::errs());
+        return 1;
+    }
 
     std::error_code EC;
     llvm::ToolOutputFile Out(OutputFilename, EC, llvm::sys::fs::OF_Text);

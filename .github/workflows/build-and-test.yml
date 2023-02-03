@@ -9,7 +9,7 @@ on:
     branches-ignore:
       - "wip/**"
   pull_request:
-    branches-ignore: 
+    branches-ignore:
       - "wip/**"
 
 jobs:
@@ -17,12 +17,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
-        llvm-version: [12, 13, 14]
+        os: [ubuntu-22.04]
+        llvm-version: [13, 14]
     steps:
       - uses: actions/checkout@v2
       - run: ./utils/bootstrap.sh ${{ matrix.llvm-version }}
-      - run: |
+      - name: test
+        run: |
           mkdir build
           pushd build
           cmake ../
@@ -30,7 +31,8 @@ jobs:
           make check-remniw
           make check-aphotic_shield
           popd
-      - run: |
+      - name: test with asan
+        run: |
           mkdir asan-build
           pushd asan-build
           cmake -DCMAKE_CXX_FLAGS="-fsanitize=address -g" -DCMAKE_C_FLAGS="-fsanitize=address -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address" ..

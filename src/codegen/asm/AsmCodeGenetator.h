@@ -5,6 +5,9 @@
 #include "codegen/asm/AsmPrinter.h"
 #include "codegen/asm/AsmRewriter.h"
 #include "codegen/asm/BrgTreeBuilder.h"
+#include "codegen/asm/RISCV/RISCVAsmBuilder.h"
+#include "codegen/asm/RISCV/RISCVAsmPrinter.h"
+#include "codegen/asm/RISCV/RISCVAsmRewriter.h"
 #include "codegen/asm/TargetInfo.h"
 #include "codegen/asm/X86/X86AsmBuilder.h"
 #include "codegen/asm/X86/X86AsmPrinter.h"
@@ -41,7 +44,10 @@ private:
             AP = std::make_unique<X86AsmPrinter>(AB->getTargetInfo());
             BB = std::make_unique<BrgTreeBuilder>(AB->getTargetInfo(), AsmCtx);
         } else if (TheTarget == Target::riscv) {
-            llvm_unreachable("unimplemented");
+            AB = std::make_unique<RISCVAsmBuilder>();
+            AR = std::make_unique<RISCVAsmRewriter>(AB->getTargetInfo());
+            AP = std::make_unique<RISCVAsmPrinter>(AB->getTargetInfo());
+            BB = std::make_unique<BrgTreeBuilder>(AB->getTargetInfo(), AsmCtx);
         }
     }
 

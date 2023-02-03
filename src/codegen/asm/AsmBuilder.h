@@ -55,6 +55,8 @@ public:
     };
     AsmFunction *getCurrentFunction() { return CurrentFunction; }
 
+    virtual AsmOperand::MemOp handleALLOCA(uint32_t StackObjectIndex) = 0;
+
     virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::MemOp Mem) = 0;
     virtual AsmOperand::RegOp handleLOAD(llvm::Instruction *I, AsmOperand::RegOp Reg) = 0;
 
@@ -72,6 +74,8 @@ public:
     virtual void handleSTORE(llvm::Instruction *I, AsmOperand::MemOp Mem1,
                              AsmOperand::MemOp Mem2, bool DestIsArgument) = 0;
     virtual void handleSTORE(llvm::Instruction *I, AsmOperand::LabelOp Label,
+                             AsmOperand::MemOp Mem) = 0;
+    virtual void handleSTORE(llvm::Instruction *I, llvm::Argument *FuncArg,
                              AsmOperand::MemOp Mem) = 0;
 
     virtual AsmOperand::MemOp handleGETELEMENTPTR(llvm::Instruction *I,

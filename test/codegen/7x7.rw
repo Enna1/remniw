@@ -1,7 +1,12 @@
-// RUN: %remniw -emit-llvm %s -o %t ; lli %t | FileCheck %s
-// RUN: %remniw -emit-llvm %s -o %t -debug ; lli %t | FileCheck %s
-// RUN: %remniw -emit-llvm %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+// Emit LLVM IR
+// RUN: %remniw -emit-llvm %s -o %t1 ; lli %t1 | FileCheck %s
+
+// Emit X86 assembly
+// RUN: %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
 // RUN: %remniw %s -o %t4 ; %t4 | FileCheck %s
+
+// Emit RISCV assembly
+// RUN: %remniw-llc --target=riscv %t1 -o %t2.riscv.s ; %riscv-cc %t2.riscv.s -o %t3.riscv.exe; qemu-riscv64 %t3.riscv.exe | FileCheck %s
 
 func main() int {
   var  v00, v01, v02, v03, v04, v05, v06, v07, v10, v11, v12, v13, v14, v15, v16, v17, v20, v21, v22, v23, v24, v25, v26, v27, v30, v31, v32, v33, v34, v35, v36, v37, v40, v41, v42, v43, v44, v45, v46, v47, v50, v51, v52, v53, v54, v55, v56, v57, v60, v61, v62, v63, v64, v65, v66, v67, v70, v71, v72, v73, v74, v75, v76, v77 int;

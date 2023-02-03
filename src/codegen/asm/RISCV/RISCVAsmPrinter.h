@@ -1,15 +1,15 @@
 #pragma once
 
 #include "codegen/asm/AsmFunction.h"
-#include "codegen/asm/X86/X86TargetInfo.h"
+#include "codegen/asm/RISCV/RISCVTargetInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Function.h"
 
 namespace remniw {
 
-class X86AsmPrinter: public AsmPrinter {
+class RISCVAsmPrinter: public AsmPrinter {
 public:
-    X86AsmPrinter(const TargetInfo &TI): AsmPrinter(TI) {}
+    RISCVAsmPrinter(const TargetInfo &TI): AsmPrinter(TI) {}
 
     void emitFunctionDeclaration(const AsmFunction *F) override {
         auto &OS = outStreamer();
@@ -51,132 +51,159 @@ public:
     void PrintAsmInstruction(const AsmInstruction &I,
                              llvm::raw_ostream &OS) const override {
         switch (I.getOpcode()) {
-        case X86::MOV: {
-            OS << "\tmovq\t";
+        case RISCV::LD: {
+            OS << "\tld\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ", ";
             PrintAsmOperand(I.getOperand(1), OS);
             OS << "\n";
             break;
         }
-        case X86::LEA: {
-            OS << "\tleaq\t";
-            PrintAsmOperand(I.getOperand(0), OS);
-            if (I.getOperand(0).isLabel() &&
-                (I.getOperand(0).getLabel()->isFunction() ||
-                 I.getOperand(0).getLabel()->isGlobalVariable())) {
-                OS << "(%rip)";  // rip relative addressing
-            }
-            OS << ", ";
-            PrintAsmOperand(I.getOperand(1), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::CMP: {
-            OS << "\tcmpq\t";
+        case RISCV::SD: {
+            OS << "\tsd\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ", ";
             PrintAsmOperand(I.getOperand(1), OS);
             OS << "\n";
             break;
         }
-        case X86::JMP: {
-            OS << "\tjmp\t";
-            PrintAsmOperand(I.getOperand(0), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::JE: {
-            OS << "\tje\t";
-            PrintAsmOperand(I.getOperand(0), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::JNE: {
-            OS << "\tjne\t";
-            PrintAsmOperand(I.getOperand(0), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::JG: {
-            OS << "\tjg\t";
-            PrintAsmOperand(I.getOperand(0), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::JLE: {
-            OS << "\tjle\t";
-            PrintAsmOperand(I.getOperand(0), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::ADD: {
-            OS << "\taddq\t";
+        case RISCV::MV: {
+            OS << "\tmv\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ", ";
             PrintAsmOperand(I.getOperand(1), OS);
             OS << "\n";
             break;
         }
-        case X86::SUB: {
-            OS << "\tsubq\t";
+        case RISCV::LI: {
+            OS << "\tli\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ", ";
             PrintAsmOperand(I.getOperand(1), OS);
             OS << "\n";
             break;
         }
-        case X86::IMUL: {
-            OS << "\timulq\t";
+        case RISCV::LA: {
+            OS << "\tla\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ", ";
             PrintAsmOperand(I.getOperand(1), OS);
             OS << "\n";
             break;
         }
-        case X86::IDIV: {
-            OS << "\tidivq\t";
-            PrintAsmOperand(I.getOperand(0), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::CQTO: {
-            OS << "\tcqto\n";
-            break;
-        }
-        case X86::CALL: {
-            OS << "\tcallq\t";
-            if (!I.getOperand(0).isLabel())  // Indirect call
-                OS << "*";
-            PrintAsmOperand(I.getOperand(0), OS);
-            OS << "\n";
-            break;
-        }
-        case X86::XOR: {
-            OS << "\txorq\t";
+        case RISCV::BEQ: {
+            OS << "\tbeq\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ", ";
             PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
             OS << "\n";
             break;
         }
-        case X86::PUSH: {
-            OS << "\tpushq\t";
+        case RISCV::BNE: {
+            OS << "\tbne\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::BGT: {
+            OS << "\tbgt\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::BLE: {
+            OS << "\tble\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::J: {
+            OS << "\tj\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << "\n";
             break;
         }
-        case X86::POP: {
-            OS << "\tpopq\t";
+        case RISCV::ADD: {
+            OS << "\tadd\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::ADDI: {
+            OS << "\taddi\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::SUB: {
+            OS << "\tsub\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::MUL: {
+            OS << "\tmul\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::DIV: {
+            OS << "\tdiv\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(1), OS);
+            OS << ", ";
+            PrintAsmOperand(I.getOperand(2), OS);
+            OS << "\n";
+            break;
+        }
+        case RISCV::CALL: {  // direct call
+            OS << "\tcall\t";
             PrintAsmOperand(I.getOperand(0), OS);
             OS << "\n";
             break;
         }
-        case X86::RET: {
-            OS << "\tretq\n";
+        case RISCV::JALR: {  // indirect call
+            OS << "\tjalr\t";
+            PrintAsmOperand(I.getOperand(0), OS);
+            OS << "\n";
             break;
         }
-        case X86::LABEL: {
+        case RISCV::RET: {
+            OS << "\tret\n";
+            break;
+        }
+        case RISCV::LABEL: {
             PrintAsmOperand(I.getOperand(0), OS);
             OS << ":\n";
             break;
@@ -188,18 +215,11 @@ public:
     void PrintAsmOperand(const AsmOperand &Op, llvm::raw_ostream &OS) const override {
         switch (Op.Kind) {
         case AsmOperand::AO_Register: PrintRegister(Op.Reg.RegNo, OS); break;
-        case AsmOperand::AO_Immediate: OS << "$" << Op.Imm.Val; break;
+        case AsmOperand::AO_Immediate: OS << Op.Imm.Val; break;
         case AsmOperand::AO_Memory:
-            if (Op.Mem.Disp != 0)
-                OS << Op.Mem.Disp;
+            OS << Op.Mem.Disp;
             OS << "(";
-            if (Op.Mem.BaseReg)
-                PrintRegister(Op.Mem.BaseReg, OS);
-            if (Op.Mem.IndexReg) {
-                OS << ", ";
-                PrintRegister(Op.Mem.IndexReg, OS);
-                OS << ", " << Op.Mem.Scale;
-            }
+            PrintRegister(Op.Mem.BaseReg, OS);
             OS << ")";
             break;
         case AsmOperand::AO_Label: Op.Lbl.Symbol->print(OS); break;
@@ -209,22 +229,38 @@ public:
 
     void PrintRegister(uint32_t Reg, llvm::raw_ostream &OS) const override {
         switch (Reg) {
-        case X86::RAX: OS << "%rax"; break;
-        case X86::RBX: OS << "%rbx"; break;
-        case X86::RCX: OS << "%rcx"; break;
-        case X86::RDX: OS << "%rdx"; break;
-        case X86::RSP: OS << "%rsp"; break;
-        case X86::RBP: OS << "%rbp"; break;
-        case X86::RDI: OS << "%rdi"; break;
-        case X86::RSI: OS << "%rsi"; break;
-        case X86::R8: OS << "%r8"; break;
-        case X86::R9: OS << "%r9"; break;
-        case X86::R10: OS << "%r10"; break;
-        case X86::R11: OS << "%r11"; break;
-        case X86::R12: OS << "%r12"; break;
-        case X86::R13: OS << "%r13"; break;
-        case X86::R14: OS << "%r14"; break;
-        case X86::R15: OS << "%r15"; break;
+        case RISCV::ZERO: OS << "zero"; break;
+        case RISCV::RA: OS << "ra"; break;
+        case RISCV::SP: OS << "sp"; break;
+        case RISCV::GP: OS << "gp"; break;
+        case RISCV::TP: OS << "tp"; break;
+        case RISCV::T0: OS << "t0"; break;
+        case RISCV::T1: OS << "t1"; break;
+        case RISCV::T2: OS << "t2"; break;
+        case RISCV::FP: OS << "fp"; break;
+        case RISCV::S1: OS << "s1"; break;
+        case RISCV::A0: OS << "a0"; break;
+        case RISCV::A1: OS << "a1"; break;
+        case RISCV::A2: OS << "a2"; break;
+        case RISCV::A3: OS << "a3"; break;
+        case RISCV::A4: OS << "a4"; break;
+        case RISCV::A5: OS << "a5"; break;
+        case RISCV::A6: OS << "a6"; break;
+        case RISCV::A7: OS << "a7"; break;
+        case RISCV::S2: OS << "s2"; break;
+        case RISCV::S3: OS << "s3"; break;
+        case RISCV::S4: OS << "s4"; break;
+        case RISCV::S5: OS << "s5"; break;
+        case RISCV::S6: OS << "s6"; break;
+        case RISCV::S7: OS << "s7"; break;
+        case RISCV::S8: OS << "s8"; break;
+        case RISCV::S9: OS << "s9"; break;
+        case RISCV::S10: OS << "s10"; break;
+        case RISCV::S11: OS << "s11"; break;
+        case RISCV::T3: OS << "t3"; break;
+        case RISCV::T4: OS << "t4"; break;
+        case RISCV::T5: OS << "t5"; break;
+        case RISCV::T6: OS << "t6"; break;
         default: llvm_unreachable("Invalid Register\n");
         };
     }

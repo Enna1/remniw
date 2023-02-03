@@ -32,8 +32,7 @@ public:
     virtual uint32_t getStackPointerRegister() const = 0;
     virtual uint32_t getFramePointerRegister() const = 0;
 
-    virtual void getFreeRegistersForRegisterAllocator(
-        llvm::SmallVector<bool> &FreeRegisters) const = 0;
+    virtual llvm::ArrayRef<uint32_t> getFreeRegistersForRegisterAllocator() const = 0;
 };
 
 }  // namespace remniw

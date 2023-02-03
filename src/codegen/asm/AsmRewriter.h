@@ -4,6 +4,7 @@
 #include "codegen/asm/RegisterAllocator.h"
 #include "codegen/asm/TargetInfo.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Support/Alignment.h"
 
 namespace remniw {
@@ -51,13 +52,15 @@ public:
                 rewriteAsmInstSpilledRegToStackSlot(&AsmInst, VirtToAllocRegMap);
 
             // Insert prologue and epilogue.
-            llvm::SmallVector<uint32_t> UsedCalleeSavedRegs;
+            llvm::SetVector<uint32_t> UsedCalleeSavedRegs;
             for (auto p : VirtToAllocRegMap) {
                 if (TI.isCalleeSavedRegister(p.second))
-                    UsedCalleeSavedRegs.push_back(p.second);
+                    UsedCalleeSavedRegs.insert(p.second);
             }
             insertPrologue(CurrentFunction, UsedCalleeSavedRegs);
             insertEpilogue(CurrentFunction, UsedCalleeSavedRegs);
+
+            adjustStackFrame(CurrentFunction);
         }
     }
 
@@ -91,14 +94,14 @@ public:
     int64_t getStackSlotOffsetForSpilledReg(uint32_t RegNo) {
         assert(Register::isStackSlot(RegNo) && "Must be StackSlot");
         uint32_t StackSlotIndex = Register::stackSlot2Index(RegNo);
-        return -(CurrentFunction->StackSizeInBytes +
+        return -(CurrentFunction->LocalFrameSize +
                  TI.getRegisterSize() * (StackSlotIndex + 1));
     }
 
     int64_t getReservedStackSlotOffsetForReg() {
         NumReversedStackSlotForReg++;
         int64_t Offset =
-            -(CurrentFunction->StackSizeInBytes + TI.getRegisterSize() * NumSpilledReg +
+            -(CurrentFunction->LocalFrameSize + TI.getRegisterSize() * NumSpilledReg +
               TI.getRegisterSize() * NumReversedStackSlotForReg);
         return Offset;
     }
@@ -113,10 +116,12 @@ private:
         const llvm::DenseMap<uint32_t, uint32_t> &VirtToAllocRegMap) = 0;
 
     virtual void insertPrologue(AsmFunction *F,
-                                llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) = 0;
+                                llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) = 0;
 
     virtual void insertEpilogue(AsmFunction *F,
-                                llvm::SmallVectorImpl<uint32_t> &UsedCalleeSavedRegs) = 0;
+                                llvm::SetVector<uint32_t> &UsedCalleeSavedRegs) = 0;
+
+    virtual void adjustStackFrame(AsmFunction *F) = 0;
 
     virtual void getUsedRegisters(AsmInstruction *I,
                                   llvm::SmallVectorImpl<uint32_t> &UsedRegs) = 0;

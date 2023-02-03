@@ -41,3 +41,11 @@ config.substitutions.append(('%remniw',
 # replaced %remniw-llc by the path to the tool executable.
 config.substitutions.append(('%remniw-llc',
     os.path.join(config.obj_root, 'bin/remniw-llc')))
+
+# replaced %riscv-cc by the path to
+riscv_cc_path = None
+if not riscv_cc_path:
+  riscv_cc_path = lit.util.which('riscv64-unknown-linux-gnu-gcc')
+if not riscv_cc_path:
+  riscv_cc_path = lit.util.which('riscv64-linux-gnu-gcc')
+config.substitutions.append(('%riscv-cc', ' %s %s ' % (riscv_cc_path, '-static')))
