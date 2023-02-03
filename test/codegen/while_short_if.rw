@@ -3,7 +3,7 @@
 
 // Emit X86 assembly
 // RUN: %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; echo 1 0 1 | %t3 | FileCheck %s
-// RUN: %remniw %s -o %t4 ; echo 1 0 1 | %t4 | FileCheck %
+// RUN: %remniw %s -o %t4 ; echo 1 0 1 | %t4 | FileCheck %s
 
 // Emit RISCV assembly
 // RUN: %remniw-llc --target=riscv %t1 -o %t2.riscv.s ; \
