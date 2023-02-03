@@ -1,7 +1,14 @@
-// RUN: %remniw -emit-llvm %s -o %t ; lli %t | FileCheck %s
-// RUN: %remniw -emit-llvm %s -o %t -debug ; lli %t | FileCheck %s
-// RUN: %remniw -emit-llvm %s -o %t1 ; %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
+// Emit LLVM IR
+// RUN: %remniw -emit-llvm %s -o %t1 ; lli %t1 | FileCheck %s
+
+// Emit X86 assembly
+// RUN: %remniw-llc %t1 -o %t2.s ; clang %t2.s -o %t3; %t3 | FileCheck %s
 // RUN: %remniw %s -o %t4 ; %t4 | FileCheck %s
+
+// Emit RISCV assembly
+// RUN: %remniw-llc --target=riscv %t1 -o %t2.riscv.s ; \
+// RUN:     %riscv-cc %t2.riscv.s -o %t3.riscv.exe; \
+// RUN:     qemu-riscv64 %t3.riscv.exe | FileCheck %s
 
 func main() int {
   var x int;

@@ -1,8 +1,12 @@
 # Generate BrgTerm.cpp using preprocessor
 add_custom_target(gen1 ALL DEPENDS BrgTerm.cpp)
+set(gen1_includes_llvm_dirs "")
+foreach(dir IN LISTS LLVM_INCLUDE_DIRS)
+    set(gen1_includes_llvm_dirs ${gen1_includes_llvm_dirs} -I${dir})
+endforeach()
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
-  COMMAND clang++ -xc++ -E -P ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.gen -I${LLVM_INCLUDE_DIRS}  -o ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
+  COMMAND clang++ -xc++ -E -P ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.gen ${gen1_includes_llvm_dirs}  -o ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
   COMMAND sed -i 's/_.*/\\U&/' ${CMAKE_CURRENT_SOURCE_DIR}/BrgTerm.cpp
 )
 
