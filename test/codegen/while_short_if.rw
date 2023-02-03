@@ -8,7 +8,7 @@
 // Emit RISCV assembly
 // RUN: %remniw-llc --target=riscv %t1 -o %t2.riscv.s ; \
 // RUN:     %riscv-cc %t2.riscv.s -o %t3.riscv.exe; \
-// RUN:     echo 1 0 1 | qemu-riscv64 %t3.riscv.exe | FileCheck %ss
+// RUN:     echo 1 0 1 | qemu-riscv64 %t3.riscv.exe | FileCheck %s
 
 func main() int {
     var x,y,z int;
