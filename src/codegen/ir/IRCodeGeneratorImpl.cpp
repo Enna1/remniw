@@ -200,12 +200,12 @@ Value *IRCodeGeneratorImpl::codegenNumberExpr(NumberExprAST *NumberExpr) {
 Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
     std::string Name = VariableExpr->getName().str();
     if (NamedValues.count(Name)) {
-        Value *V = NamedValues[Name];
-        if (VariableExpr->IsLValue()) {
+        AllocaInst *V = NamedValues[Name];
+        if (VariableExpr->isLValue()) {
             return V;
         } else {
             assert(V->getType()->isPointerTy());
-            return IRB->CreateLoad(V->getType()->getPointerElementType(), V, Name);
+            return IRB->CreateLoad(V->getAllocatedType(), V, Name);
         }
     }
 
@@ -281,7 +281,7 @@ Value *IRCodeGeneratorImpl::codegenArraySubscriptExpr(
            "Base operand of ArraySubscriptExpr must be ArrayType");
     Value *Ret =
         IRB->CreateInBoundsGEP(BasePointeeTy, Base, {IRB->getInt64(0), Selector});
-    if (!ArraySubscriptExpr->IsLValue()) {
+    if (!ArraySubscriptExpr->isLValue()) {
         Ret = IRB->CreateLoad(Ret->getType()->getPointerElementType(), Ret);
     }
     return Ret;
@@ -291,7 +291,8 @@ Value *IRCodeGeneratorImpl::codegenInputExpr(InputExprAST *InputExpr) {
     llvm::Function *F = IRB->GetInsertBlock()->getParent();
     Value *Ptr = createEntryBlockAlloca(F, "input", IRB->getInt64Ty());
     Value *Call = emitScanf(InputFmtStr, Ptr);
-    return IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
+    // return IRB->CreateLoad(Ptr->getType()->getPointerElementType(), Ptr);
+    return IRB->CreateLoad(IRB->getInt64Ty(), Ptr);
 }
 
 Value *IRCodeGeneratorImpl::codegenBinaryExpr(BinaryExprAST *BinaryExpr) {
@@ -329,7 +330,7 @@ Value *IRCodeGeneratorImpl::codegenOutputStmt(OutputStmtAST *OutputStmt) {
 }
 
 Value *IRCodeGeneratorImpl::codegenAllocStmt(AllocStmtAST *AllocStmt) {
-    assert(AllocStmt->getPtr()->IsLValue() && "AllocStmt first operand must be lvalue");
+    assert(AllocStmt->getPtr()->isLValue() && "AllocStmt first operand must be lvalue");
     Value *Ptr = codegenExpr(AllocStmt->getPtr());
     Value *Size = codegenExpr(AllocStmt->getSize());
     assert(Ptr->getType()->isPointerTy() && llvm::isa<ConstantInt>(Size) &&
@@ -378,7 +379,7 @@ Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     // Codegen of 'Then' can change the current block, update ThenBB for the PHI.
     ThenBB = IRB->GetInsertBlock();
     // Emit else block.
-    F->getBasicBlockList().push_back(ElseBB);
+    F->insert(F->end(), ElseBB);
     IRB->SetInsertPoint(ElseBB);
     if (auto *Else = IfStmt->getElse())
         codegenStmt(Else);
@@ -387,7 +388,7 @@ Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     ElseBB = IRB->GetInsertBlock();
 
     // Emit merge block.
-    F->getBasicBlockList().push_back(MergeBB);
+    F->insert(F->end(), MergeBB);
     IRB->SetInsertPoint(MergeBB);
 
     return nullptr;
@@ -417,13 +418,13 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
     IRB->CreateCondBr(CondV, LoopBodyBB, LoopEndBB);
 
     // Emit the "loop body" block
-    F->getBasicBlockList().push_back(LoopBodyBB);
+    F->insert(F->end(), LoopBodyBB);
     IRB->SetInsertPoint(LoopBodyBB);
     codegenStmt(WhileStmt->getBody());
     IRB->CreateBr(LoopCondBB);
 
     // Emit the "loop end" block
-    F->getBasicBlockList().push_back(LoopEndBB);
+    F->insert(F->end(), LoopEndBB);
     IRB->SetInsertPoint(LoopEndBB);
     return nullptr;
 }
@@ -459,7 +460,7 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
 
     // Create local variables declarations
     for (auto *VarDeclNode : Function->getLocalVarDecls()->getVars()) {
-        Value *LocalVar = IRB->CreateAlloca(REMNIWTypeToLLVMType(VarDeclNode->getType()),
+        AllocaInst *LocalVar = IRB->CreateAlloca(REMNIWTypeToLLVMType(VarDeclNode->getType()),
                                             nullptr, VarDeclNode->getName());
         NamedValues[LocalVar->getName().str()] = LocalVar;
     }

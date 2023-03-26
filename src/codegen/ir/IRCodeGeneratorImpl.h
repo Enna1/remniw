@@ -14,7 +14,7 @@ private:
     llvm::LLVMContext *TheLLVMContext;
     std::unique_ptr<llvm::Module> TheModule;
     std::unique_ptr<llvm::IRBuilder<>> IRB;
-    std::unordered_map<std::string, llvm::Value *> NamedValues;
+    std::unordered_map<std::string, llvm::AllocaInst *> NamedValues;
     llvm::GlobalVariable *InputFmtStr;
     llvm::GlobalVariable *OutputFmtStr;
 

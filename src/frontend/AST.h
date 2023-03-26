@@ -79,7 +79,7 @@ public:
                Node->getKind() <= ASTNode::BinaryExpr;
     }
 
-    bool IsLValue() const { return LValue; }
+    bool isLValue() const { return LValue; }
 
 private:
     bool LValue;

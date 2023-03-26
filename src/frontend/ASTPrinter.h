@@ -24,14 +24,14 @@ public:
 
     bool actBeforeVisitNumberExpr(NumberExprAST *Node) {
         Out.indent(Ind) << "NumberExpr " << Node << " '" << Node->getValue() << "' "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
     bool actBeforeVisitVariableExpr(VariableExprAST *Node) {
         Out.indent(Ind) << "VariableExpr " << Node << " '" << Node->getName() << "' "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
@@ -52,14 +52,14 @@ public:
 
     bool actBeforeVisitNullExpr(NullExprAST *Node) {
         Out.indent(Ind) << "NullExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
     bool actBeforeVisitRefExpr(RefExprAST *Node) {
         Out.indent(Ind) << "RefExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
@@ -69,7 +69,7 @@ public:
 
     bool actBeforeVisitDerefExpr(DerefExprAST *Node) {
         Out.indent(Ind) << "DerefExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
@@ -79,7 +79,7 @@ public:
 
     bool actBeforeVisitArraySubscriptExpr(ArraySubscriptExprAST *Node) {
         Out.indent(Ind) << "ArraySubscriptExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
@@ -89,14 +89,14 @@ public:
 
     bool actBeforeVisitInputExpr(InputExprAST *Node) {
         Out.indent(Ind) << "InputExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
     bool actBeforeVisitBinaryExpr(BinaryExprAST *Node) {
         Out.indent(Ind) << "BinaryExpr " << Node << " '" << Node->getOpString() << "' "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         Ind += 1;
         return false;
