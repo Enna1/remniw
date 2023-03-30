@@ -25,14 +25,20 @@ public:
     bool actBeforeVisitNumberExpr(NumberExprAST *Node) {
         Out.indent(Ind) << "NumberExpr " << Node << " '" << Node->getValue() << "' "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         return false;
     }
 
     bool actBeforeVisitVariableExpr(VariableExprAST *Node) {
         Out.indent(Ind) << "VariableExpr " << Node << " '" << Node->getName() << "' "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         return false;
     }
 
@@ -60,7 +66,10 @@ public:
     bool actBeforeVisitRefExpr(RefExprAST *Node) {
         Out.indent(Ind) << "RefExpr " << Node << ", "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }
@@ -70,7 +79,10 @@ public:
     bool actBeforeVisitDerefExpr(DerefExprAST *Node) {
         Out.indent(Ind) << "DerefExpr " << Node << ", "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }
@@ -80,7 +92,10 @@ public:
     bool actBeforeVisitArraySubscriptExpr(ArraySubscriptExprAST *Node) {
         Out.indent(Ind) << "ArraySubscriptExpr " << Node << ", "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }
@@ -90,14 +105,20 @@ public:
     bool actBeforeVisitInputExpr(InputExprAST *Node) {
         Out.indent(Ind) << "InputExpr " << Node << ", "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         return false;
     }
 
     bool actBeforeVisitBinaryExpr(BinaryExprAST *Node) {
         Out.indent(Ind) << "BinaryExpr " << Node << " '" << Node->getOpString() << "' "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }

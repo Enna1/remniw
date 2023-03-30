@@ -81,8 +81,13 @@ public:
 
     bool isLValue() const { return LValue; }
 
+    remniw::Type *getType() const { return Ty; }
+    void setType(remniw::Type *T) { Ty = T; }
+
 private:
     bool LValue;
+    // The type of this expr will be set in type analysis
+    remniw::Type * Ty = nullptr;
 };
 
 class StmtAST: public ASTNode {
@@ -176,17 +181,18 @@ public:
 
 class SizeofExprAST: public ExprAST {
 public:
-    SizeofExprAST(SourceLocation Loc, remniw::Type *Ty):
-        ExprAST(ASTNode::SizeofExpr, Loc, /*LValue*/ false), Ty(Ty) {}
+    SizeofExprAST(SourceLocation Loc, remniw::Type *DataTy):
+        ExprAST(ASTNode::SizeofExpr, Loc, /*LValue*/ false), DataTy(DataTy) {}
 
-    remniw::Type *getType() const { return Ty; }
+    // sizeof(data-type)
+    remniw::Type *getDataType() const { return DataTy; }
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::SizeofExpr;
     }
 
 private:
-    remniw::Type *Ty;
+    remniw::Type *DataTy;
 };
 
 class RefExprAST: public ExprAST {

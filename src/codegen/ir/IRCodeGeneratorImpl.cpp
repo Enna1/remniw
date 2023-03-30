@@ -253,7 +253,7 @@ Value *IRCodeGeneratorImpl::codegenNullExpr(NullExprAST *NullExpr) {
 }
 
 Value *IRCodeGeneratorImpl::codegenSizeofExpr(SizeofExprAST *SizeofExpr) {
-    uint64_t SizeInBytes = getSizeOfREMNIWType(SizeofExpr->getType());
+    uint64_t SizeInBytes = getSizeOfREMNIWType(SizeofExpr->getDataType());
     return ConstantInt::get(IRB->getInt64Ty(), SizeInBytes, /*IsSigned=*/true);
 }
 

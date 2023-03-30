@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<ProgramAST> AST = FE.parse(Stream);
 
     LLVM_DEBUG({
-        llvm::outs() << "===== AST Printer ===== \n";
+        llvm::outs() << "===== AST Printer (Before Type Analysis) ===== \n";
         ASTPrinter PrettyPrinter(llvm::outs());
         PrettyPrinter.print(AST.get());
     });
@@ -76,10 +76,18 @@ int main(int argc, char* argv[]) {
 
     LLVM_DEBUG(llvm::outs() << "===== Type Analysis ===== \n");
     TypeAnalysis TA(SymTabBuilder.getSymbolTale(), TheTypeContext);
-    TA.solve(AST.get());
+    bool TANoError = TA.solve(AST.get());
     LLVM_DEBUG({
         for (auto Constraint : TA.getConstraints())
             Constraint.print(llvm::outs());
+    });
+    if (!TANoError)
+        return 1;
+    TA.updateTypeForExprs();
+    LLVM_DEBUG({
+        llvm::outs() << "===== AST Printer (After Type Analysis)===== \n";
+        ASTPrinter PrettyPrinter(llvm::outs());
+        PrettyPrinter.print(AST.get());
     });
 
     LLVM_DEBUG(llvm::outs() << "===== IR Code Generator ===== \n");
