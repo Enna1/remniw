@@ -1,5 +1,6 @@
 #include "semantic/TypeAnalysis.h"
 #include "frontend/Type.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace remniw {
 
@@ -99,35 +100,38 @@ bool TypeAnalysis::solve(ProgramAST *AST) {
 }
 
 Type *TypeAnalysis::getConcreteType(Type *Ty) const {
-    if (llvm::isa<VarType>(Ty)) {
+    switch (Ty->getTypeKind()) {
+    case Type::TK_VARTYPE: {
         return getConcreteType(TheUnionFind->find(Ty));
     }
-
-    else if (llvm::isa<remniw::IntType>(Ty)) {
+    case Type::TK_INTTYPE: {
         return Ty;
     }
-
-    else if (auto *PointerTy = llvm::dyn_cast<remniw::PointerType>(Ty)) {
+    case Type::TK_POINTERTYPE: {
+        auto *PointerTy = llvm::cast<PointerType>(Ty);
         return getConcreteType(PointerTy->getPointeeType())->getPointerTo();
     }
-
-    else if (auto *ArrayTy = llvm::dyn_cast<remniw::ArrayType>(Ty)) {
-        return ArrayType::get(getConcreteType(ArrayTy->getElementType()), ArrayTy->getNumElements());
+    case Type::TK_ARRAYTYPE: {
+        auto *ArrayTy = llvm::cast<ArrayType>(Ty);
+        return ArrayType::get(getConcreteType(ArrayTy->getElementType()),
+                              ArrayTy->getNumElements());
     }
-
-    else if (auto *FuncTy = llvm::dyn_cast<remniw::FunctionType>(Ty)) {
+    case Type::TK_FUNCTIONTYPE: {
+        auto *FuncTy = llvm::dyn_cast<remniw::FunctionType>(Ty);
         llvm::SmallVector<remniw::Type *, 4> ParamTypes;
         for (auto *ParamType : FuncTy->getParamTypes())
             ParamTypes.push_back(getConcreteType(ParamType));
-        return remniw::FunctionType::get(ParamTypes, getConcreteType(FuncTy->getReturnType()));
+        return remniw::FunctionType::get(ParamTypes,
+                                         getConcreteType(FuncTy->getReturnType()));
     }
-
-    return Ty;
+    default: llvm_unreachable("Invalid TypeKind");
+    }
 }
 
 void TypeAnalysis::updateTypeForExprs() {
-    for (auto *Expr: Exprs) {
-        Type *Ty = getConcreteType(ASTNodeToType(Expr));
+    for (auto *Expr : Exprs) {
+        // Type *Ty = getConcreteType(ASTNodeToType(Expr));
+        Type *Ty = getConcreteType(Type::getVarType(Expr, TypeCtx));
         Expr->setType(Ty);
     }
 }

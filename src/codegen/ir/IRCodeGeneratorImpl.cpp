@@ -460,8 +460,9 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
 
     // Create local variables declarations
     for (auto *VarDeclNode : Function->getLocalVarDecls()->getVars()) {
-        AllocaInst *LocalVar = IRB->CreateAlloca(REMNIWTypeToLLVMType(VarDeclNode->getType()),
-                                            nullptr, VarDeclNode->getName());
+        AllocaInst *LocalVar =
+            IRB->CreateAlloca(REMNIWTypeToLLVMType(VarDeclNode->getType()), nullptr,
+                              VarDeclNode->getName());
         NamedValues[LocalVar->getName().str()] = LocalVar;
     }
 

@@ -5,8 +5,8 @@
 #include "semantic/SymbolTable.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Casting.h"
-#include <vector>
 #include <set>
+#include <vector>
 
 namespace remniw {
 
@@ -207,7 +207,7 @@ public:
 private:
     Type *ASTNodeToType(const ASTNode *Node) const;
 
-    Type *getConcreteType(Type* Ty) const;
+    Type *getConcreteType(Type *Ty) const;
 
 private:
     SymbolTable &SymTab;

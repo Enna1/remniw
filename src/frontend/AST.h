@@ -87,7 +87,7 @@ public:
 private:
     bool LValue;
     // The type of this expr will be set in type analysis
-    remniw::Type * Ty = nullptr;
+    remniw::Type *Ty = nullptr;
 };
 
 class StmtAST: public ASTNode {
