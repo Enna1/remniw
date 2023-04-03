@@ -1,5 +1,6 @@
 #include "codegen/ir/IRCodeGeneratorImpl.h"
 #include "frontend/AST.h"
+#include "frontend/Type.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
@@ -26,25 +27,61 @@ cl::opt<bool> EnableAphoticShield("enable-aphotic-shield",
 
 namespace remniw {
 
+// llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
+//     switch (Ty->getTypeKind()) {
+//     case Type::TK_INTTYPE: {
+//          return llvm::Type::getInt64Ty(*TheLLVMContext) /*->getScalarType()*/;
+//     }
+//     case Type::TK_POINTERTYPE: {
+//         auto *PointerTy = llvm::cast<remniw::PointerType>(Ty);
+//         llvm::Type *PointeeTy = REMNIWTypeToLLVMType(PointerTy->getPointeeType());
+//         assert(PointeeTy != nullptr &&
+//                "The pointee type of pointer type must not be nullptr");
+//         return PointeeTy->getPointerTo();
+//     }
+//     case Type::TK_ARRAYTYPE: {
+//         auto *ArrayTy = llvm::cast<remniw::ArrayType>(Ty);
+//         llvm::Type *ArrayElementTy = REMNIWTypeToLLVMType(ArrayTy->getElementType());
+//         return llvm::ArrayType::get(ArrayElementTy, ArrayTy->getNumElements());
+//     }
+//     case Type::TK_FUNCTIONTYPE: {
+//         auto *FuncTy = llvm::cast<remniw::FunctionType>(Ty);
+//         SmallVector<llvm::Type *, 4> ParamTypes;
+//         for (auto *ParamType : FuncTy->getParamTypes())
+//             ParamTypes.push_back(REMNIWTypeToLLVMType(ParamType));
+//         return llvm::FunctionType::get(REMNIWTypeToLLVMType(FuncTy->getReturnType()),
+//                                        ParamTypes, false)
+//             ->getPointerTo(); // Varible which is pointer to function
+//     }
+//     case Type::TK_VARTYPE:
+//     default:
+//         break;
+//     }
+//     llvm_unreachable("Unhandled remniw::Type");
+//     return nullptr;
+// }
+
 // Convert remniw::Type to corresponding llvm::Type
 llvm::Type *IRCodeGeneratorImpl::REMNIWTypeToLLVMType(remniw::Type *Ty) {
-    if (llvm::isa<remniw::IntType>(Ty)) {
-        return llvm::Type::getInt64Ty(*TheLLVMContext) /*->getScalarType()*/;
-    } else if (auto *PointerTy = llvm::dyn_cast<remniw::PointerType>(Ty)) {
-        llvm::Type *PointeeTy = REMNIWTypeToLLVMType(PointerTy->getPointeeType());
-        assert(PointeeTy != nullptr &&
-               "The pointee type of pointer type must not be nullptr");
-        return PointeeTy->getPointerTo();
-    } else if (auto *ArrayTy = llvm::dyn_cast<remniw::ArrayType>(Ty)) {
+    switch (Ty->getTypeKind()) {
+    case Type::TK_INTTYPE: {
+         return llvm::Type::getInt64Ty(*TheLLVMContext) /*->getScalarType()*/;
+    }
+    case Type::TK_POINTERTYPE: {
+        return llvm::PointerType::getUnqual(*TheLLVMContext);
+    }
+    case Type::TK_ARRAYTYPE: {
+        auto *ArrayTy = llvm::cast<remniw::ArrayType>(Ty);
         llvm::Type *ArrayElementTy = REMNIWTypeToLLVMType(ArrayTy->getElementType());
         return llvm::ArrayType::get(ArrayElementTy, ArrayTy->getNumElements());
-    } else if (auto *FuncTy = llvm::dyn_cast<remniw::FunctionType>(Ty)) {
-        SmallVector<llvm::Type *, 4> ParamTypes;
-        for (auto *ParamType : FuncTy->getParamTypes())
-            ParamTypes.push_back(REMNIWTypeToLLVMType(ParamType));
-        return llvm::FunctionType::get(REMNIWTypeToLLVMType(FuncTy->getReturnType()),
-                                       ParamTypes, false)
-            ->getPointerTo();
+    }
+    case Type::TK_FUNCTIONTYPE: {
+        // Varible which is pointer to function
+        return llvm::PointerType::getUnqual(*TheLLVMContext);
+    }
+    case Type::TK_VARTYPE:
+    default:
+        break;
     }
     llvm_unreachable("Unhandled remniw::Type");
     return nullptr;
@@ -239,10 +276,23 @@ IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallEx
         }
         return IRB->CreateCall(CalledFunction, CallArgs, "call");
     } else {
-        assert(CalledValue->getType()->isPointerTy() &&
-               CalledValue->getType()->getPointerElementType()->isFunctionTy());
-        auto *FT =
-            cast<llvm::FunctionType>(CalledValue->getType()->getPointerElementType());
+        assert(llvm::isa<remniw::FunctionType>(FunctionCallExpr->getCallee()->getType()));
+        remniw::FunctionType *FuncTy = llvm::cast<remniw::FunctionType>(FunctionCallExpr->getCallee()->getType());
+        auto getLLVMFunctionType = [&]() {
+            SmallVector<llvm::Type *, 4> ParamTypes;
+            for (auto *ParamType : FuncTy->getParamTypes())
+                ParamTypes.push_back(REMNIWTypeToLLVMType(ParamType));
+            return llvm::FunctionType::get(REMNIWTypeToLLVMType(FuncTy->getReturnType()), ParamTypes, false);
+        };
+        auto *FT = getLLVMFunctionType();
+        // assert(CalledValue->getType()->isPointerTy() &&
+        //        CalledValue->getType()->getPointerElementType()->isFunctionTy());
+        // auto *FT =
+        //     llvm::cast<llvm::FunctionType>(CalledValue->getType()->getPointerElementType());
+        // assert(llvm::isa<remniw::PointerType>(FunctionCallExpr->getCallee()->getType()));
+        // remniw::PointerType *CalleeFuncPtrTy = llvm::cast<remniw::PointerType>(FunctionCallExpr->getCallee()->getType());
+        // assert(llvm::isa<remniw::FunctionType>(CalleeFuncPtrTy->getPointeeType()));
+        // auto *FT = llvm::cast<llvm::FunctionType>(REMNIWTypeToLLVMType(CalleeFuncPtrTy->getPointeeType()));
         return IRB->CreateCall(FunctionCallee(FT, CalledValue), CallArgs, "call");
     }
 }
@@ -267,7 +317,13 @@ Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
 Value *IRCodeGeneratorImpl::codegenDerefExpr(DerefExprAST *DerefExpr) {
     Value *V = codegenExpr(DerefExpr->getPtr());
     assert(V && "Invalid operand of DerefExpr");
-    return IRB->CreateLoad(V->getType()->getPointerElementType(), V);
+    llvm::Type *Ty;
+    if (DerefExpr->isLValue()) {
+        Ty = REMNIWTypeToLLVMType(DerefExpr->getType())->getPointerTo();
+    } else {
+        Ty = REMNIWTypeToLLVMType(DerefExpr->getType());
+    }
+    return IRB->CreateLoad(Ty, V);
 }
 
 Value *IRCodeGeneratorImpl::codegenArraySubscriptExpr(
@@ -276,13 +332,15 @@ Value *IRCodeGeneratorImpl::codegenArraySubscriptExpr(
     Value *Selector = codegenExpr(ArraySubscriptExpr->getSelector());
     assert((Base && Selector) && "Invalid operand of ArraySubscriptExpr");
     assert(Base->getType()->isPointerTy());
-    auto BasePointeeTy = Base->getType()->getPointerElementType();
+    // auto BasePointeeTy = Base->getType()->getPointerElementType();
+    auto BasePointeeTy = REMNIWTypeToLLVMType(ArraySubscriptExpr->getBase()->getType());
     assert(BasePointeeTy->isArrayTy() &&
            "Base operand of ArraySubscriptExpr must be ArrayType");
     Value *Ret =
         IRB->CreateInBoundsGEP(BasePointeeTy, Base, {IRB->getInt64(0), Selector});
     if (!ArraySubscriptExpr->isLValue()) {
-        Ret = IRB->CreateLoad(Ret->getType()->getPointerElementType(), Ret);
+        // Ret = IRB->CreateLoad(Ret->getType()->getPointerElementType(), Ret);
+        Ret = IRB->CreateLoad(REMNIWTypeToLLVMType(ArraySubscriptExpr->getType()), Ret);
     }
     return Ret;
 }
@@ -336,7 +394,9 @@ Value *IRCodeGeneratorImpl::codegenAllocStmt(AllocStmtAST *AllocStmt) {
     assert(Ptr->getType()->isPointerTy() && llvm::isa<ConstantInt>(Size) &&
            "AllocStmt first operand must be pointer type and "
            "second operand must be contant int");
-    Value *Addr = emitMalloc(Ptr->getType()->getPointerElementType(), Size);
+    // FIXME: AllocStmt->getPtr()->getType() is nullptr
+    Value *Addr = emitMalloc(llvm::PointerType::getUnqual(*TheLLVMContext), Size);
+    // Value *Addr = emitMalloc(Ptr->getType()->getPointerElementType(), Size);
     return IRB->CreateStore(Addr, Ptr);
 }
 
@@ -460,9 +520,13 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
 
     // Create local variables declarations
     for (auto *VarDeclNode : Function->getLocalVarDecls()->getVars()) {
+        auto *AllocatedType = REMNIWTypeToLLVMType(VarDeclNode->getType());
+        // For variable which is declared as function type,
+        // it is actually a pointer to function type.
+        // if (AllocatedType->isFunctionTy())
+        //     AllocatedType = AllocatedType->getPointerTo();
         AllocaInst *LocalVar =
-            IRB->CreateAlloca(REMNIWTypeToLLVMType(VarDeclNode->getType()), nullptr,
-                              VarDeclNode->getName());
+            IRB->CreateAlloca(AllocatedType, nullptr,VarDeclNode->getName());
         NamedValues[LocalVar->getName().str()] = LocalVar;
     }
 

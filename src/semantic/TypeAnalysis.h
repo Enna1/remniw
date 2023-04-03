@@ -125,30 +125,9 @@ public:
         Exprs.insert(NumberExpr);
     }
 
-    void actAfterVisitBinaryExpr(BinaryExprAST *BinaryExpr) {
-        // Type constraint for BinaryExpr:
-        // E1 op E2: [[E1]] = [[E2]] = [[E1 op E2]] = int
-        // E1 == E2: [[E1]] = [[E2]] ^ [[E1 == E2]] = int
-        auto *IntTy = Type::getIntType(TypeCtx);
-        Constraints.emplace_back(ASTNodeToType(BinaryExpr), IntTy);
-        if (BinaryExpr->getOp() == BinaryExprAST::OpKind::Eq) {
-            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()),
-                                     ASTNodeToType(BinaryExpr->getRHS()));
-        } else {
-            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()), IntTy);
-            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getRHS()), IntTy);
-        }
-
-        // Add current BinaryExpr to Exprs set
-        Exprs.insert(BinaryExpr);
-    }
-
-    void actAfterVisitInputExpr(InputExprAST *InputExpr) {
-        // Type constraint for InputExpr: [[input]] = int
-        Constraints.emplace_back(ASTNodeToType(InputExpr), Type::getIntType(TypeCtx));
-
-        // Add current InputExpr to Exprs set
-        Exprs.insert(InputExpr);
+    void actAfterVisitVariableExpr(VariableExprAST *VariableExpr) {
+        // Add current VariableExpr to Exprs set
+        Exprs.insert(VariableExpr);
     }
 
     void actAfterVisitFunctionCallExpr(FunctionCallExprAST *FunctionCallExpr) {
@@ -166,6 +145,13 @@ public:
         Exprs.insert(FunctionCallExpr);
     }
 
+    // TODO
+    void actAfterVisitNullExpr(NullExprAST *NullExpr) {
+        // Type constraint for NullExprAST: [[null]] = &α
+        // Constraints.emplace_back(ASTNodeToType(&NullExpr),
+        //                          std::make_shared<PointerType>(std::make_shared<AlphaType>(&NullExpr)));
+    }
+
     void actAfterVisitRefExpr(RefExprAST *RefExpr) {
         // Type constraint for RefExprAST: &X: [[&X]] = &[[X]]
         Constraints.emplace_back(ASTNodeToType(RefExpr),
@@ -175,12 +161,6 @@ public:
         Exprs.insert(RefExpr);
     }
 
-    // TODO
-    void actAfterVisitNullExpr(NullExprAST *NullExpr) {
-        // Type constraint for NullExprAST: [[null]] = &α
-        // Constraints.emplace_back(ASTNodeToType(&NullExpr),
-        //                          std::make_shared<PointerType>(std::make_shared<AlphaType>(&NullExpr)));
-    }
 
     void actAfterVisitDerefExpr(DerefExprAST *DerefExpr) {
         // Type constraint for DerefExpr: *E: [[E]] = &[[*E]]
@@ -202,6 +182,32 @@ public:
 
         // Add current ArraySubscriptExpr to Exprs set
         Exprs.insert(ArraySubscriptExpr);
+    }
+
+    void actAfterVisitInputExpr(InputExprAST *InputExpr) {
+        // Type constraint for InputExpr: [[input]] = int
+        Constraints.emplace_back(ASTNodeToType(InputExpr), Type::getIntType(TypeCtx));
+
+        // Add current InputExpr to Exprs set
+        Exprs.insert(InputExpr);
+    }
+
+    void actAfterVisitBinaryExpr(BinaryExprAST *BinaryExpr) {
+        // Type constraint for BinaryExpr:
+        // E1 op E2: [[E1]] = [[E2]] = [[E1 op E2]] = int
+        // E1 == E2: [[E1]] = [[E2]] ^ [[E1 == E2]] = int
+        auto *IntTy = Type::getIntType(TypeCtx);
+        Constraints.emplace_back(ASTNodeToType(BinaryExpr), IntTy);
+        if (BinaryExpr->getOp() == BinaryExprAST::OpKind::Eq) {
+            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()),
+                                     ASTNodeToType(BinaryExpr->getRHS()));
+        } else {
+            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()), IntTy);
+            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getRHS()), IntTy);
+        }
+
+        // Add current BinaryExpr to Exprs set
+        Exprs.insert(BinaryExpr);
     }
 
 private:

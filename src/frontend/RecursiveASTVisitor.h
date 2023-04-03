@@ -208,6 +208,8 @@ void RecursiveASTVisitor<Derived>::visitFunctionCallExpr(
     if (getDerived().actBeforeVisitFunctionCallExpr(FunctionCallExpr))
         return;
 
+    visitExpr(FunctionCallExpr->getCallee());
+
     for (auto *Arg : FunctionCallExpr->getArgs())
         visitExpr(Arg);
 

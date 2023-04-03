@@ -1,16 +1,17 @@
 #include "semantic/TypeAnalysis.h"
 #include "frontend/Type.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace remniw {
 
 Type *TypeAnalysis::ASTNodeToType(const ASTNode *Node) const {
     if (auto *VariableExpr = llvm::dyn_cast<VariableExprAST>(Node)) {
-        if (auto *VarDeclNode =
-                SymTab.getVariable(VariableExpr->getName(), CurrentFunction)) {
-            return VarDeclNode->getType();
-        } else if (auto *Function = SymTab.getFunction(VariableExpr->getName())) {
-            return Function->getType();
+        if (auto *VarOrFuncDecl = SymTab.getDeclForVariableExpr(VariableExpr)) {
+            if (auto *VarDecl = llvm::dyn_cast<VarDeclNodeAST>(VarOrFuncDecl))
+                return VarDecl->getType();
+            if (auto *FuncDecl = llvm::dyn_cast<FunctionAST>(VarOrFuncDecl))
+                return FuncDecl->getType();
         }
     }
 
@@ -102,6 +103,8 @@ bool TypeAnalysis::solve(ProgramAST *AST) {
 Type *TypeAnalysis::getConcreteType(Type *Ty) const {
     switch (Ty->getTypeKind()) {
     case Type::TK_VARTYPE: {
+        // auto *VarTy = llvm::cast<VarType>(Ty);
+        // ASTNodeToType(VarTy->getASTNode());
         return getConcreteType(TheUnionFind->find(Ty));
     }
     case Type::TK_INTTYPE: {
@@ -130,8 +133,7 @@ Type *TypeAnalysis::getConcreteType(Type *Ty) const {
 
 void TypeAnalysis::updateTypeForExprs() {
     for (auto *Expr : Exprs) {
-        // Type *Ty = getConcreteType(ASTNodeToType(Expr));
-        Type *Ty = getConcreteType(Type::getVarType(Expr, TypeCtx));
+        Type *Ty = getConcreteType(ASTNodeToType(Expr));
         Expr->setType(Ty);
     }
 }

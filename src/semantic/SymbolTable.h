@@ -16,8 +16,12 @@ struct SymbolTable {
 
     bool addVariable(llvm::StringRef VariableName, VarDeclNodeAST *Variable,
                      FunctionAST *Function) {
-        return Variables.insert({std::make_pair(VariableName, Function), Variable})
+        return VariableDecls.insert({std::make_pair(VariableName, Function), Variable})
             .second;
+    }
+
+    bool addVariableRef(VariableExprAST *VariableExpr, ASTNode *VarOrFuncDecl) {
+        return VariableRefs.insert({VariableExpr, VarOrFuncDecl}).second;
     }
 
     bool addReturnExpr(ExprAST *ReturnExpr, FunctionAST *Function) {
@@ -32,17 +36,23 @@ struct SymbolTable {
 
     VarDeclNodeAST *getVariable(llvm::StringRef VariableName, FunctionAST *Function) {
         auto Key = std::make_pair(VariableName, Function);
-        if (Variables.count(Key))
-            return Variables[Key];
+        if (VariableDecls.count(Key))
+            return VariableDecls[Key];
+        return nullptr;
+    }
+
+    ASTNode *getDeclForVariableExpr(const VariableExprAST *VariableExpr) {
+        if (VariableRefs.count(VariableExpr))
+            return VariableRefs.lookup(VariableExpr);
         return nullptr;
     }
 
     void print(llvm::raw_ostream &OS) {
         for (auto &p : Functions)
             OS << "Function: '" << p.first << "' " << p.second << "\n";
-        for (auto &p : Variables)
+        for (auto &p : VariableDecls)
             OS << "Variable: '" << p.first.first << "' " << p.second << " (of function '"
-               << p.first.first << "')\n";
+               << p.first.second->getFuncName() << "')\n";
         for (auto &p : ReturnExprs)
             OS << "ReturnExpr: '" << p.first << "' (of function '"
                << p.second->getFuncName() << "')\n";
@@ -51,9 +61,11 @@ struct SymbolTable {
     // < FunctionName, FunctionAST* >
     llvm::DenseMap<llvm::StringRef, FunctionAST *> Functions;
     // < <VariableName, FunctionAST*>, VarDeclNodeAST* >
-    llvm::DenseMap<std::pair<llvm::StringRef, FunctionAST *>, VarDeclNodeAST *> Variables;
-    // <ExprAST of ReturnStmt, FunctionAST*>
+    llvm::DenseMap<std::pair<llvm::StringRef, FunctionAST *>, VarDeclNodeAST *> VariableDecls;
+    // < ExprAST of ReturnStmt, FunctionAST* >
     llvm::DenseMap<ExprAST *, FunctionAST *> ReturnExprs;
+    // < VariableExprAST*, ASTNode*(VarDeclNodeAST* or FunctionAST*) >
+    llvm::DenseMap<VariableExprAST *, ASTNode *> VariableRefs;
 };
 
 class SymbolTableBuilder: public RecursiveASTVisitor<SymbolTableBuilder> {
@@ -64,13 +76,15 @@ public:
 
     SymbolTable &getSymbolTale() { return SymTab; }
 
-    bool actBeforeVisitFunction(FunctionAST *Function) {
-        CurrentFunction = Function;
+    bool actBeforeVisitProgram(ProgramAST * Program) {
+        for (auto *Function : Program->getFunctions())
+            SymTab.addFunction(Function->getFuncName(), Function);
         return false;
     }
 
-    void actAfterVisitFunction(FunctionAST *Function) {
-        SymTab.addFunction(CurrentFunction->getFuncName(), Function);
+    bool actBeforeVisitFunction(FunctionAST *Function) {
+        CurrentFunction = Function;
+        return false;
     }
 
     void actAfterVisitVarDeclNode(VarDeclNodeAST *VarDeclNode) {
@@ -79,6 +93,15 @@ public:
 
     void actAfterVisitReturnStmt(ReturnStmtAST *ReturnStmt) {
         SymTab.addReturnExpr(ReturnStmt->getExpr(), CurrentFunction);
+    }
+
+    void actAfterVisitVariableExpr(VariableExprAST * VariableExpr) {
+        if (auto *VarDeclNode =
+            SymTab.getVariable(VariableExpr->getName(), CurrentFunction)) {
+            SymTab.addVariableRef(VariableExpr, VarDeclNode);
+        } else if (auto *Function = SymTab.getFunction(VariableExpr->getName())) {
+            SymTab.addVariableRef(VariableExpr, Function);
+        }
     }
 
 private:
