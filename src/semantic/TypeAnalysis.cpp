@@ -1,4 +1,5 @@
 #include "semantic/TypeAnalysis.h"
+#include "frontend/AST.h"
 #include "frontend/Type.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -8,18 +9,18 @@ namespace remniw {
 Type *TypeAnalysis::ASTNodeToType(const ASTNode *Node) const {
     if (auto *VariableExpr = llvm::dyn_cast<VariableExprAST>(Node)) {
         if (auto *VarOrFuncDecl = SymTab.getDeclForVariableExpr(VariableExpr)) {
-            if (auto *VarDecl = llvm::dyn_cast<VarDeclNodeAST>(VarOrFuncDecl))
+            if (auto *VarDecl = llvm::dyn_cast<VarDeclAST>(VarOrFuncDecl))
                 return VarDecl->getType();
-            if (auto *FuncDecl = llvm::dyn_cast<FunctionAST>(VarOrFuncDecl))
+            if (auto *FuncDecl = llvm::dyn_cast<FunctionDeclAST>(VarOrFuncDecl))
                 return FuncDecl->getType();
         }
     }
 
-    if (auto *VariableDecl = llvm::dyn_cast<VarDeclNodeAST>(Node)) {
+    if (auto *VariableDecl = llvm::dyn_cast<VarDeclAST>(Node)) {
         return VariableDecl->getType();
     }
 
-    if (auto *Function = llvm::dyn_cast<FunctionAST>(Node)) {
+    if (auto *Function = llvm::dyn_cast<FunctionDeclAST>(Node)) {
         return Function->getType();
     }
 
@@ -132,10 +133,18 @@ Type *TypeAnalysis::getConcreteType(Type *Ty) const {
 }
 
 void TypeAnalysis::updateTypeForExprs() {
-    for (auto *Expr : Exprs) {
-        Type *Ty = getConcreteType(ASTNodeToType(Expr));
-        Expr->setType(Ty);
-    }
+    // for (auto *Expr : Exprs) {
+    //     Type *Ty = getConcreteType(ASTNodeToType(Expr));
+    //     Expr->setType(Ty);
+    // }
+
+    // for (auto *Expr : Exprs) {
+    //     if (auto *ArraySubscriptExpr = llvm::dyn_cast<ArraySubscriptExprAST>(Expr)) {
+    //         if (auto *ArrayTy = llvm::dyn_cast<ArrayType>(ArraySubscriptExpr->getBase()->getType())) {
+    //             ArraySubscriptExpr->setType(ArrayTy->getElementType());
+    //         }
+    //     }
+    // }
 }
 
 }  // namespace remniw

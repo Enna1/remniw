@@ -15,8 +15,8 @@ public:
 
     void print(ProgramAST *AST) { visitProgram(AST); }
 
-    bool actBeforeVisitVarDeclNode(VarDeclNodeAST *Node) {
-        Out.indent(Ind) << "VarDeclNode " << Node << " '" << Node->getName() << "' "
+    bool actBeforeVisitVarDeclNode(VarDeclAST *Node) {
+        Out.indent(Ind) << "VarDecl " << Node << " '" << Node->getName() << "' "
                         << *Node->getType() << " <" << Node->getLine() << ':'
                         << Node->getCol() << ">\n";
         return false;
@@ -226,14 +226,14 @@ public:
 
     void actAfterVisitAssignmentStmt(AssignmentStmtAST *) { Ind -= 1; }
 
-    void visitFunction(FunctionAST *Node) {
-        Out.indent(Ind) << "Function " << Node << " '" << Node->getFuncName() << "' "
+    void visitFunction(FunctionDeclAST *Node) {
+        Out.indent(Ind) << "Function " << Node << " '" << Node->getName() << "' "
                         << *Node->getType() << " <" << Node->getLine() << ':'
                         << Node->getCol() << ">\n";
         Out.indent(Ind + 1) << "ParamDecls:\n";
         Ind += 2;
         for (auto *ParmDecl : Node->getParamDecls())
-            visitVarDeclNode(ParmDecl);
+            visitVarDecl(ParmDecl);
         Ind -= 2;
         Out.indent(Ind + 1) << "LocalVarDecls:\n";
         Ind += 2;

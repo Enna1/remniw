@@ -253,7 +253,7 @@ Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
     llvm_unreachable("Unknown VariableExprAST");
 }
 
-Value *IRCodeGeneratorImpl::codegenVarDeclNode(VarDeclNodeAST *VarDeclNode) {
+Value *IRCodeGeneratorImpl::codegenVarDecl(VarDeclAST *VarDeclNode) {
     // We handle VarDeclNode in Function()
     return nullptr;
 }
@@ -496,9 +496,9 @@ Value *IRCodeGeneratorImpl::codegenAssignmentStmt(AssignmentStmtAST *AssignmentS
     return IRB->CreateStore(Val, Ptr);
 }
 
-Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
+Value *IRCodeGeneratorImpl::codegenFunction(FunctionDeclAST *Function) {
     // Get the function from the module symbol table.
-    llvm::Function *F = TheModule->getFunction(Function->getFuncName());
+    llvm::Function *F = TheModule->getFunction(Function->getName());
     assert(F && "Function is not in the module symbol table");
 
     // Create a new basic block to start insertion into.
@@ -508,7 +508,7 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
     // Record the function arguments in the NamedValues map
     NamedValues.clear();
     unsigned Idx = 0;
-    std::vector<VarDeclNodeAST *> ParamDecls = Function->getParamDecls();
+    std::vector<VarDeclAST *> ParamDecls = Function->getParamDecls();
     for (auto &Arg : F->args()) {
         Arg.setName(ParamDecls[Idx++]->getName());
         // Create an alloca for this variable.
@@ -538,7 +538,7 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionAST *Function) {
     // Finish off the function.
     Value *Ret = codegenExpr(Function->getReturn()->getExpr());
     // TODO: if (Function->getReturnType()->isIntType && !Ret->getType()->isIntegerTy(64))
-    if (Function->getFuncName() == "main" && !Ret->getType()->isIntegerTy(64))
+    if (Function->getName() == "main" && !Ret->getType()->isIntegerTy(64))
         Ret = IRB->CreateIntCast(Ret, IRB->getInt64Ty(), /*isSigned*/ true);
     IRB->CreateRet(Ret);
 
@@ -582,7 +582,7 @@ std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
             ParamTypes.push_back(REMNIWTypeToLLVMType(ParamType));
         auto *FT = llvm::FunctionType::get(REMNIWTypeToLLVMType(FuncAST->getReturnType()),
                                            ParamTypes, false);
-        TheModule->getOrInsertFunction(FuncAST->getFuncName(), FT);
+        TheModule->getOrInsertFunction(FuncAST->getName(), FT);
     }
 
     // Emit LLVM IR for all functions

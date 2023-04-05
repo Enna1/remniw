@@ -21,10 +21,10 @@ private:
 public:
     IRCodeGeneratorImpl(llvm::LLVMContext *);
     std::unique_ptr<llvm::Module> codegen(ProgramAST *);
-    llvm::Value *codegenFunction(FunctionAST *);
+    llvm::Value *codegenFunction(FunctionDeclAST *);
     llvm::Value *codegenNumberExpr(NumberExprAST *);
     llvm::Value *codegenVariableExpr(VariableExprAST *);
-    llvm::Value *codegenVarDeclNode(VarDeclNodeAST *);
+    llvm::Value *codegenVarDecl(VarDeclAST *);
     llvm::Value *codegenFunctionCallExpr(FunctionCallExprAST *);
     llvm::Value *codegenNullExpr(NullExprAST *);
     llvm::Value *codegenSizeofExpr(SizeofExprAST *);

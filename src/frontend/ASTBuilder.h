@@ -11,6 +11,8 @@ namespace remniw {
 class ASTBuilder: public RemniwBaseVisitor {
 private:
     TypeContext &TyCtx;
+    std::vector<std::unique_ptr<FunctionDeclAST>> Functions;
+    FunctionDeclAST* CurrentFunction = nullptr;
 
 public:
     ASTBuilder(TypeContext &TyCtx): TyCtx(TyCtx) {}
@@ -33,7 +35,8 @@ public:
 
     virtual antlrcpp::Any visitProgram(RemniwParser::ProgramContext *Ctx);
 
-    virtual antlrcpp::Any visitFun(RemniwParser::FunContext *Ctx);
+    // TODO: delete
+    // virtual antlrcpp::Any visitFun(RemniwParser::FunContext *Ctx);
 
     virtual antlrcpp::Any visitMulExpr(RemniwParser::MulExprContext *Ctx);
 
@@ -97,6 +100,11 @@ public:
     virtual antlrcpp::Any visitWhileStmt(RemniwParser::WhileStmtContext *Ctx);
 
     virtual antlrcpp::Any visitAssignmentStmt(RemniwParser::AssignmentStmtContext *Ctx);
+
+private:
+    std::unique_ptr<FunctionDeclAST> visitFunctionPrototype(RemniwParser::FunContext *Ctx);
+    void visitFunctionBody(RemniwParser::FunContext *Ctx, FunctionDeclAST* Function);
+    DeclAST *lookupDeclInScope(std::string Name);
 };
 
 }  // namespace remniw

@@ -66,17 +66,17 @@ public:
     void updateTypeForExprs();
 
     // visitor
-    bool actBeforeVisitFunction(FunctionAST *Function) {
+    bool actBeforeVisitFunction(FunctionDeclAST *Function) {
         CurrentFunction = Function;
         return false;
     }
 
     // main(X1,...,Xn){ ...return E; }: [[X1]] = ...[[Xn]] = [[E]] = int
     // X(X1,...,Xn){ ...return E; }: [[X]] = ([[X1]],...,[[Xn]])->[[E]]
-    void actAfterVisitFunction(FunctionAST *Function) {
+    void actAfterVisitFunction(FunctionDeclAST *Function) {
         std::vector<Type *> ParamTypes;
         ReturnStmtAST *Ret = Function->getReturn();
-        if (Function->getFuncName() == "main") {
+        if (Function->getName() == "main") {
             for (auto *Param : Function->getParamDecls()) {
                 ParamTypes.push_back(ASTNodeToType(Param));
                 Constraints.emplace_back(ASTNodeToType(Param), Type::getIntType(TypeCtx));
@@ -176,9 +176,16 @@ public:
         // E[E1]: [[E1]] = int, [[E[E1]]] = [[E]]->getElementType()
         Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getSelector()),
                                  Type::getIntType(TypeCtx));
-        // Note here, we decay arrayType to pointerType in type analysis
-        Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getBase()),
+
+        auto *BaseTy = ASTNodeToType(ArraySubscriptExpr->getBase());
+        if (auto *ArrayTy = llvm::dyn_cast<ArrayType>(BaseTy)) {
+            Constraints.emplace_back(ArrayTy->getElementType(),
+                                     ASTNodeToType(ArraySubscriptExpr));
+        } else {
+            // Note here, we decay arrayType to pointerType in type analysis
+            Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getBase()),
                                  ASTNodeToType(ArraySubscriptExpr)->getPointerTo());
+        }
 
         // Add current ArraySubscriptExpr to Exprs set
         Exprs.insert(ArraySubscriptExpr);
@@ -219,7 +226,7 @@ private:
     SymbolTable &SymTab;
     TypeContext &TypeCtx;
     std::unique_ptr<UnionFind> TheUnionFind;
-    FunctionAST *CurrentFunction;
+    FunctionDeclAST *CurrentFunction;
     std::vector<TypeConstraint> Constraints;
     std::set<ExprAST *> Exprs;
 };

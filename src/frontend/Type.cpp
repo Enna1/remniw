@@ -62,6 +62,22 @@ PointerType *Type::getPointerTo() {
     return PointerType::get(const_cast<Type *>(this));
 }
 
+Type *Type::getPointeeType() const {
+    assert(getTypeKind() == Type::TK_POINTERTYPE);
+    return llvm::cast<PointerType>(this)->getPointeeType();
+}
+
+Type *Type::getElementType() const {
+    assert(getTypeKind() == Type::TK_ARRAYTYPE);
+    return llvm::cast<ArrayType>(this)->getElementType();
+}
+
+Type *Type::getFunctionReturnType() const {
+    assert(getTypeKind() == Type::TK_FUNCTIONTYPE);
+    return llvm::cast<FunctionType>(this)->getReturnType();
+}
+
+
 VarType *VarType::get(const ASTNode *DeclNode, TypeContext &C) {
     const VarTypeKeyInfo::KeyTy Key(DeclNode);
     VarType *VarTy;

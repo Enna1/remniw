@@ -43,6 +43,9 @@ public:
     static FunctionType *getFunctionType(llvm::ArrayRef<Type *> Params, Type *ReturnType);
     static VarType *getVarType(const ASTNode *DeclNode, TypeContext &C);
     PointerType *getPointerTo();
+    Type *getPointeeType() const;
+    Type *getElementType() const;
+    Type *getFunctionReturnType() const;
 
 private:
     const TypeKind TyKind;

@@ -13,9 +13,9 @@ public:
     void visitExpr(ExprAST *);
     void visitStmt(StmtAST *);
 
-    bool actBeforeVisitVarDeclNode(VarDeclNodeAST *) { return false; }
-    void actAfterVisitVarDeclNode(VarDeclNodeAST *) {}
-    void visitVarDeclNode(VarDeclNodeAST *);
+    bool actBeforeVisitVarDecl(VarDeclAST *) { return false; }
+    void actAfterVisitVarDecl(VarDeclAST *) {}
+    void visitVarDecl(VarDeclAST *);
 
     bool actBeforeVisitNumberExpr(NumberExprAST *) { return false; }
     void actAfterVisitNumberExpr(NumberExprAST *) {}
@@ -97,9 +97,9 @@ public:
     void actAfterVisitAssignmentStmt(AssignmentStmtAST *) {}
     void visitAssignmentStmt(AssignmentStmtAST *);
 
-    bool actBeforeVisitFunction(FunctionAST *) { return false; }
-    void actAfterVisitFunction(FunctionAST *) {}
-    void visitFunction(FunctionAST *);
+    bool actBeforeVisitFunction(FunctionDeclAST *) { return false; }
+    void actAfterVisitFunction(FunctionDeclAST *) {}
+    void visitFunction(FunctionDeclAST *);
 
     bool actBeforeVisitProgram(ProgramAST *) { return false; }
     void actAfterVisitProgram(ProgramAST *) {}
@@ -179,11 +179,11 @@ void RecursiveASTVisitor<Derived>::visitStmt(StmtAST *Stmt) {
 }
 
 template<typename Derived>
-void RecursiveASTVisitor<Derived>::visitVarDeclNode(VarDeclNodeAST *VarDeclNode) {
-    if (getDerived().actBeforeVisitVarDeclNode(VarDeclNode))
+void RecursiveASTVisitor<Derived>::visitVarDecl(VarDeclAST *VarDecl) {
+    if (getDerived().actBeforeVisitVarDecl(VarDecl))
         return;
 
-    getDerived().actAfterVisitVarDeclNode(VarDeclNode);
+    getDerived().actAfterVisitVarDecl(VarDecl);
 }
 
 template<typename Derived>
@@ -289,8 +289,8 @@ void RecursiveASTVisitor<Derived>::visitLocalVarDeclStmt(
     if (getDerived().actBeforeVisitLocalVarDeclStmt(LocalVarDeclStmt))
         return;
 
-    for (auto *VarDeclNode : LocalVarDeclStmt->getVars())
-        visitVarDeclNode(VarDeclNode);
+    for (auto *VarDecl : LocalVarDeclStmt->getVars())
+        visitVarDecl(VarDecl);
 
     getDerived().actAfterVisitLocalVarDeclStmt(LocalVarDeclStmt);
 }
@@ -392,12 +392,12 @@ void RecursiveASTVisitor<Derived>::visitAssignmentStmt(
 }
 
 template<typename Derived>
-void RecursiveASTVisitor<Derived>::visitFunction(FunctionAST *Function) {
+void RecursiveASTVisitor<Derived>::visitFunction(FunctionDeclAST *Function) {
     if (getDerived().actBeforeVisitFunction(Function))
         return;
 
-    for (auto *VarDeclNode : Function->getParamDecls())
-        visitVarDeclNode(VarDeclNode);
+    for (auto *VarDecl : Function->getParamDecls())
+        visitVarDecl(VarDecl);
     visitLocalVarDeclStmt(Function->getLocalVarDecls());
     for (auto *Stmt : Function->getBody())
         visitStmt(Stmt);

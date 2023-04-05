@@ -10,12 +10,12 @@ namespace remniw {
 struct SymbolTable {
     SymbolTable() {}
 
-    bool addFunction(llvm::StringRef FunctionName, FunctionAST *Function) {
+    bool addFunction(llvm::StringRef FunctionName, FunctionDeclAST *Function) {
         return Functions.insert({FunctionName, Function}).second;
     }
 
-    bool addVariable(llvm::StringRef VariableName, VarDeclNodeAST *Variable,
-                     FunctionAST *Function) {
+    bool addVariable(llvm::StringRef VariableName, VarDeclAST *Variable,
+                     FunctionDeclAST *Function) {
         return VariableDecls.insert({std::make_pair(VariableName, Function), Variable})
             .second;
     }
@@ -24,17 +24,17 @@ struct SymbolTable {
         return VariableRefs.insert({VariableExpr, VarOrFuncDecl}).second;
     }
 
-    bool addReturnExpr(ExprAST *ReturnExpr, FunctionAST *Function) {
+    bool addReturnExpr(ExprAST *ReturnExpr, FunctionDeclAST *Function) {
         return ReturnExprs.insert({ReturnExpr, Function}).second;
     }
 
-    FunctionAST *getFunction(llvm::StringRef FunctionName) {
+    FunctionDeclAST *getFunction(llvm::StringRef FunctionName) {
         if (Functions.count(FunctionName))
             return Functions[FunctionName];
         return nullptr;
     }
 
-    VarDeclNodeAST *getVariable(llvm::StringRef VariableName, FunctionAST *Function) {
+    VarDeclAST *getVariable(llvm::StringRef VariableName, FunctionDeclAST *Function) {
         auto Key = std::make_pair(VariableName, Function);
         if (VariableDecls.count(Key))
             return VariableDecls[Key];
@@ -52,19 +52,19 @@ struct SymbolTable {
             OS << "Function: '" << p.first << "' " << p.second << "\n";
         for (auto &p : VariableDecls)
             OS << "Variable: '" << p.first.first << "' " << p.second << " (of function '"
-               << p.first.second->getFuncName() << "')\n";
+               << p.first.second->getName() << "')\n";
         for (auto &p : ReturnExprs)
             OS << "ReturnExpr: '" << p.first << "' (of function '"
-               << p.second->getFuncName() << "')\n";
+               << p.second->getName() << "')\n";
     }
 
-    // < FunctionName, FunctionAST* >
-    llvm::DenseMap<llvm::StringRef, FunctionAST *> Functions;
-    // < <VariableName, FunctionAST*>, VarDeclNodeAST* >
-    llvm::DenseMap<std::pair<llvm::StringRef, FunctionAST *>, VarDeclNodeAST *> VariableDecls;
-    // < ExprAST of ReturnStmt, FunctionAST* >
-    llvm::DenseMap<ExprAST *, FunctionAST *> ReturnExprs;
-    // < VariableExprAST*, ASTNode*(VarDeclNodeAST* or FunctionAST*) >
+    // < FunctionName, FunctionDeclAST* >
+    llvm::DenseMap<llvm::StringRef, FunctionDeclAST *> Functions;
+    // < <VariableName, FunctionDeclAST*>, VarDeclAST* >
+    llvm::DenseMap<std::pair<llvm::StringRef, FunctionDeclAST *>, VarDeclAST *> VariableDecls;
+    // < ExprAST of ReturnStmt, FunctionDeclAST* >
+    llvm::DenseMap<ExprAST *, FunctionDeclAST *> ReturnExprs;
+    // < VariableExprAST*, ASTNode*(VarDeclAST* or FunctionDeclAST*) >
     llvm::DenseMap<VariableExprAST *, ASTNode *> VariableRefs;
 };
 
@@ -78,16 +78,16 @@ public:
 
     bool actBeforeVisitProgram(ProgramAST * Program) {
         for (auto *Function : Program->getFunctions())
-            SymTab.addFunction(Function->getFuncName(), Function);
+            SymTab.addFunction(Function->getName(), Function);
         return false;
     }
 
-    bool actBeforeVisitFunction(FunctionAST *Function) {
+    bool actBeforeVisitFunction(FunctionDeclAST *Function) {
         CurrentFunction = Function;
         return false;
     }
 
-    void actAfterVisitVarDeclNode(VarDeclNodeAST *VarDeclNode) {
+    void actAfterVisitVarDeclNode(VarDeclAST *VarDeclNode) {
         SymTab.addVariable(VarDeclNode->getName(), VarDeclNode, CurrentFunction);
     }
 
@@ -106,7 +106,7 @@ public:
 
 private:
     SymbolTable SymTab;
-    FunctionAST *CurrentFunction;
+    FunctionDeclAST *CurrentFunction = nullptr;
 };
 
 }  // namespace remniw
