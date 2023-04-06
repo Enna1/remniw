@@ -409,7 +409,11 @@ Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     // Codegen of 'Then' can change the current block, update ThenBB for the PHI.
     ThenBB = IRB->GetInsertBlock();
     // Emit else block.
+#if LLVM_VERSION_MAJOR < 16
+    F->insertBasicBlockAt(F->end(), ElseBB);
+#else
     F->insert(F->end(), ElseBB);
+#endif
     IRB->SetInsertPoint(ElseBB);
     if (auto *Else = IfStmt->getElse())
         codegenStmt(Else);
@@ -418,7 +422,11 @@ Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     ElseBB = IRB->GetInsertBlock();
 
     // Emit merge block.
+#if LLVM_VERSION_MAJOR < 16
+    F->insertBasicBlockAt(F->end(), MergeBB);
+#else
     F->insert(F->end(), MergeBB);
+#endif
     IRB->SetInsertPoint(MergeBB);
 
     return nullptr;
@@ -448,13 +456,21 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
     IRB->CreateCondBr(CondV, LoopBodyBB, LoopEndBB);
 
     // Emit the "loop body" block
+#if LLVM_VERSION_MAJOR < 16
+    F->insertBasicBlockAt(F->end(), LoopBodyBB);
+#else
     F->insert(F->end(), LoopBodyBB);
+#endif
     IRB->SetInsertPoint(LoopBodyBB);
     codegenStmt(WhileStmt->getBody());
     IRB->CreateBr(LoopCondBB);
 
     // Emit the "loop end" block
+#if LLVM_VERSION_MAJOR < 16
+    F->insertBasicBlockAt(F->end(), LoopEndBB);
+#else
     F->insert(F->end(), LoopEndBB);
+#endif
     IRB->SetInsertPoint(LoopEndBB);
     return nullptr;
 }
