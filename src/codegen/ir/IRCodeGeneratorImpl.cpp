@@ -214,7 +214,6 @@ Value *IRCodeGeneratorImpl::codegenNumberExpr(NumberExprAST *NumberExpr) {
 }
 
 Value *IRCodeGeneratorImpl::codegenDeclRefExpr(DeclRefExprAST *DeclRefExpr) {
-    // std::string Name = DeclRefExpr->getName().str();
     auto *Decl = DeclRefExpr->getDecl();
     if (auto *VarDecl = llvm::dyn_cast<VarDeclAST>(Decl)) {
         assert(LocalDeclMap.count(VarDecl));
@@ -410,7 +409,7 @@ Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
     ThenBB = IRB->GetInsertBlock();
     // Emit else block.
 #if LLVM_VERSION_MAJOR < 16
-    F->insertBasicBlockAt(F->end(), ElseBB);
+    F->getBasicBlockList().push_back(ElseBB);
 #else
     F->insert(F->end(), ElseBB);
 #endif
@@ -423,7 +422,7 @@ Value *IRCodeGeneratorImpl::codegenIfStmt(IfStmtAST *IfStmt) {
 
     // Emit merge block.
 #if LLVM_VERSION_MAJOR < 16
-    F->insertBasicBlockAt(F->end(), MergeBB);
+    F->getBasicBlockList().push_back(MergeBB);
 #else
     F->insert(F->end(), MergeBB);
 #endif
@@ -457,7 +456,7 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
 
     // Emit the "loop body" block
 #if LLVM_VERSION_MAJOR < 16
-    F->insertBasicBlockAt(F->end(), LoopBodyBB);
+    F->getBasicBlockList().push_back(LoopBodyBB);
 #else
     F->insert(F->end(), LoopBodyBB);
 #endif
@@ -467,7 +466,7 @@ Value *IRCodeGeneratorImpl::codegenWhileStmt(WhileStmtAST *WhileStmt) {
 
     // Emit the "loop end" block
 #if LLVM_VERSION_MAJOR < 16
-    F->insertBasicBlockAt(F->end(), LoopEndBB);
+    F->getBasicBlockList().push_back(LoopEndBB);
 #else
     F->insert(F->end(), LoopEndBB);
 #endif
