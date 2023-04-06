@@ -132,8 +132,7 @@ int main(int argc, char* argv[]) {
     llvm::ErrorOr<std::string> Program = llvm::sys::findProgramByName("clang");
     if (!Program)
         ErrMsg = Program.getError().message();
-    if (llvm::sys::ExecuteAndWait(Program.get(), CCParams, std::nullopt, {}, 0, 0,
-                                  &ErrMsg)) {
+    if (llvm::sys::ExecuteAndWait(Program.get(), CCParams, {}, {}, 0, 0, &ErrMsg)) {
         llvm::errs() << "execvp(clang) failed: " << ErrMsg << '\n';
         exit(EXIT_FAILURE);
     }

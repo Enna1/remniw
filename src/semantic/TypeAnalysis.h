@@ -148,14 +148,9 @@ public:
                                  Type::getIntType(TypeCtx));
 
         auto *BaseTy = ASTNodeToType(ArraySubscriptExpr->getBase());
-        if (auto *ArrayTy = llvm::dyn_cast<ArrayType>(BaseTy)) {
-            Constraints.emplace_back(ArrayTy->getElementType(),
-                                     ASTNodeToType(ArraySubscriptExpr));
-        } else {
-            // Note here, we decay arrayType to pointerType in type analysis
-            Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getBase()),
-                                     ASTNodeToType(ArraySubscriptExpr)->getPointerTo());
-        }
+        // Note here, we decay arrayType to pointerType in type analysis
+        Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getBase()),
+                                 ASTNodeToType(ArraySubscriptExpr)->getPointerTo());
     }
 
     // [[input]] = int
