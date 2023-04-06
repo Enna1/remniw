@@ -56,7 +56,7 @@ public:
 
     virtual antlrcpp::Any visitNegIntExpr(RemniwParser::NegIntExprContext *Ctx);
 
-    virtual antlrcpp::Any visitRefExpr(RemniwParser::RefExprContext *Ctx);
+    virtual antlrcpp::Any visitAddrOfExpr(RemniwParser::AddrOfExprContext *Ctx);
 
     virtual antlrcpp::Any visitDerefExpr(RemniwParser::DerefExprContext *Ctx);
 

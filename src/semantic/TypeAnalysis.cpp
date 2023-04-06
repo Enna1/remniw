@@ -7,13 +7,8 @@
 namespace remniw {
 
 Type *TypeAnalysis::ASTNodeToType(const ASTNode *Node) const {
-    if (auto *VariableExpr = llvm::dyn_cast<VariableExprAST>(Node)) {
-        if (auto *VarOrFuncDecl = SymTab.getDeclForVariableExpr(VariableExpr)) {
-            if (auto *VarDecl = llvm::dyn_cast<VarDeclAST>(VarOrFuncDecl))
-                return VarDecl->getType();
-            if (auto *FuncDecl = llvm::dyn_cast<FunctionDeclAST>(VarOrFuncDecl))
-                return FuncDecl->getType();
-        }
+    if (auto *DeclRefExpr = llvm::dyn_cast<DeclRefExprAST>(Node)) {
+        return DeclRefExpr->getDecl()->getType();
     }
 
     if (auto *VariableDecl = llvm::dyn_cast<VarDeclAST>(Node)) {
@@ -99,52 +94,6 @@ bool TypeAnalysis::solve(ProgramAST *AST) {
     }
 
     return true;
-}
-
-Type *TypeAnalysis::getConcreteType(Type *Ty) const {
-    switch (Ty->getTypeKind()) {
-    case Type::TK_VARTYPE: {
-        // auto *VarTy = llvm::cast<VarType>(Ty);
-        // ASTNodeToType(VarTy->getASTNode());
-        return getConcreteType(TheUnionFind->find(Ty));
-    }
-    case Type::TK_INTTYPE: {
-        return Ty;
-    }
-    case Type::TK_POINTERTYPE: {
-        auto *PointerTy = llvm::cast<PointerType>(Ty);
-        return getConcreteType(PointerTy->getPointeeType())->getPointerTo();
-    }
-    case Type::TK_ARRAYTYPE: {
-        auto *ArrayTy = llvm::cast<ArrayType>(Ty);
-        return ArrayType::get(getConcreteType(ArrayTy->getElementType()),
-                              ArrayTy->getNumElements());
-    }
-    case Type::TK_FUNCTIONTYPE: {
-        auto *FuncTy = llvm::dyn_cast<remniw::FunctionType>(Ty);
-        llvm::SmallVector<remniw::Type *, 4> ParamTypes;
-        for (auto *ParamType : FuncTy->getParamTypes())
-            ParamTypes.push_back(getConcreteType(ParamType));
-        return remniw::FunctionType::get(ParamTypes,
-                                         getConcreteType(FuncTy->getReturnType()));
-    }
-    default: llvm_unreachable("Invalid TypeKind");
-    }
-}
-
-void TypeAnalysis::updateTypeForExprs() {
-    // for (auto *Expr : Exprs) {
-    //     Type *Ty = getConcreteType(ASTNodeToType(Expr));
-    //     Expr->setType(Ty);
-    // }
-
-    // for (auto *Expr : Exprs) {
-    //     if (auto *ArraySubscriptExpr = llvm::dyn_cast<ArraySubscriptExprAST>(Expr)) {
-    //         if (auto *ArrayTy = llvm::dyn_cast<ArrayType>(ArraySubscriptExpr->getBase()->getType())) {
-    //             ArraySubscriptExpr->setType(ArrayTy->getElementType());
-    //         }
-    //     }
-    // }
 }
 
 }  // namespace remniw

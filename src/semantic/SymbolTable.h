@@ -20,10 +20,6 @@ struct SymbolTable {
             .second;
     }
 
-    bool addVariableRef(VariableExprAST *VariableExpr, ASTNode *VarOrFuncDecl) {
-        return VariableRefs.insert({VariableExpr, VarOrFuncDecl}).second;
-    }
-
     bool addReturnExpr(ExprAST *ReturnExpr, FunctionDeclAST *Function) {
         return ReturnExprs.insert({ReturnExpr, Function}).second;
     }
@@ -38,12 +34,6 @@ struct SymbolTable {
         auto Key = std::make_pair(VariableName, Function);
         if (VariableDecls.count(Key))
             return VariableDecls[Key];
-        return nullptr;
-    }
-
-    ASTNode *getDeclForVariableExpr(const VariableExprAST *VariableExpr) {
-        if (VariableRefs.count(VariableExpr))
-            return VariableRefs.lookup(VariableExpr);
         return nullptr;
     }
 
@@ -64,8 +54,6 @@ struct SymbolTable {
     llvm::DenseMap<std::pair<llvm::StringRef, FunctionDeclAST *>, VarDeclAST *> VariableDecls;
     // < ExprAST of ReturnStmt, FunctionDeclAST* >
     llvm::DenseMap<ExprAST *, FunctionDeclAST *> ReturnExprs;
-    // < VariableExprAST*, ASTNode*(VarDeclAST* or FunctionDeclAST*) >
-    llvm::DenseMap<VariableExprAST *, ASTNode *> VariableRefs;
 };
 
 class SymbolTableBuilder: public RecursiveASTVisitor<SymbolTableBuilder> {
@@ -93,15 +81,6 @@ public:
 
     void actAfterVisitReturnStmt(ReturnStmtAST *ReturnStmt) {
         SymTab.addReturnExpr(ReturnStmt->getExpr(), CurrentFunction);
-    }
-
-    void actAfterVisitVariableExpr(VariableExprAST * VariableExpr) {
-        if (auto *VarDeclNode =
-            SymTab.getVariable(VariableExpr->getName(), CurrentFunction)) {
-            SymTab.addVariableRef(VariableExpr, VarDeclNode);
-        } else if (auto *Function = SymTab.getFunction(VariableExpr->getName())) {
-            SymTab.addVariableRef(VariableExpr, Function);
-        }
     }
 
 private:

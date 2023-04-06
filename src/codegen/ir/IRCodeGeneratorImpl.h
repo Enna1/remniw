@@ -23,12 +23,12 @@ public:
     std::unique_ptr<llvm::Module> codegen(ProgramAST *);
     llvm::Value *codegenFunction(FunctionDeclAST *);
     llvm::Value *codegenNumberExpr(NumberExprAST *);
-    llvm::Value *codegenVariableExpr(VariableExprAST *);
+    llvm::Value *codegenDeclRefExpr(DeclRefExprAST *);
     llvm::Value *codegenVarDecl(VarDeclAST *);
     llvm::Value *codegenFunctionCallExpr(FunctionCallExprAST *);
     llvm::Value *codegenNullExpr(NullExprAST *);
     llvm::Value *codegenSizeofExpr(SizeofExprAST *);
-    llvm::Value *codegenRefExpr(RefExprAST *);
+    llvm::Value *codegenAddrOfExpr(AddrOfExprAST *);
     llvm::Value *codegenDerefExpr(DerefExprAST *);
     llvm::Value *codegenArraySubscriptExpr(ArraySubscriptExprAST *);
     llvm::Value *codegenInputExpr(InputExprAST *);

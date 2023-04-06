@@ -164,8 +164,8 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::NumberExpr:
         Ret = codegenNumberExpr(static_cast<NumberExprAST *>(Expr));
         break;
-    case ASTNode::VariableExpr:
-        Ret = codegenVariableExpr(static_cast<VariableExprAST *>(Expr));
+    case ASTNode::DeclRefExpr:
+        Ret = codegenDeclRefExpr(static_cast<DeclRefExprAST *>(Expr));
         break;
     case ASTNode::FunctionCallExpr:
         Ret = codegenFunctionCallExpr(static_cast<FunctionCallExprAST *>(Expr));
@@ -176,7 +176,7 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::SizeofExpr:
         Ret = codegenSizeofExpr(static_cast<SizeofExprAST *>(Expr));
         break;
-    case ASTNode::RefExpr: Ret = codegenRefExpr(static_cast<RefExprAST *>(Expr)); break;
+    case ASTNode::AddrOfExpr: Ret = codegenAddrOfExpr(static_cast<AddrOfExprAST *>(Expr)); break;
     case ASTNode::DerefExpr:
         Ret = codegenDerefExpr(static_cast<DerefExprAST *>(Expr));
         break;
@@ -234,11 +234,11 @@ Value *IRCodeGeneratorImpl::codegenNumberExpr(NumberExprAST *NumberExpr) {
     return ConstantInt::get(IRB->getInt64Ty(), NumberExpr->getValue(), /*IsSigned=*/true);
 }
 
-Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
-    std::string Name = VariableExpr->getName().str();
+Value *IRCodeGeneratorImpl::codegenDeclRefExpr(DeclRefExprAST *DeclRefExpr) {
+    std::string Name = DeclRefExpr->getName().str();
     if (NamedValues.count(Name)) {
         AllocaInst *V = NamedValues[Name];
-        if (VariableExpr->isLValue()) {
+        if (DeclRefExpr->isLValue()) {
             return V;
         } else {
             assert(V->getType()->isPointerTy());
@@ -250,7 +250,7 @@ Value *IRCodeGeneratorImpl::codegenVariableExpr(VariableExprAST *VariableExpr) {
         return F;
     }
 
-    llvm_unreachable("Unknown VariableExprAST");
+    llvm_unreachable("Unknown DeclRefExprAST");
 }
 
 Value *IRCodeGeneratorImpl::codegenVarDecl(VarDeclAST *VarDeclNode) {
@@ -307,10 +307,10 @@ Value *IRCodeGeneratorImpl::codegenSizeofExpr(SizeofExprAST *SizeofExpr) {
     return ConstantInt::get(IRB->getInt64Ty(), SizeInBytes, /*IsSigned=*/true);
 }
 
-Value *IRCodeGeneratorImpl::codegenRefExpr(RefExprAST *RefExpr) {
-    assert(!TheModule->getFunction(RefExpr->getVar()->getName()) &&
-           "Operand of RefExpr cannot be function");
-    Value *Val = codegenVariableExpr(RefExpr->getVar());
+Value *IRCodeGeneratorImpl::codegenAddrOfExpr(AddrOfExprAST *AddrOfExpr) {
+    assert(!TheModule->getFunction(AddrOfExpr->getVar()->getName()) &&
+           "Operand of AddrOfExpr cannot be function");
+    Value *Val = codegenDeclRefExpr(AddrOfExpr->getVar());
     return Val;
 }
 

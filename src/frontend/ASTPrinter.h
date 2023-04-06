@@ -32,8 +32,8 @@ public:
         return false;
     }
 
-    bool actBeforeVisitVariableExpr(VariableExprAST *Node) {
-        Out.indent(Ind) << "VariableExpr " << Node << " '" << Node->getName() << "' "
+    bool actBeforeVisitDeclRefExpr(DeclRefExprAST *Node) {
+        Out.indent(Ind) << "DeclRefExpr " << Node << " '" << Node->getName() << "' "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << "> ";
         if (auto *Ty = Node->getType())
@@ -63,8 +63,8 @@ public:
         return false;
     }
 
-    bool actBeforeVisitRefExpr(RefExprAST *Node) {
-        Out.indent(Ind) << "RefExpr " << Node << ", "
+    bool actBeforeVisitAddrOfExpr(AddrOfExprAST *Node) {
+        Out.indent(Ind) << "AddrOfExpr " << Node << ", "
                         << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << "> ";
         if (auto *Ty = Node->getType())
@@ -74,7 +74,7 @@ public:
         return false;
     }
 
-    void actAfterVisitRefExpr(RefExprAST *) { Ind -= 1; }
+    void actAfterVisitAddrOfExpr(AddrOfExprAST *) { Ind -= 1; }
 
     bool actBeforeVisitDerefExpr(DerefExprAST *Node) {
         Out.indent(Ind) << "DerefExpr " << Node << ", "

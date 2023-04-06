@@ -21,9 +21,9 @@ public:
     void actAfterVisitNumberExpr(NumberExprAST *) {}
     void visitNumberExpr(NumberExprAST *);
 
-    bool actBeforeVisitVariableExpr(VariableExprAST *) { return false; }
-    void actAfterVisitVariableExpr(VariableExprAST *) {}
-    void visitVariableExpr(VariableExprAST *);
+    bool actBeforeVisitDeclRefExpr(DeclRefExprAST *) { return false; }
+    void actAfterVisitDeclRefExpr(DeclRefExprAST *) {}
+    void visitDeclRefExpr(DeclRefExprAST *);
 
     bool actBeforeVisitFunctionCallExpr(FunctionCallExprAST *) { return false; }
     void actAfterVisitFunctionCallExpr(FunctionCallExprAST *) {}
@@ -37,9 +37,9 @@ public:
     void actAfterVisitSizeofExpr(SizeofExprAST *) {}
     void visitSizeofExpr(SizeofExprAST *);
 
-    bool actBeforeVisitRefExpr(RefExprAST *) { return false; }
-    void actAfterVisitRefExpr(RefExprAST *) {}
-    void visitRefExpr(RefExprAST *);
+    bool actBeforeVisitAddrOfExpr(AddrOfExprAST *) { return false; }
+    void actAfterVisitAddrOfExpr(AddrOfExprAST *) {}
+    void visitAddrOfExpr(AddrOfExprAST *);
 
     bool actBeforeVisitDerefExpr(DerefExprAST *) { return false; }
     void actAfterVisitDerefExpr(DerefExprAST *) {}
@@ -112,8 +112,8 @@ void RecursiveASTVisitor<Derived>::visitExpr(ExprAST *Expr) {
     case ASTNode::NumberExpr:
         getDerived().visitNumberExpr(static_cast<NumberExprAST *>(Expr));
         break;
-    case ASTNode::VariableExpr:
-        getDerived().visitVariableExpr(static_cast<VariableExprAST *>(Expr));
+    case ASTNode::DeclRefExpr:
+        getDerived().visitDeclRefExpr(static_cast<DeclRefExprAST *>(Expr));
         break;
     case ASTNode::FunctionCallExpr:
         getDerived().visitFunctionCallExpr(static_cast<FunctionCallExprAST *>(Expr));
@@ -124,8 +124,8 @@ void RecursiveASTVisitor<Derived>::visitExpr(ExprAST *Expr) {
     case ASTNode::SizeofExpr:
         getDerived().visitSizeofExpr(static_cast<SizeofExprAST *>(Expr));
         break;
-    case ASTNode::RefExpr:
-        getDerived().visitRefExpr(static_cast<RefExprAST *>(Expr));
+    case ASTNode::AddrOfExpr:
+        getDerived().visitAddrOfExpr(static_cast<AddrOfExprAST *>(Expr));
         break;
     case ASTNode::DerefExpr:
         getDerived().visitDerefExpr(static_cast<DerefExprAST *>(Expr));
@@ -195,11 +195,11 @@ void RecursiveASTVisitor<Derived>::visitNumberExpr(NumberExprAST *NumberExpr) {
 }
 
 template<typename Derived>
-void RecursiveASTVisitor<Derived>::visitVariableExpr(VariableExprAST *VariableExpr) {
-    if (getDerived().actBeforeVisitVariableExpr(VariableExpr))
+void RecursiveASTVisitor<Derived>::visitDeclRefExpr(DeclRefExprAST *DeclRefExpr) {
+    if (getDerived().actBeforeVisitDeclRefExpr(DeclRefExpr))
         return;
 
-    getDerived().actAfterVisitVariableExpr(VariableExpr);
+    getDerived().actAfterVisitDeclRefExpr(DeclRefExpr);
 }
 
 template<typename Derived>
@@ -233,13 +233,13 @@ void RecursiveASTVisitor<Derived>::visitSizeofExpr(SizeofExprAST *SizeofExpr) {
 }
 
 template<typename Derived>
-void RecursiveASTVisitor<Derived>::visitRefExpr(RefExprAST *RefExpr) {
-    if (getDerived().actBeforeVisitRefExpr(RefExpr))
+void RecursiveASTVisitor<Derived>::visitAddrOfExpr(AddrOfExprAST *AddrOfExpr) {
+    if (getDerived().actBeforeVisitAddrOfExpr(AddrOfExpr))
         return;
 
-    visitExpr(RefExpr->getVar());
+    visitExpr(AddrOfExpr->getVar());
 
-    getDerived().actAfterVisitRefExpr(RefExpr);
+    getDerived().actAfterVisitAddrOfExpr(AddrOfExpr);
 }
 
 template<typename Derived>

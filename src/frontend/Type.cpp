@@ -62,12 +62,12 @@ PointerType *Type::getPointerTo() {
     return PointerType::get(const_cast<Type *>(this));
 }
 
-Type *Type::getPointeeType() const {
+Type *Type::getPointerPointeeType() const {
     assert(getTypeKind() == Type::TK_POINTERTYPE);
     return llvm::cast<PointerType>(this)->getPointeeType();
 }
 
-Type *Type::getElementType() const {
+Type *Type::getArrayElementType() const {
     assert(getTypeKind() == Type::TK_ARRAYTYPE);
     return llvm::cast<ArrayType>(this)->getElementType();
 }

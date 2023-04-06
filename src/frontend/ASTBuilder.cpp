@@ -4,11 +4,6 @@
 
 namespace remniw {
 
-// helper functions for error handling.
-void LogError(const char *Str) {
-    fprintf(stderr, "Error: %s\n", Str);
-}
-
 static std::unique_ptr<ExprAST> visitedExpr = nullptr;
 static std::unique_ptr<StmtAST> visitedStmt = nullptr;
 static std::unique_ptr<ReturnStmtAST> visitedReturnStmt = nullptr;
@@ -195,7 +190,7 @@ antlrcpp::Any ASTBuilder::visitMulExpr(RemniwParser::MulExprContext *Ctx) {
     exprIsLValue = false;
     visit(Ctx->expr(1));
     std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
-    // Type of MulExpr is same as type of LHS and type of RHS.
+    // The type of MulExpr is same as the type of LHS and the type of RHS.
     auto *Ty = LHS->getType();
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
@@ -211,7 +206,7 @@ antlrcpp::Any ASTBuilder::visitDivExpr(RemniwParser::DivExprContext *Ctx) {
     exprIsLValue = false;
     visit(Ctx->expr(1));
     std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
-    // Type of DivExpr is same as type of LHS and type of RHS.
+    // The type of DivExpr is same as the type of LHS and the type of RHS.
     auto *Ty = LHS->getType();
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
@@ -227,7 +222,7 @@ antlrcpp::Any ASTBuilder::visitAddExpr(RemniwParser::AddExprContext *Ctx) {
     exprIsLValue = false;
     visit(Ctx->expr(1));
     std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
-    // Type of AddExpr is same as type of LHS and type of RHS.
+    // The type of AddExpr is same as the type of LHS and the type of RHS.
     auto *Ty = LHS->getType();
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
@@ -243,7 +238,7 @@ antlrcpp::Any ASTBuilder::visitSubExpr(RemniwParser::SubExprContext *Ctx) {
     exprIsLValue = false;
     visit(Ctx->expr(1));
     std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
-    // Type of SubExpr is same as type of LHS and type of RHS.
+    // The type of SubExpr is same as the type of LHS and the type of RHS.
     auto *Ty = LHS->getType();
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
@@ -261,7 +256,7 @@ antlrcpp::Any ASTBuilder::visitId(RemniwParser::IdContext *Ctx) {
     bool LValue = exprIsLValue;
     std::string Name = Ctx->IDENTIFIER()->getText();
     auto *Decl = lookupDeclInScope(Name);
-    visitedExpr = std::make_unique<VariableExprAST>(
+    visitedExpr = std::make_unique<DeclRefExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
         Ctx->IDENTIFIER()->getText(), Decl, LValue);
@@ -280,7 +275,7 @@ antlrcpp::Any ASTBuilder::visitIntExpr(RemniwParser::IntExprContext *Ctx) {
                             Ctx->getStart()->getCharPositionInLine()},
             Type::getIntType(TyCtx), Val);
     } else {
-        LogError("integer falls out of range int64_t");
+        // integer falls out of range int64_t
         visitedExpr = std::make_unique<NumberExprAST>(
             SourceLocation {Ctx->getStart()->getLine(),
                             Ctx->getStart()->getCharPositionInLine()},
@@ -301,7 +296,7 @@ antlrcpp::Any ASTBuilder::visitNegIntExpr(RemniwParser::NegIntExprContext *Ctx) 
                             Ctx->getStart()->getCharPositionInLine()},
             Type::getIntType(TyCtx), Val);
     } else {
-        LogError("integer falls out of range int64_t");
+        // integer falls out of range int64_t
         visitedExpr = std::make_unique<NumberExprAST>(
             SourceLocation {Ctx->getStart()->getLine(),
                             Ctx->getStart()->getCharPositionInLine()},
@@ -310,14 +305,14 @@ antlrcpp::Any ASTBuilder::visitNegIntExpr(RemniwParser::NegIntExprContext *Ctx) 
     return nullptr;
 }
 
-antlrcpp::Any ASTBuilder::visitRefExpr(RemniwParser::RefExprContext *Ctx) {
+antlrcpp::Any ASTBuilder::visitAddrOfExpr(RemniwParser::AddrOfExprContext *Ctx) {
     auto *Decl = lookupDeclInScope(Ctx->id()->IDENTIFIER()->getText());
-    auto Var = std::make_unique<VariableExprAST>(
+    auto Var = std::make_unique<DeclRefExprAST>(
         SourceLocation {Ctx->id()->getStart()->getLine(),
                         Ctx->id()->getStart()->getCharPositionInLine()},
         Ctx->id()->IDENTIFIER()->getText(), Decl, /*LValue*/ true);\
     auto *Ty = Decl->getType()->getPointerTo();
-    visitedExpr = std::make_unique<RefExprAST>(
+    visitedExpr = std::make_unique<AddrOfExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
         Ty, std::move(Var));
@@ -329,7 +324,7 @@ antlrcpp::Any ASTBuilder::visitDerefExpr(RemniwParser::DerefExprContext *Ctx) {
     // If DerefExpr is lvalue, then the Ptr expr of DerefExpr is lvalue.
     // If DerefExpr is rvalue, then the Ptr expr of DerefExpr is rvalue.
     visit(Ctx->expr());
-    auto *Ty = visitedExpr->getType()->getPointeeType();
+    auto *Ty = visitedExpr->getType()->getPointerPointeeType();
     visitedExpr = std::make_unique<DerefExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
@@ -346,7 +341,7 @@ ASTBuilder::visitArraySubscriptExpr(RemniwParser::ArraySubscriptExprContext *Ctx
     exprIsLValue = false;
     visit(Ctx->expr(1));
     std::unique_ptr<ExprAST> Selector = std::move(visitedExpr);
-    auto *Ty = Base->getType()->getElementType();
+    auto *Ty = Base->getType()->getArrayElementType();
     visitedExpr = std::make_unique<ArraySubscriptExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
@@ -364,7 +359,7 @@ antlrcpp::Any ASTBuilder::visitEqualExpr(RemniwParser::EqualExprContext *Ctx) {
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
-        nullptr /*FIXME: the type of EqualExpr is nullptr*/,
+        Type::getIntType(TyCtx) /*FIXME: the type of EqualExpr is IntType*/,
         BinaryExprAST::OpKind::Eq, std::move(LHS), std::move(RHS));
     return nullptr;
 }
@@ -379,7 +374,7 @@ antlrcpp::Any ASTBuilder::visitRelationalExpr(RemniwParser::RelationalExprContex
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
-        nullptr /*FIXME: the type of RelationalExpr is nullptr*/,
+        Type::getIntType(TyCtx) /*FIXME: the type of RelationalExpr is IntType*/,
         BinaryExprAST::OpKind::Gt, std::move(LHS), std::move(RHS));
     return nullptr;
 }

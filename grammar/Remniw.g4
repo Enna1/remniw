@@ -33,7 +33,7 @@ arguments
 expr
    : expr arguments # FuncCallExpr
    | '%sizeof' varType # SizeofExpr
-   | '&' id # RefExpr
+   | '&' id # AddrOfExpr
    | '*' expr # DerefExpr
    | expr '[' expr ']' # ArraySubscriptExpr
    | '-' integer # NegIntExpr

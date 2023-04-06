@@ -36,11 +36,11 @@ public:
         FunctionDecl,
         // Expression
         NumberExpr,
-        VariableExpr,
+        DeclRefExpr,
         FunctionCallExpr,
         NullExpr,
         SizeofExpr,
-        RefExpr,
+        AddrOfExpr,
         DerefExpr,
         ArraySubscriptExpr,
         InputExpr,
@@ -143,17 +143,18 @@ private:
     int64_t Val;
 };
 
-/// VariableExprAST - Expression class for referencing a variable, like "a".
-// TODO: rename DeclRefExpr?
-class VariableExprAST: public ExprAST {
+/// DeclRefExprAST - Expression class for referencing a variable or function, like "a".
+class DeclRefExprAST: public ExprAST {
 public:
-    VariableExprAST(SourceLocation Loc, std::string Name, DeclAST *Decl, bool LValue):
-        ExprAST(ASTNode::VariableExpr, Loc, Decl->getType(), LValue), Decl(Decl), Name(Name) {}
+    DeclRefExprAST(SourceLocation Loc, std::string Name, DeclAST *Decl, bool LValue):
+        ExprAST(ASTNode::DeclRefExpr, Loc, Decl->getType(), LValue), Decl(Decl), Name(Name) {}
 
     llvm::StringRef getName() const { return Name; }
 
+    DeclAST *getDecl() const { return Decl; }
+
     static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::VariableExpr;
+        return Node->getKind() == ASTNode::DeclRefExpr;
     }
 
 private:
@@ -207,19 +208,19 @@ private:
     remniw::Type *DataTy;
 };
 
-class RefExprAST: public ExprAST {
+class AddrOfExprAST: public ExprAST {
 public:
-    RefExprAST(SourceLocation Loc, remniw::Type* Ty, std::unique_ptr<VariableExprAST> Var):
-        ExprAST(ASTNode::RefExpr, Loc, Ty, /*LValue*/ false), Var(std::move(Var)) {}
+    AddrOfExprAST(SourceLocation Loc, remniw::Type* Ty, std::unique_ptr<DeclRefExprAST> Var):
+        ExprAST(ASTNode::AddrOfExpr, Loc, Ty, /*LValue*/ false), Var(std::move(Var)) {}
 
-    VariableExprAST *getVar() const { return Var.get(); }
+    DeclRefExprAST *getVar() const { return Var.get(); }
 
     static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::RefExpr;
+        return Node->getKind() == ASTNode::AddrOfExpr;
     }
 
 private:
-    std::unique_ptr<VariableExprAST> Var;
+    std::unique_ptr<DeclRefExprAST> Var;
 };
 
 class DerefExprAST: public ExprAST {
