@@ -129,60 +129,6 @@ void ASTBuilder::visitFunctionBody(RemniwParser::FunContext *Ctx, FunctionDeclAS
     Function->setReturnStmt(std::move(visitedReturnStmt));
 }
 
-// TODO: delete
-// antlrcpp::Any ASTBuilder::visitFun(RemniwParser::FunContext *Ctx) {
-//     // function name
-//     std::string FuncName = Ctx->id()->IDENTIFIER()->getText();
-//     // paramters
-//     std::vector<std::unique_ptr<VarDeclAST>> ParamDecls;
-//     std::vector<Type *> ParamTypes;
-//     assert(Ctx->parameters()->id().size() == Ctx->parameters()->paramType().size());
-//     for (std::size_t i = 0; i < Ctx->parameters()->id().size(); ++i) {
-//         auto *IdCtx = Ctx->parameters()->id(i);
-//         auto *TypeCtx = Ctx->parameters()->paramType(i);
-//         visit(TypeCtx);
-//         auto ParamDecl = std::make_unique<VarDeclAST>(
-//             SourceLocation {IdCtx->getStart()->getLine(),
-//                             IdCtx->getStart()->getCharPositionInLine()},
-//             IdCtx->IDENTIFIER()->getText(), visitedType);
-//         ParamDecls.push_back(std::move(ParamDecl));
-//         ParamTypes.push_back(visitedType);
-//     }
-//     // var declarations
-//     std::vector<std::unique_ptr<VarDeclAST>> Vars;
-//     for (auto *VarDeclCtx : Ctx->varDeclarations()) {
-//         visit(VarDeclCtx->varType());
-//         for (auto *VarCtx : VarDeclCtx->id()) {
-//             auto Var = std::make_unique<VarDeclAST>(
-//                 SourceLocation {VarCtx->getStart()->getLine(),
-//                                 VarCtx->getStart()->getCharPositionInLine()},
-//                 VarCtx->IDENTIFIER()->getText(), visitedType);
-//             Vars.push_back(std::move(Var));
-//         }
-//     }
-//     auto LocalVarDecls =
-//         std::make_unique<LocalVarDeclStmtAST>(SourceLocation {0, 0}, std::move(Vars));
-//     // function body
-//     std::vector<std::unique_ptr<StmtAST>> Body;
-//     for (auto *StmtCtx : Ctx->stmt()) {
-//         visit(StmtCtx);
-//         Body.push_back(std::move(visitedStmt));
-//     }
-//     // return statement
-//     visit(Ctx->returnStmt());
-//     std::unique_ptr<ReturnStmtAST> Return = std::move(visitedReturnStmt);
-//     // return type
-//     visit(Ctx->scalarType());
-//     Type *ReturnType = visitedType;
-//     // create ast node
-//     visitedFunction = std::make_unique<FunctionDeclAST>(
-//         SourceLocation {Ctx->getStart()->getLine(),
-//                         Ctx->getStart()->getCharPositionInLine()},
-//         FuncName, Type::getFunctionType(ParamTypes, ReturnType), std::move(ParamDecls),
-//         std::move(LocalVarDecls), std::move(Body), std::move(Return));
-//     return nullptr;
-// }
-
 antlrcpp::Any ASTBuilder::visitMulExpr(RemniwParser::MulExprContext *Ctx) {
     exprIsLValue = false;
     visit(Ctx->expr(0));
@@ -359,7 +305,7 @@ antlrcpp::Any ASTBuilder::visitEqualExpr(RemniwParser::EqualExprContext *Ctx) {
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
-        Type::getIntType(TyCtx) /*FIXME: the type of EqualExpr is IntType*/,
+        Type::getIntType(TyCtx) /* the type of EqualExpr is IntType */,
         BinaryExprAST::OpKind::Eq, std::move(LHS), std::move(RHS));
     return nullptr;
 }
@@ -374,7 +320,7 @@ antlrcpp::Any ASTBuilder::visitRelationalExpr(RemniwParser::RelationalExprContex
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
-        Type::getIntType(TyCtx) /*FIXME: the type of RelationalExpr is IntType*/,
+        Type::getIntType(TyCtx) /* the type of RelationalExpr is IntType */,
         BinaryExprAST::OpKind::Gt, std::move(LHS), std::move(RHS));
     return nullptr;
 }

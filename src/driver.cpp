@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<ProgramAST> AST = FE.parse(Stream);
 
     LLVM_DEBUG({
-        llvm::outs() << "===== AST Printer (Before Type Analysis) ===== \n";
+        llvm::outs() << "===== AST Printer ===== \n";
         ASTPrinter PrettyPrinter(llvm::outs());
         PrettyPrinter.print(AST.get());
     });
@@ -83,12 +83,6 @@ int main(int argc, char* argv[]) {
     });
     if (!TANoError)
         return 1;
-    TA.updateTypeForExprs();
-    LLVM_DEBUG({
-        llvm::outs() << "===== AST Printer (After Type Analysis)===== \n";
-        ASTPrinter PrettyPrinter(llvm::outs());
-        PrettyPrinter.print(AST.get());
-    });
 
     LLVM_DEBUG(llvm::outs() << "===== IR Code Generator ===== \n");
     IRCodeGenerator IRCG(&TheLLVMContext);
