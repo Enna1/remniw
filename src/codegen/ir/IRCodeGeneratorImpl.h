@@ -17,8 +17,8 @@ private:
     std::unique_ptr<llvm::IRBuilder<>> IRB;
     llvm::GlobalVariable *InputFmtStr;
     llvm::GlobalVariable *OutputFmtStr;
-    llvm::DenseMap<VarDeclAST *, llvm::AllocaInst*> LocalDeclMap;
-    llvm::DenseMap<FunctionDeclAST *, llvm::Function*> FunctionDeclMap;
+    llvm::DenseMap<VarDeclAST *, llvm::AllocaInst *> LocalDeclMap;
+    llvm::DenseMap<FunctionDeclAST *, llvm::Function *> FunctionDeclMap;
 
 public:
     IRCodeGeneratorImpl(llvm::LLVMContext *);

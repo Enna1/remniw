@@ -12,7 +12,7 @@ class ASTBuilder: public RemniwBaseVisitor {
 private:
     TypeContext &TyCtx;
     std::vector<std::unique_ptr<FunctionDeclAST>> Functions;
-    FunctionDeclAST* CurrentFunction = nullptr;
+    FunctionDeclAST *CurrentFunction = nullptr;
 
 public:
     ASTBuilder(TypeContext &TyCtx): TyCtx(TyCtx) {}
@@ -102,8 +102,9 @@ public:
     virtual antlrcpp::Any visitAssignmentStmt(RemniwParser::AssignmentStmtContext *Ctx);
 
 private:
-    std::unique_ptr<FunctionDeclAST> visitFunctionPrototype(RemniwParser::FunContext *Ctx);
-    void visitFunctionBody(RemniwParser::FunContext *Ctx, FunctionDeclAST* Function);
+    std::unique_ptr<FunctionDeclAST>
+    visitFunctionPrototype(RemniwParser::FunContext *Ctx);
+    void visitFunctionBody(RemniwParser::FunContext *Ctx, FunctionDeclAST *Function);
     DeclAST *lookupDeclInScope(std::string Name);
 };
 

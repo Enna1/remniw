@@ -32,7 +32,7 @@ namespace remniw {
 llvm::Type *IRCodeGeneratorImpl::mapREMNIWTypeToLLVMType(remniw::Type *Ty) {
     switch (Ty->getTypeKind()) {
     case Type::TK_INTTYPE: {
-         return llvm::Type::getInt64Ty(*TheLLVMContext);
+        return llvm::Type::getInt64Ty(*TheLLVMContext);
     }
     case Type::TK_POINTERTYPE: {
         auto *PointerTy = llvm::cast<remniw::PointerType>(Ty);
@@ -58,8 +58,7 @@ llvm::Type *IRCodeGeneratorImpl::mapREMNIWTypeToLLVMType(remniw::Type *Ty) {
             ->getPointerTo();
     }
     case Type::TK_VARTYPE:
-    default:
-        break;
+    default: break;
     }
     llvm_unreachable("Unhandled remniw::Type");
     return nullptr;
@@ -154,7 +153,9 @@ Value *IRCodeGeneratorImpl::codegenExpr(ExprAST *Expr) {
     case ASTNode::SizeofExpr:
         Ret = codegenSizeofExpr(static_cast<SizeofExprAST *>(Expr));
         break;
-    case ASTNode::AddrOfExpr: Ret = codegenAddrOfExpr(static_cast<AddrOfExprAST *>(Expr)); break;
+    case ASTNode::AddrOfExpr:
+        Ret = codegenAddrOfExpr(static_cast<AddrOfExprAST *>(Expr));
+        break;
     case ASTNode::DerefExpr:
         Ret = codegenDerefExpr(static_cast<DerefExprAST *>(Expr));
         break;
@@ -256,7 +257,8 @@ IRCodeGeneratorImpl::codegenFunctionCallExpr(FunctionCallExprAST *FunctionCallEx
         return IRB->CreateCall(CalledFunction, CallArgs, "call");
     } else {
         assert(llvm::isa<remniw::FunctionType>(FunctionCallExpr->getCallee()->getType()));
-        remniw::FunctionType *CalleeTy = llvm::cast<remniw::FunctionType>(FunctionCallExpr->getCallee()->getType());
+        remniw::FunctionType *CalleeTy =
+            llvm::cast<remniw::FunctionType>(FunctionCallExpr->getCallee()->getType());
         // map remniw::FunctionType to llvm::FunctionType
         SmallVector<llvm::Type *, 4> ParamTys;
         for (auto *ParamType : CalleeTy->getParamTypes())
@@ -301,7 +303,8 @@ Value *IRCodeGeneratorImpl::codegenArraySubscriptExpr(
     Value *Selector = codegenExpr(ArraySubscriptExpr->getSelector());
     assert((Base && Selector) && "Invalid operand of ArraySubscriptExpr");
     assert(Base->getType()->isPointerTy());
-    auto BasePointeeTy = mapREMNIWTypeToLLVMType(ArraySubscriptExpr->getBase()->getType());
+    auto BasePointeeTy =
+        mapREMNIWTypeToLLVMType(ArraySubscriptExpr->getBase()->getType());
     assert(BasePointeeTy->isArrayTy() &&
            "Base operand of ArraySubscriptExpr must be ArrayType");
     Value *Ret =
@@ -361,7 +364,8 @@ Value *IRCodeGeneratorImpl::codegenAllocStmt(AllocStmtAST *AllocStmt) {
     assert(Ptr->getType()->isPointerTy() && llvm::isa<ConstantInt>(Size) &&
            "AllocStmt first operand must be pointer type and "
            "second operand must be contant int");
-    auto *MallocRetPtyTy = mapREMNIWTypeToLLVMType(AllocStmt->getPtr()->getType())->getPointerTo();
+    auto *MallocRetPtyTy =
+        mapREMNIWTypeToLLVMType(AllocStmt->getPtr()->getType())->getPointerTo();
     Value *Addr = emitMalloc(MallocRetPtyTy, Size);
     return IRB->CreateStore(Addr, Ptr);
 }
@@ -488,7 +492,7 @@ Value *IRCodeGeneratorImpl::codegenFunction(FunctionDeclAST *Function) {
     for (auto *VarDeclNode : Function->getLocalVarDecls()->getVars()) {
         auto *AllocatedType = mapREMNIWTypeToLLVMType(VarDeclNode->getType());
         AllocaInst *LocalVar =
-            IRB->CreateAlloca(AllocatedType, nullptr,VarDeclNode->getName());
+            IRB->CreateAlloca(AllocatedType, nullptr, VarDeclNode->getName());
         LocalDeclMap.insert({VarDeclNode, LocalVar});
     }
 
@@ -542,8 +546,8 @@ std::unique_ptr<Module> IRCodeGeneratorImpl::codegen(ProgramAST *AST) {
         SmallVector<llvm::Type *, 4> ParamTypes;
         for (auto *ParamType : FuncAST->getParamTypes())
             ParamTypes.push_back(mapREMNIWTypeToLLVMType(ParamType));
-        auto *FT = llvm::FunctionType::get(mapREMNIWTypeToLLVMType(FuncAST->getReturnType()),
-                                           ParamTypes, false);
+        auto *FT = llvm::FunctionType::get(
+            mapREMNIWTypeToLLVMType(FuncAST->getReturnType()), ParamTypes, false);
         auto Callee = TheModule->getOrInsertFunction(FuncAST->getName(), FT);
         auto *F = dyn_cast<llvm::Function>(Callee.getCallee());
         FunctionDeclMap.insert({FuncAST, F});

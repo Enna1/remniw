@@ -77,7 +77,6 @@ Type *Type::getFunctionReturnType() const {
     return llvm::cast<FunctionType>(this)->getReturnType();
 }
 
-
 VarType *VarType::get(const ASTNode *DeclNode, TypeContext &C) {
     const VarTypeKeyInfo::KeyTy Key(DeclNode);
     VarType *VarTy;

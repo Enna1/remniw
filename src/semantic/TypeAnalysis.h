@@ -154,13 +154,13 @@ public:
         } else {
             // Note here, we decay arrayType to pointerType in type analysis
             Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getBase()),
-                                 ASTNodeToType(ArraySubscriptExpr)->getPointerTo());
+                                     ASTNodeToType(ArraySubscriptExpr)->getPointerTo());
         }
     }
 
     // [[input]] = int
     void actAfterVisitInputExpr(InputExprAST *InputExpr) {
-        // Type constraint for InputExpr: 
+        // Type constraint for InputExpr:
         Constraints.emplace_back(ASTNodeToType(InputExpr), Type::getIntType(TypeCtx));
     }
 

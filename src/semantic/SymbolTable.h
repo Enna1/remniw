@@ -44,14 +44,15 @@ struct SymbolTable {
             OS << "Variable: '" << p.first.first << "' " << p.second << " (of function '"
                << p.first.second->getName() << "')\n";
         for (auto &p : ReturnExprs)
-            OS << "ReturnExpr: '" << p.first << "' (of function '"
-               << p.second->getName() << "')\n";
+            OS << "ReturnExpr: '" << p.first << "' (of function '" << p.second->getName()
+               << "')\n";
     }
 
     // < FunctionName, FunctionDeclAST* >
     llvm::DenseMap<llvm::StringRef, FunctionDeclAST *> Functions;
     // < <VariableName, FunctionDeclAST*>, VarDeclAST* >
-    llvm::DenseMap<std::pair<llvm::StringRef, FunctionDeclAST *>, VarDeclAST *> VariableDecls;
+    llvm::DenseMap<std::pair<llvm::StringRef, FunctionDeclAST *>, VarDeclAST *>
+        VariableDecls;
     // < ExprAST of ReturnStmt, FunctionDeclAST* >
     llvm::DenseMap<ExprAST *, FunctionDeclAST *> ReturnExprs;
 };
@@ -64,7 +65,7 @@ public:
 
     SymbolTable &getSymbolTale() { return SymTab; }
 
-    bool actBeforeVisitProgram(ProgramAST * Program) {
+    bool actBeforeVisitProgram(ProgramAST *Program) {
         for (auto *Function : Program->getFunctions())
             SymTab.addFunction(Function->getName(), Function);
         return false;

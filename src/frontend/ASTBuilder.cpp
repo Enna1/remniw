@@ -54,17 +54,18 @@ antlrcpp::Any ASTBuilder::visitArrayType(RemniwParser::ArrayTypeContext *Ctx) {
 
 antlrcpp::Any ASTBuilder::visitProgram(RemniwParser::ProgramContext *Ctx) {
     std::vector<RemniwParser::FunContext *> FunctionContexts = Ctx->fun();
-    for (unsigned i = 0 ;i < FunctionContexts.size(); ++i) {
+    for (unsigned i = 0; i < FunctionContexts.size(); ++i) {
         auto Function = visitFunctionPrototype(FunctionContexts[i]);
         Functions.push_back(std::move(Function));
     }
-    for (unsigned i = 0 ;i < FunctionContexts.size(); ++i) {
+    for (unsigned i = 0; i < FunctionContexts.size(); ++i) {
         visitFunctionBody(FunctionContexts[i], Functions[i].get());
     }
     return std::make_unique<ProgramAST>(std::move(Functions));
 }
 
-std::unique_ptr<FunctionDeclAST> ASTBuilder::visitFunctionPrototype(RemniwParser::FunContext *Ctx) {
+std::unique_ptr<FunctionDeclAST>
+ASTBuilder::visitFunctionPrototype(RemniwParser::FunContext *Ctx) {
     // function name
     std::string FuncName = Ctx->id()->IDENTIFIER()->getText();
     // paramters type
@@ -86,7 +87,8 @@ std::unique_ptr<FunctionDeclAST> ASTBuilder::visitFunctionPrototype(RemniwParser
     return Function;
 }
 
-void ASTBuilder::visitFunctionBody(RemniwParser::FunContext *Ctx, FunctionDeclAST* Function) {
+void ASTBuilder::visitFunctionBody(RemniwParser::FunContext *Ctx,
+                                   FunctionDeclAST *Function) {
     CurrentFunction = Function;
     // param declarations
     std::vector<std::unique_ptr<VarDeclAST>> ParamDecls;
@@ -256,7 +258,7 @@ antlrcpp::Any ASTBuilder::visitAddrOfExpr(RemniwParser::AddrOfExprContext *Ctx) 
     auto Var = std::make_unique<DeclRefExprAST>(
         SourceLocation {Ctx->id()->getStart()->getLine(),
                         Ctx->id()->getStart()->getCharPositionInLine()},
-        Ctx->id()->IDENTIFIER()->getText(), Decl, /*LValue*/ true);\
+        Ctx->id()->IDENTIFIER()->getText(), Decl, /*LValue*/ true);
     auto *Ty = Decl->getType()->getPointerTo();
     visitedExpr = std::make_unique<AddrOfExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
@@ -340,7 +342,7 @@ antlrcpp::Any ASTBuilder::visitFuncCallExpr(RemniwParser::FuncCallExprContext *C
         visit(Arg);
         Args.push_back(std::move(visitedExpr));
     }
-    auto *Ty= Callee->getType()->getFunctionReturnType();
+    auto *Ty = Callee->getType()->getFunctionReturnType();
     visitedExpr = std::make_unique<FunctionCallExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
@@ -376,8 +378,9 @@ antlrcpp::Any ASTBuilder::visitSizeofExpr(RemniwParser::SizeofExprContext *Ctx) 
 }
 
 antlrcpp::Any ASTBuilder::visitInputExpr(RemniwParser::InputExprContext *Ctx) {
-    visitedExpr = std::make_unique<InputExprAST>(SourceLocation {
-        Ctx->getStart()->getLine(), Ctx->getStart()->getCharPositionInLine()},
+    visitedExpr = std::make_unique<InputExprAST>(
+        SourceLocation {Ctx->getStart()->getLine(),
+                        Ctx->getStart()->getCharPositionInLine()},
         Type::getIntType(TyCtx));
     return nullptr;
 }
@@ -503,11 +506,11 @@ DeclAST *ASTBuilder::lookupDeclInScope(std::string Name) {
         if (Param->getName().equals(Name))
             return Param;
     }
-    for (auto *LocalVar: CurrentFunction->getLocalVarDecls()->getVars()) {
+    for (auto *LocalVar : CurrentFunction->getLocalVarDecls()->getVars()) {
         if (LocalVar->getName().equals(Name))
             return LocalVar;
     }
-    for (const auto& Function: Functions) {
+    for (const auto &Function : Functions) {
         if (Function->getName().equals(Name))
             return Function.get();
     }

@@ -130,7 +130,7 @@ public:
 
 class NumberExprAST: public ExprAST {
 public:
-    NumberExprAST(SourceLocation Loc, remniw::Type* Ty, int64_t Val):
+    NumberExprAST(SourceLocation Loc, remniw::Type *Ty, int64_t Val):
         ExprAST(ASTNode::NumberExpr, Loc, Ty, /*LValue*/ false), Val(Val) {}
 
     int64_t getValue() const { return Val; }
@@ -147,7 +147,8 @@ private:
 class DeclRefExprAST: public ExprAST {
 public:
     DeclRefExprAST(SourceLocation Loc, std::string Name, DeclAST *Decl, bool LValue):
-        ExprAST(ASTNode::DeclRefExpr, Loc, Decl->getType(), LValue), Decl(Decl), Name(Name) {}
+        ExprAST(ASTNode::DeclRefExpr, Loc, Decl->getType(), LValue), Decl(Decl),
+        Name(Name) {}
 
     llvm::StringRef getName() const { return Name; }
 
@@ -164,7 +165,8 @@ private:
 
 class FunctionCallExprAST: public ExprAST {
 public:
-    FunctionCallExprAST(SourceLocation Loc, remniw::Type* Ty, std::unique_ptr<ExprAST> Callee,
+    FunctionCallExprAST(SourceLocation Loc, remniw::Type *Ty,
+                        std::unique_ptr<ExprAST> Callee,
                         std::vector<std::unique_ptr<ExprAST>> Args):
         ExprAST(ASTNode::FunctionCallExpr, Loc, Ty, /*LValue*/ false),
         Callee(std::move(Callee)), Args(std::move(Args)) {}
@@ -185,7 +187,8 @@ private:
 
 class NullExprAST: public ExprAST {
 public:
-    NullExprAST(SourceLocation Loc): ExprAST(ASTNode::NullExpr, Loc, /*Ty*/ nullptr, /*LValue*/ false) {}
+    NullExprAST(SourceLocation Loc):
+        ExprAST(ASTNode::NullExpr, Loc, /*Ty*/ nullptr, /*LValue*/ false) {}
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::NullExpr;
@@ -194,7 +197,7 @@ public:
 
 class SizeofExprAST: public ExprAST {
 public:
-    SizeofExprAST(SourceLocation Loc, remniw::Type* Ty, remniw::Type *DataTy):
+    SizeofExprAST(SourceLocation Loc, remniw::Type *Ty, remniw::Type *DataTy):
         ExprAST(ASTNode::SizeofExpr, Loc, Ty, /*LValue*/ false), DataTy(DataTy) {}
 
     // sizeof(data-type)
@@ -210,8 +213,10 @@ private:
 
 class AddrOfExprAST: public ExprAST {
 public:
-    AddrOfExprAST(SourceLocation Loc, remniw::Type* Ty, std::unique_ptr<DeclRefExprAST> Var):
-        ExprAST(ASTNode::AddrOfExpr, Loc, Ty, /*LValue*/ false), Var(std::move(Var)) {}
+    AddrOfExprAST(SourceLocation Loc, remniw::Type *Ty,
+                  std::unique_ptr<DeclRefExprAST> Var):
+        ExprAST(ASTNode::AddrOfExpr, Loc, Ty, /*LValue*/ false),
+        Var(std::move(Var)) {}
 
     DeclRefExprAST *getVar() const { return Var.get(); }
 
@@ -225,8 +230,10 @@ private:
 
 class DerefExprAST: public ExprAST {
 public:
-    DerefExprAST(SourceLocation Loc, remniw::Type* Ty, bool LValue, std::unique_ptr<ExprAST> Ptr):
-        ExprAST(ASTNode::DerefExpr, Loc, Ty, LValue), Ptr(std::move(Ptr)) {}
+    DerefExprAST(SourceLocation Loc, remniw::Type *Ty, bool LValue,
+                 std::unique_ptr<ExprAST> Ptr):
+        ExprAST(ASTNode::DerefExpr, Loc, Ty, LValue),
+        Ptr(std::move(Ptr)) {}
 
     ExprAST *getPtr() const { return Ptr.get(); }
 
@@ -240,7 +247,8 @@ private:
 
 class ArraySubscriptExprAST: public ExprAST {
 public:
-    ArraySubscriptExprAST(SourceLocation Loc, remniw::Type* Ty, bool LValue, std::unique_ptr<ExprAST> Base,
+    ArraySubscriptExprAST(SourceLocation Loc, remniw::Type *Ty, bool LValue,
+                          std::unique_ptr<ExprAST> Base,
                           std::unique_ptr<ExprAST> Selector):
         ExprAST(ASTNode::ArraySubscriptExpr, Loc, Ty, LValue),
         Base(std::move(Base)), Selector(std::move(Selector)) {}
@@ -260,7 +268,7 @@ private:
 
 class InputExprAST: public ExprAST {
 public:
-    InputExprAST(SourceLocation Loc, remniw::Type* Ty):
+    InputExprAST(SourceLocation Loc, remniw::Type *Ty):
         ExprAST(ASTNode::InputExpr, Loc, Ty, /*LValue*/ false) {}
 
     static bool classof(const ASTNode *Node) {
@@ -295,8 +303,8 @@ public:
         Eq,
     };
 
-    BinaryExprAST(SourceLocation Loc, remniw::Type* Ty, OpKind Op, std::unique_ptr<ExprAST> LHS,
-                  std::unique_ptr<ExprAST> RHS):
+    BinaryExprAST(SourceLocation Loc, remniw::Type *Ty, OpKind Op,
+                  std::unique_ptr<ExprAST> LHS, std::unique_ptr<ExprAST> RHS):
         ExprAST(ASTNode::BinaryExpr, Loc, Ty, /*LValue*/ false),
         Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
 
@@ -498,7 +506,8 @@ private:
 /// FunctionAST - This class represents a function definition itself.
 class FunctionDeclAST: public DeclAST {
 public:
-    FunctionDeclAST(SourceLocation Loc, std::string FuncName, remniw::FunctionType *FuncTy):
+    FunctionDeclAST(SourceLocation Loc, std::string FuncName,
+                    remniw::FunctionType *FuncTy):
         DeclAST(ASTNode::FunctionDecl, Loc, FuncName, FuncTy) {}
 
     void setParamDecls(std::vector<std::unique_ptr<VarDeclAST>> ParamDecls) {
@@ -517,15 +526,15 @@ public:
         this->ReturnStmt = std::move(ReturnStmt);
     }
 
-    FunctionDeclAST(SourceLocation Loc, std::string FuncName, remniw::FunctionType *FuncTy,
-                std::vector<std::unique_ptr<VarDeclAST>> ParamDecls,
-                std::unique_ptr<LocalVarDeclStmtAST> LocalVarDecls,
-                std::vector<std::unique_ptr<StmtAST>> Body,
-                std::unique_ptr<ReturnStmtAST> ReturnStmt):
+    FunctionDeclAST(SourceLocation Loc, std::string FuncName,
+                    remniw::FunctionType *FuncTy,
+                    std::vector<std::unique_ptr<VarDeclAST>> ParamDecls,
+                    std::unique_ptr<LocalVarDeclStmtAST> LocalVarDecls,
+                    std::vector<std::unique_ptr<StmtAST>> Body,
+                    std::unique_ptr<ReturnStmtAST> ReturnStmt):
         DeclAST(ASTNode::FunctionDecl, Loc, FuncName, FuncTy),
-        ParamDecls(std::move(ParamDecls)),
-        LocalVarDecls(std::move(LocalVarDecls)), Body(std::move(Body)),
-        ReturnStmt(std::move(ReturnStmt)) {}
+        ParamDecls(std::move(ParamDecls)), LocalVarDecls(std::move(LocalVarDecls)),
+        Body(std::move(Body)), ReturnStmt(std::move(ReturnStmt)) {}
 
     std::vector<VarDeclAST *> getParamDecls() const { return rawPtrs(ParamDecls); }
 
