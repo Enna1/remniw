@@ -16,7 +16,6 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/raw_ostream.h"
-#include <optional>
 // #include <unistd.h>
 
 using namespace antlr4;

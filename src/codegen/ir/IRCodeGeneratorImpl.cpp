@@ -364,7 +364,7 @@ Value *IRCodeGeneratorImpl::codegenAllocStmt(AllocStmtAST *AllocStmt) {
            "AllocStmt first operand must be pointer type and "
            "second operand must be contant int");
     auto *MallocRetPtyTy =
-        mapREMNIWTypeToLLVMType(AllocStmt->getPtr()->getType())/*->getPointerTo()*/;
+        mapREMNIWTypeToLLVMType(AllocStmt->getPtr()->getType());
     Value *Addr = emitMalloc(MallocRetPtyTy, Size);
     return IRB->CreateStore(Addr, Ptr);
 }

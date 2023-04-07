@@ -5,7 +5,6 @@
 #include "semantic/SymbolTable.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Casting.h"
-#include <set>
 #include <vector>
 
 namespace remniw {

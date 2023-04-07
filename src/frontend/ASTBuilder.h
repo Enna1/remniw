@@ -35,7 +35,6 @@ public:
 
     virtual antlrcpp::Any visitProgram(RemniwParser::ProgramContext *Ctx);
 
-    // TODO: delete
     // virtual antlrcpp::Any visitFun(RemniwParser::FunContext *Ctx);
 
     virtual antlrcpp::Any visitMulExpr(RemniwParser::MulExprContext *Ctx);
