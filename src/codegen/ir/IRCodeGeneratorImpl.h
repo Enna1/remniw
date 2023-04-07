@@ -5,6 +5,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Value.h"
 #include <unordered_map>
 
 namespace remniw {
@@ -14,21 +15,22 @@ private:
     llvm::LLVMContext *TheLLVMContext;
     std::unique_ptr<llvm::Module> TheModule;
     std::unique_ptr<llvm::IRBuilder<>> IRB;
-    std::unordered_map<std::string, llvm::Value *> NamedValues;
     llvm::GlobalVariable *InputFmtStr;
     llvm::GlobalVariable *OutputFmtStr;
+    llvm::DenseMap<VarDeclAST *, llvm::AllocaInst *> LocalDeclMap;
+    llvm::DenseMap<FunctionDeclAST *, llvm::Function *> FunctionDeclMap;
 
 public:
     IRCodeGeneratorImpl(llvm::LLVMContext *);
     std::unique_ptr<llvm::Module> codegen(ProgramAST *);
-    llvm::Value *codegenFunction(FunctionAST *);
+    llvm::Value *codegenFunction(FunctionDeclAST *);
     llvm::Value *codegenNumberExpr(NumberExprAST *);
-    llvm::Value *codegenVariableExpr(VariableExprAST *);
-    llvm::Value *codegenVarDeclNode(VarDeclNodeAST *);
+    llvm::Value *codegenDeclRefExpr(DeclRefExprAST *);
+    llvm::Value *codegenVarDecl(VarDeclAST *);
     llvm::Value *codegenFunctionCallExpr(FunctionCallExprAST *);
     llvm::Value *codegenNullExpr(NullExprAST *);
     llvm::Value *codegenSizeofExpr(SizeofExprAST *);
-    llvm::Value *codegenRefExpr(RefExprAST *);
+    llvm::Value *codegenAddrOfExpr(AddrOfExprAST *);
     llvm::Value *codegenDerefExpr(DerefExprAST *);
     llvm::Value *codegenArraySubscriptExpr(ArraySubscriptExprAST *);
     llvm::Value *codegenInputExpr(InputExprAST *);
@@ -47,7 +49,7 @@ public:
 private:
     llvm::Value *codegenExpr(ExprAST *);
     llvm::Value *codegenStmt(StmtAST *);
-    llvm::Type *REMNIWTypeToLLVMType(remniw::Type *);
+    llvm::Type *mapREMNIWTypeToLLVMType(remniw::Type *);
     uint64_t getSizeOfREMNIWType(remniw::Type *);
 
     llvm::Value *emitLibCall(llvm::StringRef LibFuncName, llvm::Type *ReturnType,

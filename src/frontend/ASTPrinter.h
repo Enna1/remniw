@@ -15,8 +15,8 @@ public:
 
     void print(ProgramAST *AST) { visitProgram(AST); }
 
-    bool actBeforeVisitVarDeclNode(VarDeclNodeAST *Node) {
-        Out.indent(Ind) << "VarDeclNode " << Node << " '" << Node->getName() << "' "
+    bool actBeforeVisitVarDeclNode(VarDeclAST *Node) {
+        Out.indent(Ind) << "VarDecl " << Node << " '" << Node->getName() << "' "
                         << *Node->getType() << " <" << Node->getLine() << ':'
                         << Node->getCol() << ">\n";
         return false;
@@ -24,15 +24,21 @@ public:
 
     bool actBeforeVisitNumberExpr(NumberExprAST *Node) {
         Out.indent(Ind) << "NumberExpr " << Node << " '" << Node->getValue() << "' "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         return false;
     }
 
-    bool actBeforeVisitVariableExpr(VariableExprAST *Node) {
-        Out.indent(Ind) << "VariableExpr " << Node << " '" << Node->getName() << "' "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+    bool actBeforeVisitDeclRefExpr(DeclRefExprAST *Node) {
+        Out.indent(Ind) << "DeclRefExpr " << Node << " '" << Node->getName() << "' "
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         return false;
     }
 
@@ -52,25 +58,31 @@ public:
 
     bool actBeforeVisitNullExpr(NullExprAST *Node) {
         Out.indent(Ind) << "NullExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
                         << Node->getLine() << ':' << Node->getCol() << ">\n";
         return false;
     }
 
-    bool actBeforeVisitRefExpr(RefExprAST *Node) {
-        Out.indent(Ind) << "RefExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+    bool actBeforeVisitAddrOfExpr(AddrOfExprAST *Node) {
+        Out.indent(Ind) << "AddrOfExpr " << Node << ", "
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }
 
-    void actAfterVisitRefExpr(RefExprAST *) { Ind -= 1; }
+    void actAfterVisitAddrOfExpr(AddrOfExprAST *) { Ind -= 1; }
 
     bool actBeforeVisitDerefExpr(DerefExprAST *Node) {
         Out.indent(Ind) << "DerefExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }
@@ -79,8 +91,11 @@ public:
 
     bool actBeforeVisitArraySubscriptExpr(ArraySubscriptExprAST *Node) {
         Out.indent(Ind) << "ArraySubscriptExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }
@@ -89,15 +104,21 @@ public:
 
     bool actBeforeVisitInputExpr(InputExprAST *Node) {
         Out.indent(Ind) << "InputExpr " << Node << ", "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         return false;
     }
 
     bool actBeforeVisitBinaryExpr(BinaryExprAST *Node) {
         Out.indent(Ind) << "BinaryExpr " << Node << " '" << Node->getOpString() << "' "
-                        << (Node->IsLValue() ? "lvalue" : "rvalue") << " <"
-                        << Node->getLine() << ':' << Node->getCol() << ">\n";
+                        << (Node->isLValue() ? "lvalue" : "rvalue") << " <"
+                        << Node->getLine() << ':' << Node->getCol() << "> ";
+        if (auto *Ty = Node->getType())
+            Out << *Ty;
+        Out << "\n";
         Ind += 1;
         return false;
     }
@@ -205,14 +226,14 @@ public:
 
     void actAfterVisitAssignmentStmt(AssignmentStmtAST *) { Ind -= 1; }
 
-    void visitFunction(FunctionAST *Node) {
-        Out.indent(Ind) << "Function " << Node << " '" << Node->getFuncName() << "' "
+    void visitFunction(FunctionDeclAST *Node) {
+        Out.indent(Ind) << "Function " << Node << " '" << Node->getName() << "' "
                         << *Node->getType() << " <" << Node->getLine() << ':'
                         << Node->getCol() << ">\n";
         Out.indent(Ind + 1) << "ParamDecls:\n";
         Ind += 2;
         for (auto *ParmDecl : Node->getParamDecls())
-            visitVarDeclNode(ParmDecl);
+            visitVarDecl(ParmDecl);
         Ind -= 2;
         Out.indent(Ind + 1) << "LocalVarDecls:\n";
         Ind += 2;

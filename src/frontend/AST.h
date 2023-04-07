@@ -4,6 +4,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/Casting.h"
 #include <algorithm>
 #include <iostream>
 #include <memory>
@@ -27,15 +28,19 @@ struct SourceLocation {
 class ASTNode {
 public:
     enum Kind {
+        // Program
+        Program,
         // Variable Declaration
         VarDecl,
+        // Function Declaration
+        FunctionDecl,
         // Expression
         NumberExpr,
-        VariableExpr,
+        DeclRefExpr,
         FunctionCallExpr,
         NullExpr,
         SizeofExpr,
-        RefExpr,
+        AddrOfExpr,
         DerefExpr,
         ArraySubscriptExpr,
         InputExpr,
@@ -51,10 +56,6 @@ public:
         IfStmt,
         WhileStmt,
         AssignmentStmt,
-        // Function
-        Function,
-        // Program
-        Program,
     };
 
     ASTNode(Kind K, SourceLocation Loc): ASTNodeKind(K), Loc(Loc) {}
@@ -69,19 +70,51 @@ private:
     SourceLocation Loc;
 };
 
+class DeclAST: public ASTNode {
+public:
+    DeclAST(ASTNode::Kind K, SourceLocation Loc, std::string Name, remniw::Type *Ty):
+        ASTNode(K, Loc), Name(Name), Ty(Ty) {}
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() >= ASTNode::VarDecl &&
+               Node->getKind() <= ASTNode::FunctionDecl;
+    }
+
+    llvm::StringRef getName() const { return Name; }
+
+    remniw::Type *getType() const { return Ty; }
+
+private:
+    std::string Name;
+    remniw::Type *Ty;
+};
+
+class VarDeclAST: public DeclAST {
+public:
+    VarDeclAST(SourceLocation Loc, std::string Name, remniw::Type *Ty):
+        DeclAST(ASTNode::VarDecl, Loc, Name, Ty) {}
+
+    static bool classof(const ASTNode *Node) {
+        return Node->getKind() == ASTNode::VarDecl;
+    }
+};
+
 class ExprAST: public ASTNode {
 public:
-    ExprAST(ASTNode::Kind K, SourceLocation Loc, bool LValue):
-        ASTNode(K, Loc), LValue(LValue) {}
+    ExprAST(ASTNode::Kind K, SourceLocation Loc, remniw::Type *Ty, bool LValue):
+        ASTNode(K, Loc), Ty(Ty), LValue(LValue) {}
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() >= ASTNode::NumberExpr &&
                Node->getKind() <= ASTNode::BinaryExpr;
     }
 
-    bool IsLValue() const { return LValue; }
+    bool isLValue() const { return LValue; }
+
+    remniw::Type *getType() const { return Ty; }
 
 private:
+    remniw::Type *Ty;
     bool LValue;
 };
 
@@ -95,28 +128,10 @@ public:
     }
 };
 
-class VarDeclNodeAST: public ASTNode {
-public:
-    VarDeclNodeAST(SourceLocation Loc, std::string Name, remniw::Type *Ty):
-        ASTNode(ASTNode::VarDecl, Loc), Name(Name), Ty(Ty) {}
-
-    llvm::StringRef getName() const { return Name; }
-
-    remniw::Type *getType() const { return Ty; }
-
-    static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::VarDecl;
-    }
-
-private:
-    std::string Name;
-    remniw::Type *Ty;
-};
-
 class NumberExprAST: public ExprAST {
 public:
-    NumberExprAST(SourceLocation Loc, int64_t Val):
-        ExprAST(ASTNode::NumberExpr, Loc, /*LValue*/ false), Val(Val) {}
+    NumberExprAST(SourceLocation Loc, remniw::Type *Ty, int64_t Val):
+        ExprAST(ASTNode::NumberExpr, Loc, Ty, /*LValue*/ false), Val(Val) {}
 
     int64_t getValue() const { return Val; }
 
@@ -128,27 +143,32 @@ private:
     int64_t Val;
 };
 
-/// VariableExprAST - Expression class for referencing a variable, like "a".
-class VariableExprAST: public ExprAST {
+/// DeclRefExprAST - Expression class for referencing a variable or function, like "a".
+class DeclRefExprAST: public ExprAST {
 public:
-    VariableExprAST(SourceLocation Loc, std::string Name, bool LValue):
-        ExprAST(ASTNode::VariableExpr, Loc, LValue), Name(Name) {}
+    DeclRefExprAST(SourceLocation Loc, std::string Name, DeclAST *Decl, bool LValue):
+        ExprAST(ASTNode::DeclRefExpr, Loc, Decl->getType(), LValue), Decl(Decl),
+        Name(Name) {}
 
     llvm::StringRef getName() const { return Name; }
 
+    DeclAST *getDecl() const { return Decl; }
+
     static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::VariableExpr;
+        return Node->getKind() == ASTNode::DeclRefExpr;
     }
 
 private:
     std::string Name;
+    DeclAST *Decl;
 };
 
 class FunctionCallExprAST: public ExprAST {
 public:
-    FunctionCallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee,
+    FunctionCallExprAST(SourceLocation Loc, remniw::Type *Ty,
+                        std::unique_ptr<ExprAST> Callee,
                         std::vector<std::unique_ptr<ExprAST>> Args):
-        ExprAST(ASTNode::FunctionCallExpr, Loc, /*LValue*/ false),
+        ExprAST(ASTNode::FunctionCallExpr, Loc, Ty, /*LValue*/ false),
         Callee(std::move(Callee)), Args(std::move(Args)) {}
 
     ExprAST *getCallee() const { return Callee.get(); }
@@ -167,7 +187,8 @@ private:
 
 class NullExprAST: public ExprAST {
 public:
-    NullExprAST(SourceLocation Loc): ExprAST(ASTNode::NullExpr, Loc, /*LValue*/ false) {}
+    NullExprAST(SourceLocation Loc):
+        ExprAST(ASTNode::NullExpr, Loc, /*Ty*/ nullptr, /*LValue*/ false) {}
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::NullExpr;
@@ -176,38 +197,43 @@ public:
 
 class SizeofExprAST: public ExprAST {
 public:
-    SizeofExprAST(SourceLocation Loc, remniw::Type *Ty):
-        ExprAST(ASTNode::SizeofExpr, Loc, /*LValue*/ false), Ty(Ty) {}
+    SizeofExprAST(SourceLocation Loc, remniw::Type *Ty, remniw::Type *DataTy):
+        ExprAST(ASTNode::SizeofExpr, Loc, Ty, /*LValue*/ false), DataTy(DataTy) {}
 
-    remniw::Type *getType() const { return Ty; }
+    // sizeof(data-type)
+    remniw::Type *getDataType() const { return DataTy; }
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::SizeofExpr;
     }
 
 private:
-    remniw::Type *Ty;
+    remniw::Type *DataTy;
 };
 
-class RefExprAST: public ExprAST {
+class AddrOfExprAST: public ExprAST {
 public:
-    RefExprAST(SourceLocation Loc, std::unique_ptr<VariableExprAST> Var):
-        ExprAST(ASTNode::RefExpr, Loc, /*LValue*/ false), Var(std::move(Var)) {}
+    AddrOfExprAST(SourceLocation Loc, remniw::Type *Ty,
+                  std::unique_ptr<DeclRefExprAST> Var):
+        ExprAST(ASTNode::AddrOfExpr, Loc, Ty, /*LValue*/ false),
+        Var(std::move(Var)) {}
 
-    VariableExprAST *getVar() const { return Var.get(); }
+    DeclRefExprAST *getVar() const { return Var.get(); }
 
     static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::RefExpr;
+        return Node->getKind() == ASTNode::AddrOfExpr;
     }
 
 private:
-    std::unique_ptr<VariableExprAST> Var;
+    std::unique_ptr<DeclRefExprAST> Var;
 };
 
 class DerefExprAST: public ExprAST {
 public:
-    DerefExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Ptr, bool LValue):
-        ExprAST(ASTNode::DerefExpr, Loc, LValue), Ptr(std::move(Ptr)) {}
+    DerefExprAST(SourceLocation Loc, remniw::Type *Ty, bool LValue,
+                 std::unique_ptr<ExprAST> Ptr):
+        ExprAST(ASTNode::DerefExpr, Loc, Ty, LValue),
+        Ptr(std::move(Ptr)) {}
 
     ExprAST *getPtr() const { return Ptr.get(); }
 
@@ -221,9 +247,10 @@ private:
 
 class ArraySubscriptExprAST: public ExprAST {
 public:
-    ArraySubscriptExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Base,
-                          std::unique_ptr<ExprAST> Selector, bool LValue):
-        ExprAST(ASTNode::ArraySubscriptExpr, Loc, LValue),
+    ArraySubscriptExprAST(SourceLocation Loc, remniw::Type *Ty, bool LValue,
+                          std::unique_ptr<ExprAST> Base,
+                          std::unique_ptr<ExprAST> Selector):
+        ExprAST(ASTNode::ArraySubscriptExpr, Loc, Ty, LValue),
         Base(std::move(Base)), Selector(std::move(Selector)) {}
 
     ExprAST *getBase() const { return Base.get(); }
@@ -241,8 +268,8 @@ private:
 
 class InputExprAST: public ExprAST {
 public:
-    InputExprAST(SourceLocation Loc):
-        ExprAST(ASTNode::InputExpr, Loc, /*LValue*/ false) {}
+    InputExprAST(SourceLocation Loc, remniw::Type *Ty):
+        ExprAST(ASTNode::InputExpr, Loc, Ty, /*LValue*/ false) {}
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::InputExpr;
@@ -276,9 +303,9 @@ public:
         Eq,
     };
 
-    BinaryExprAST(SourceLocation Loc, OpKind Op, std::unique_ptr<ExprAST> LHS,
-                  std::unique_ptr<ExprAST> RHS):
-        ExprAST(ASTNode::BinaryExpr, Loc, /*LValue*/ false),
+    BinaryExprAST(SourceLocation Loc, remniw::Type *Ty, OpKind Op,
+                  std::unique_ptr<ExprAST> LHS, std::unique_ptr<ExprAST> RHS):
+        ExprAST(ASTNode::BinaryExpr, Loc, Ty, /*LValue*/ false),
         Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
 
     OpKind getOp() const { return Op; }
@@ -313,18 +340,18 @@ private:
 class LocalVarDeclStmtAST: public StmtAST {
 public:
     LocalVarDeclStmtAST(SourceLocation Loc,
-                        std::vector<std::unique_ptr<VarDeclNodeAST>> Vars):
+                        std::vector<std::unique_ptr<VarDeclAST>> Vars):
         StmtAST(ASTNode::LocalVarDeclStmt, Loc),
         Vars(std::move(Vars)) {}
 
-    std::vector<VarDeclNodeAST *> getVars() const { return rawPtrs(Vars); }
+    std::vector<VarDeclAST *> getVars() const { return rawPtrs(Vars); }
 
     static bool classof(const ASTNode *Node) {
         return Node->getKind() == ASTNode::LocalVarDeclStmt;
     }
 
 private:
-    std::vector<std::unique_ptr<VarDeclNodeAST>> Vars;
+    std::vector<std::unique_ptr<VarDeclAST>> Vars;
 };
 
 class EmptyStmtAST: public StmtAST {
@@ -477,21 +504,39 @@ private:
 };
 
 /// FunctionAST - This class represents a function definition itself.
-class FunctionAST: public ASTNode {
+class FunctionDeclAST: public DeclAST {
 public:
-    FunctionAST(SourceLocation Loc, std::string FuncName, remniw::FunctionType *FuncTy,
-                std::vector<std::unique_ptr<VarDeclNodeAST>> ParamDecls,
-                std::unique_ptr<LocalVarDeclStmtAST> LocalVarDecls,
-                std::vector<std::unique_ptr<StmtAST>> Body,
-                std::unique_ptr<ReturnStmtAST> ReturnStmt):
-        ASTNode(ASTNode::Function, Loc),
-        FuncName(FuncName), FuncTy(FuncTy), ParamDecls(std::move(ParamDecls)),
-        LocalVarDecls(std::move(LocalVarDecls)), Body(std::move(Body)),
-        ReturnStmt(std::move(ReturnStmt)) {}
+    FunctionDeclAST(SourceLocation Loc, std::string FuncName,
+                    remniw::FunctionType *FuncTy):
+        DeclAST(ASTNode::FunctionDecl, Loc, FuncName, FuncTy) {}
 
-    llvm::StringRef getFuncName() const { return FuncName; }
+    void setParamDecls(std::vector<std::unique_ptr<VarDeclAST>> ParamDecls) {
+        this->ParamDecls = std::move(ParamDecls);
+    }
 
-    std::vector<VarDeclNodeAST *> getParamDecls() const { return rawPtrs(ParamDecls); }
+    void setLocalVarDecls(std::unique_ptr<LocalVarDeclStmtAST> LocalVarDecls) {
+        this->LocalVarDecls = std::move(LocalVarDecls);
+    }
+
+    void setBody(std::vector<std::unique_ptr<StmtAST>> Body) {
+        this->Body = std::move(Body);
+    }
+
+    void setReturnStmt(std::unique_ptr<ReturnStmtAST> ReturnStmt) {
+        this->ReturnStmt = std::move(ReturnStmt);
+    }
+
+    FunctionDeclAST(SourceLocation Loc, std::string FuncName,
+                    remniw::FunctionType *FuncTy,
+                    std::vector<std::unique_ptr<VarDeclAST>> ParamDecls,
+                    std::unique_ptr<LocalVarDeclStmtAST> LocalVarDecls,
+                    std::vector<std::unique_ptr<StmtAST>> Body,
+                    std::unique_ptr<ReturnStmtAST> ReturnStmt):
+        DeclAST(ASTNode::FunctionDecl, Loc, FuncName, FuncTy),
+        ParamDecls(std::move(ParamDecls)), LocalVarDecls(std::move(LocalVarDecls)),
+        Body(std::move(Body)), ReturnStmt(std::move(ReturnStmt)) {}
+
+    std::vector<VarDeclAST *> getParamDecls() const { return rawPtrs(ParamDecls); }
 
     std::size_t getParamSize() const { return ParamDecls.size(); }
 
@@ -501,22 +546,20 @@ public:
 
     ReturnStmtAST *getReturn() const { return ReturnStmt.get(); }
 
-    remniw::FunctionType *getType() const { return FuncTy; }
-
     llvm::ArrayRef<remniw::Type *> getParamTypes() const {
-        return FuncTy->getParamTypes();
+        return llvm::cast<remniw::FunctionType>(getType())->getParamTypes();
     }
 
-    remniw::Type *getReturnType() const { return FuncTy->getReturnType(); }
+    remniw::Type *getReturnType() const {
+        return llvm::cast<remniw::FunctionType>(getType())->getReturnType();
+    }
 
     static bool classof(const ASTNode *Node) {
-        return Node->getKind() == ASTNode::Function;
+        return Node->getKind() == ASTNode::FunctionDecl;
     }
 
 private:
-    std::string FuncName;
-    remniw::FunctionType *FuncTy;
-    std::vector<std::unique_ptr<VarDeclNodeAST>> ParamDecls;
+    std::vector<std::unique_ptr<VarDeclAST>> ParamDecls;
     std::unique_ptr<LocalVarDeclStmtAST> LocalVarDecls;
     std::vector<std::unique_ptr<StmtAST>> Body;
     std::unique_ptr<ReturnStmtAST> ReturnStmt;
@@ -524,11 +567,11 @@ private:
 
 class ProgramAST: public ASTNode {
 public:
-    ProgramAST(std::vector<std::unique_ptr<FunctionAST>> Functions):
+    ProgramAST(std::vector<std::unique_ptr<FunctionDeclAST>> Functions):
         ASTNode(ASTNode::Program, SourceLocation {0, 0}),
         Functions(std::move(Functions)) {}
 
-    std::vector<FunctionAST *> getFunctions() const { return rawPtrs(Functions); }
+    std::vector<FunctionDeclAST *> getFunctions() const { return rawPtrs(Functions); }
 
     std::unique_ptr<llvm::Module> codegen(llvm::LLVMContext &);
 
@@ -537,7 +580,7 @@ public:
     }
 
 private:
-    std::vector<std::unique_ptr<FunctionAST>> Functions;
+    std::vector<std::unique_ptr<FunctionDeclAST>> Functions;
 };
 
 }  // namespace remniw

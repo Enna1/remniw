@@ -61,34 +61,26 @@ public:
 
     std::vector<TypeConstraint> getConstraints() { return Constraints; }
 
-    // visitor
-    bool actBeforeVisitFunction(FunctionAST *Function) {
-        CurrentFunction = Function;
-        return false;
-    }
-
-    // I: [[I]] = int
-    void actAfterVisitNumberExpr(NumberExprAST *NumberExpr) {
-        Constraints.emplace_back(ASTNodeToType(NumberExpr), Type::getIntType(TypeCtx));
-    }
-
-    // E1 op E2: [[E1]] = [[E2]] = [[E1 op E2]] = int
-    // E1 == E2: [[E1]] = [[E2]] ^ [[E1 == E2]] = int
-    void actAfterVisitBinaryExpr(BinaryExprAST *BinaryExpr) {
-        auto *IntTy = Type::getIntType(TypeCtx);
-        Constraints.emplace_back(ASTNodeToType(BinaryExpr), IntTy);
-        if (BinaryExpr->getOp() == BinaryExprAST::OpKind::Eq) {
-            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()),
-                                     ASTNodeToType(BinaryExpr->getRHS()));
+    // main(X1,...,Xn){ ...return E; }: [[X1]] = ...[[Xn]] = [[E]] = int
+    // X(X1,...,Xn){ ...return E; }: [[X]] = ([[X1]],...,[[Xn]])->[[E]]
+    void actAfterVisitFunction(FunctionDeclAST *Function) {
+        std::vector<Type *> ParamTypes;
+        ReturnStmtAST *Ret = Function->getReturn();
+        if (Function->getName() == "main") {
+            for (auto *Param : Function->getParamDecls()) {
+                ParamTypes.push_back(ASTNodeToType(Param));
+                Constraints.emplace_back(ASTNodeToType(Param), Type::getIntType(TypeCtx));
+            }
+            Constraints.emplace_back(ASTNodeToType(Ret->getExpr()),
+                                     Type::getIntType(TypeCtx));
         } else {
-            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()), IntTy);
-            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getRHS()), IntTy);
+            for (auto *Param : Function->getParamDecls()) {
+                ParamTypes.push_back(ASTNodeToType(Param));
+            }
         }
-    }
-
-    // input: [[input]] = int
-    void actAfterVisitInputExpr(InputExprAST *InputExpr) {
-        Constraints.emplace_back(ASTNodeToType(InputExpr), Type::getIntType(TypeCtx));
+        Constraints.emplace_back(
+            ASTNodeToType(Function),
+            Type::getFunctionType(ParamTypes, ASTNodeToType(Ret->getExpr())));
     }
 
     // X = E: [[X]] = [[E]]
@@ -115,26 +107,9 @@ public:
                                  Type::getIntType(TypeCtx));
     }
 
-    // main(X1,...,Xn){ ...return E; }: [[X1]] = ...[[Xn]] = [[E]] = int
-    // X(X1,...,Xn){ ...return E; }: [[X]] = ([[X1]],...,[[Xn]])->[[E]]
-    void actAfterVisitFunction(FunctionAST *Function) {
-        std::vector<Type *> ParamTypes;
-        ReturnStmtAST *Ret = Function->getReturn();
-        if (Function->getFuncName() == "main") {
-            for (auto *Param : Function->getParamDecls()) {
-                ParamTypes.push_back(ASTNodeToType(Param));
-                Constraints.emplace_back(ASTNodeToType(Param), Type::getIntType(TypeCtx));
-            }
-            Constraints.emplace_back(ASTNodeToType(Ret->getExpr()),
-                                     Type::getIntType(TypeCtx));
-        } else {
-            for (auto *Param : Function->getParamDecls()) {
-                ParamTypes.push_back(ASTNodeToType(Param));
-            }
-        }
-        Constraints.emplace_back(
-            ASTNodeToType(Function),
-            Type::getFunctionType(ParamTypes, ASTNodeToType(Ret->getExpr())));
+    // I: [[I]] = int
+    void actAfterVisitNumberExpr(NumberExprAST *NumberExpr) {
+        Constraints.emplace_back(ASTNodeToType(NumberExpr), Type::getIntType(TypeCtx));
     }
 
     // E(E1,...,En): [[E]] = ([[E1]],...,[[En]])->[[E(E1,...,En)]]
@@ -148,17 +123,16 @@ public:
             Type::getFunctionType(ArgTypes, ASTNodeToType(FunctionCallExpr)));
     }
 
-    // &X: [[&X]] = &[[X]]
-    void actAfterVisitRefExpr(RefExprAST *RefExpr) {
-        Constraints.emplace_back(ASTNodeToType(RefExpr),
-                                 ASTNodeToType(RefExpr->getVar())->getPointerTo());
-    }
-
-    // FIXME
-    // null: [[null]] = &α
+    // TODO: [[null]] = &α
     void actAfterVisitNullExpr(NullExprAST *NullExpr) {
         // Constraints.emplace_back(ASTNodeToType(&NullExpr),
         //                          std::make_shared<PointerType>(std::make_shared<AlphaType>(&NullExpr)));
+    }
+
+    // &X: [[&X]] = &[[X]]
+    void actAfterVisitAddrOfExpr(AddrOfExprAST *AddrOfExpr) {
+        Constraints.emplace_back(ASTNodeToType(AddrOfExpr),
+                                 ASTNodeToType(AddrOfExpr->getVar())->getPointerTo());
     }
 
     // *E: [[E]] = &[[*E]]
@@ -171,9 +145,31 @@ public:
     void actAfterVisitArraySubscriptExpr(ArraySubscriptExprAST *ArraySubscriptExpr) {
         Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getSelector()),
                                  Type::getIntType(TypeCtx));
+
+        auto *BaseTy = ASTNodeToType(ArraySubscriptExpr->getBase());
         // Note here, we decay arrayType to pointerType in type analysis
         Constraints.emplace_back(ASTNodeToType(ArraySubscriptExpr->getBase()),
                                  ASTNodeToType(ArraySubscriptExpr)->getPointerTo());
+    }
+
+    // [[input]] = int
+    void actAfterVisitInputExpr(InputExprAST *InputExpr) {
+        // Type constraint for InputExpr:
+        Constraints.emplace_back(ASTNodeToType(InputExpr), Type::getIntType(TypeCtx));
+    }
+
+    // E1 op E2: [[E1]] = [[E2]] = [[E1 op E2]] = int
+    // E1 == E2: [[E1]] = [[E2]] ^ [[E1 == E2]] = int
+    void actAfterVisitBinaryExpr(BinaryExprAST *BinaryExpr) {
+        auto *IntTy = Type::getIntType(TypeCtx);
+        Constraints.emplace_back(ASTNodeToType(BinaryExpr), IntTy);
+        if (BinaryExpr->getOp() == BinaryExprAST::OpKind::Eq) {
+            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()),
+                                     ASTNodeToType(BinaryExpr->getRHS()));
+        } else {
+            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getLHS()), IntTy);
+            Constraints.emplace_back(ASTNodeToType(BinaryExpr->getRHS()), IntTy);
+        }
     }
 
 private:
@@ -183,7 +179,6 @@ private:
     SymbolTable &SymTab;
     TypeContext &TypeCtx;
     std::unique_ptr<UnionFind> TheUnionFind;
-    FunctionAST *CurrentFunction;
     std::vector<TypeConstraint> Constraints;
 };
 

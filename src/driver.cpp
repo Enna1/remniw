@@ -75,11 +75,13 @@ int main(int argc, char* argv[]) {
 
     LLVM_DEBUG(llvm::outs() << "===== Type Analysis ===== \n");
     TypeAnalysis TA(SymTabBuilder.getSymbolTale(), TheTypeContext);
-    TA.solve(AST.get());
+    bool TANoError = TA.solve(AST.get());
     LLVM_DEBUG({
         for (auto Constraint : TA.getConstraints())
             Constraint.print(llvm::outs());
     });
+    if (!TANoError)
+        return 1;
 
     LLVM_DEBUG(llvm::outs() << "===== IR Code Generator ===== \n");
     IRCodeGenerator IRCG(&TheLLVMContext);
@@ -129,8 +131,7 @@ int main(int argc, char* argv[]) {
     llvm::ErrorOr<std::string> Program = llvm::sys::findProgramByName("clang");
     if (!Program)
         ErrMsg = Program.getError().message();
-    if (llvm::sys::ExecuteAndWait(Program.get(), CCParams, llvm::None, {}, 0, 0,
-                                  &ErrMsg)) {
+    if (llvm::sys::ExecuteAndWait(Program.get(), CCParams, {}, {}, 0, 0, &ErrMsg)) {
         llvm::errs() << "execvp(clang) failed: " << ErrMsg << '\n';
         exit(EXIT_FAILURE);
     }

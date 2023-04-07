@@ -1,22 +1,21 @@
 #include "semantic/TypeAnalysis.h"
+#include "frontend/AST.h"
+#include "frontend/Type.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace remniw {
 
 Type *TypeAnalysis::ASTNodeToType(const ASTNode *Node) const {
-    if (auto *VariableExpr = llvm::dyn_cast<VariableExprAST>(Node)) {
-        if (auto *VarDeclNode =
-                SymTab.getVariable(VariableExpr->getName(), CurrentFunction)) {
-            return VarDeclNode->getType();
-        } else if (auto *Function = SymTab.getFunction(VariableExpr->getName())) {
-            return Function->getType();
-        }
+    if (auto *DeclRefExpr = llvm::dyn_cast<DeclRefExprAST>(Node)) {
+        return DeclRefExpr->getDecl()->getType();
     }
 
-    if (auto *VariableDecl = llvm::dyn_cast<VarDeclNodeAST>(Node)) {
+    if (auto *VariableDecl = llvm::dyn_cast<VarDeclAST>(Node)) {
         return VariableDecl->getType();
     }
 
-    if (auto *Function = llvm::dyn_cast<FunctionAST>(Node)) {
+    if (auto *Function = llvm::dyn_cast<FunctionDeclAST>(Node)) {
         return Function->getType();
     }
 
@@ -93,6 +92,7 @@ bool TypeAnalysis::solve(ProgramAST *AST) {
             return false;
         }
     }
+
     return true;
 }
 
