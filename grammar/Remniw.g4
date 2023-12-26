@@ -39,12 +39,10 @@ expr
    | '-' integer # NegIntExpr
    | integer # IntExpr
    | id # IdExpr
-   | expr '*' expr # MulExpr
-   | expr '/' expr # DivExpr
-   | expr '+' expr # AddExpr
-   | expr '-' expr # SubExpr
-   | expr '>' expr # RelationalExpr
-   | expr '==' expr # EqualExpr
+   | expr op=(MUL | DIV) expr # MultiplicativeExpr
+   | expr op=(ADD | SUB) expr # AdditiveExpr
+   | expr op=GT expr # RelationalExpr
+   | expr op=EQ expr # EqualExpr
    | '(' expr ')' # ParenExpr
    | '%input' # InputExpr
    | '%nil' # NullExpr
@@ -142,6 +140,30 @@ integer
 
 IDENTIFIER
    : [a-zA-Z_][a-zA-Z0-9_]*
+   ;
+
+MUL
+   : '*'
+   ;
+
+DIV
+   : '/'
+   ;
+
+ADD
+   : '+'
+   ;
+
+SUB
+   : '-'
+   ;
+
+GT
+   : '>'
+   ;
+
+EQ
+   : '=='
    ;
 
 NUMBER
