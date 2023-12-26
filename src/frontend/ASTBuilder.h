@@ -99,7 +99,7 @@ public:
 
 private:
     template<typename T>
-    antlrcpp::Any visitBinaryExpr(T *ctx, size_t op);
+    antlrcpp::Any visitBinaryExpr(T *ctx);
     std::unique_ptr<FunctionDeclAST>
     visitFunctionPrototype(RemniwParser::FunContext *Ctx);
     void visitFunctionBody(RemniwParser::FunContext *Ctx, FunctionDeclAST *Function);

@@ -133,7 +133,7 @@ void ASTBuilder::visitFunctionBody(RemniwParser::FunContext *Ctx,
 }
 
 template<typename T>
-antlrcpp::Any ASTBuilder::visitBinaryExpr(T *Ctx, size_t Op) {
+antlrcpp::Any ASTBuilder::visitBinaryExpr(T *Ctx) {
     static_assert(std::is_same_v<T, RemniwParser::MultiplicativeExprContext> ||
                   std::is_same_v<T, RemniwParser::AdditiveExprContext> ||
                   std::is_same_v<T, RemniwParser::EqualExprContext> ||
@@ -155,30 +155,30 @@ antlrcpp::Any ASTBuilder::visitBinaryExpr(T *Ctx, size_t Op) {
     exprIsLValue = false;
     visit(Ctx->expr(1));
     std::unique_ptr<ExprAST> RHS = std::move(visitedExpr);
-    // The type of MulExpr is same as the type of LHS and the type of RHS.
+    // The type of BinaryExpr is same as the type of LHS and the type of RHS.
     auto *Ty = LHS->getType();
     visitedExpr = std::make_unique<BinaryExprAST>(
         SourceLocation {Ctx->getStart()->getLine(),
                         Ctx->getStart()->getCharPositionInLine()},
-        Ty, ParserBinOpToASTBinOp(Op), std::move(LHS), std::move(RHS));
+        Ty, ParserBinOpToASTBinOp(Ctx->op->getType()), std::move(LHS), std::move(RHS));
     return nullptr;
 }
 
 antlrcpp::Any
 ASTBuilder::visitMultiplicativeExpr(RemniwParser::MultiplicativeExprContext *Ctx) {
-    return visitBinaryExpr(Ctx, Ctx->op->getType());
+    return visitBinaryExpr(Ctx);
 }
 
 antlrcpp::Any ASTBuilder::visitAdditiveExpr(RemniwParser::AdditiveExprContext *Ctx) {
-    return visitBinaryExpr(Ctx, Ctx->op->getType());
+    return visitBinaryExpr(Ctx);
 }
 
 antlrcpp::Any ASTBuilder::visitEqualExpr(RemniwParser::EqualExprContext *Ctx) {
-    return visitBinaryExpr(Ctx, Ctx->op->getType());
+    return visitBinaryExpr(Ctx);
 }
 
 antlrcpp::Any ASTBuilder::visitRelationalExpr(RemniwParser::RelationalExprContext *Ctx) {
-    return visitBinaryExpr(Ctx, Ctx->op->getType());
+    return visitBinaryExpr(Ctx);
 }
 
 antlrcpp::Any ASTBuilder::visitIdExpr(RemniwParser::IdExprContext *Ctx) {
