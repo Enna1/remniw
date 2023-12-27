@@ -37,13 +37,10 @@ public:
 
     // virtual antlrcpp::Any visitFun(RemniwParser::FunContext *Ctx);
 
-    virtual antlrcpp::Any visitMulExpr(RemniwParser::MulExprContext *Ctx);
+    virtual antlrcpp::Any
+    visitMultiplicativeExpr(RemniwParser::MultiplicativeExprContext *Ctx);
 
-    virtual antlrcpp::Any visitDivExpr(RemniwParser::DivExprContext *Ctx);
-
-    virtual antlrcpp::Any visitAddExpr(RemniwParser::AddExprContext *Ctx);
-
-    virtual antlrcpp::Any visitSubExpr(RemniwParser::SubExprContext *Ctx);
+    virtual antlrcpp::Any visitAdditiveExpr(RemniwParser::AdditiveExprContext *ctx);
 
     virtual antlrcpp::Any visitEqualExpr(RemniwParser::EqualExprContext *Ctx);
 
@@ -101,6 +98,8 @@ public:
     virtual antlrcpp::Any visitAssignmentStmt(RemniwParser::AssignmentStmtContext *Ctx);
 
 private:
+    template<typename T>
+    antlrcpp::Any visitBinaryExpr(T *ctx);
     std::unique_ptr<FunctionDeclAST>
     visitFunctionPrototype(RemniwParser::FunContext *Ctx);
     void visitFunctionBody(RemniwParser::FunContext *Ctx, FunctionDeclAST *Function);
